@@ -6,14 +6,13 @@ import { Textarea } from "@/components/ui/textarea";
 import React, { useState, useRef, useContext } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
-import { Image as ImageIcon, Film, X, Loader2, Smile, Clapperboard, StickyNote } from "lucide-react";
+import { Image as ImageIcon, Film, X, Loader2, Smile, Clapperboard, Sticker } from "lucide-react";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { LoginOrSignupDialog } from "./login-or-signup-dialog";
 import { Grid, SearchBar, SearchContext, SearchContextManager } from '@giphy/react-components';
-import { GiphyFetch } from '@giphy/js-fetch-api';
 
 
 export type ReplyMedia = {
@@ -29,20 +28,23 @@ const EMOJIS = [
     '😀', '😂', '😍', '🤔', '😭', '🙏', '❤️', '🔥', '👍', '⚽️', '🥅', '🏆', '🎉', '👏', '🚀', '💯'
 ];
 
-// Configure GiphyFetch with your API key
-const gf = new GiphyFetch(process.env.NEXT_PUBLIC_GIPHY_API_KEY || '');
-
 function GiphyPickerContents({ onGifClick }: { onGifClick: (gif: any, e: React.SyntheticEvent<HTMLElement, Event>) => void }) {
   const { fetchGifs, searchKey } = useContext(SearchContext);
   return (
+    <div className="flex flex-col">
+      <SearchBar />
       <Grid key={searchKey} width={300} columns={3} fetchGifs={fetchGifs} onGifClick={onGifClick} noResultsMessage="No GIFs found." />
+    </div>
   );
 }
 
 function StickerPickerContents({ onStickerClick }: { onStickerClick: (sticker: any, e: React.SyntheticEvent<HTMLElement, Event>) => void }) {
     const { fetchGifs, searchKey } = useContext(SearchContext);
     return (
+      <div className="flex flex-col">
+        <SearchBar />
         <Grid key={searchKey} width={300} columns={3} fetchGifs={fetchGifs} onGifClick={onStickerClick} noResultsMessage="No stickers found." />
+      </div>
     );
 };
 
@@ -250,6 +252,30 @@ export function CreateComment({ onComment, isDialog = false }: { onComment: (dat
                                 </Button>
                             ))}
                         </div>
+                    </PopoverContent>
+                </Popover>
+                <Popover open={isGifPopoverOpen} onOpenChange={(open) => open ? handleActionClick(() => setIsGifPopoverOpen(true))() : setIsGifPopoverOpen(false)}>
+                    <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" disabled={posting || hasMedia}>
+                            <Clapperboard className="h-5 w-5 text-primary" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-2 border-none bg-background/80 backdrop-blur-sm shadow-lg">
+                        <SearchContextManager apiKey={process.env.NEXT_PUBLIC_GIPHY_API_KEY || ''}>
+                            <GiphyPickerContents onGifClick={onGifClick} />
+                        </SearchContextManager>
+                    </PopoverContent>
+                </Popover>
+                <Popover open={isStickerPopoverOpen} onOpenChange={(open) => open ? handleActionClick(() => setIsStickerPopoverOpen(true))() : setIsStickerPopoverOpen(false)}>
+                    <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" disabled={posting || hasMedia}>
+                            <Sticker className="h-5 w-5 text-primary" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-2 border-none bg-background/80 backdrop-blur-sm shadow-lg">
+                        <SearchContextManager apiKey={process.env.NEXT_PUBLIC_GIPHY_API_KEY || ''} options={{ type: 'stickers' }}>
+                            <StickerPickerContents onStickerClick={onStickerClick} />
+                        </SearchContextManager>
                     </PopoverContent>
                 </Popover>
             </div>

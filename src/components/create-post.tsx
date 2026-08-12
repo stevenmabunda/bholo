@@ -3,7 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Image as ImageIcon, X, Film, ListOrdered, Smile, MapPin, Loader2, Trash2, Clapperboard, StickyNote } from "lucide-react";
+import { Image as ImageIcon, X, Film, ListOrdered, Smile, MapPin, Loader2, Trash2, Clapperboard, Sticker } from "lucide-react";
 import React, { useState, useRef, useContext } from "react";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
@@ -14,7 +14,6 @@ import { Input } from "./ui/input";
 import type { PostType } from "@/lib/data";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Grid, SearchBar, SearchContext, SearchContextManager } from '@giphy/react-components';
-import { GiphyFetch } from '@giphy/js-fetch-api';
 
 export type Media = {
   file: File;
@@ -28,9 +27,6 @@ export type Media = {
 const EMOJIS = [
     '😀', '😂', '😍', '🤔', '😭', '🙏', '❤️', '🔥', '👍', '⚽️', '🥅', '🏆', '🎉', '👏', '🚀', '💯'
 ];
-
-// Configure GiphyFetch with your API key
-const gf = new GiphyFetch(process.env.NEXT_PUBLIC_GIPHY_API_KEY || '');
 
 function GiphyPicker({ onGifClick }: { onGifClick: (gif: any, e: React.SyntheticEvent<HTMLElement, Event>) => void }) {
   const { fetchGifs, searchKey } = useContext(SearchContext);
@@ -394,6 +390,30 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
                             </Button>
                         ))}
                     </div>
+                </PopoverContent>
+              </Popover>
+              <Popover open={isGifPopoverOpen} onOpenChange={setIsGifPopoverOpen}>
+                <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" disabled={!!hasContent || posting}>
+                        <Clapperboard className="h-5 w-5 text-primary" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-2 border-none bg-background/80 backdrop-blur-sm shadow-lg">
+                    <SearchContextManager apiKey={process.env.NEXT_PUBLIC_GIPHY_API_KEY || ''}>
+                        <GiphyPicker onGifClick={onGifClick} />
+                    </SearchContextManager>
+                </PopoverContent>
+              </Popover>
+              <Popover open={isStickerPopoverOpen} onOpenChange={setIsStickerPopoverOpen}>
+                <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" disabled={!!hasContent || posting}>
+                        <Sticker className="h-5 w-5 text-primary" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-2 border-none bg-background/80 backdrop-blur-sm shadow-lg">
+                    <SearchContextManager apiKey={process.env.NEXT_PUBLIC_GIPHY_API_KEY || ''} options={{ type: 'stickers' }}>
+                        <StickerPicker onStickerClick={onStickerClick} />
+                    </SearchContextManager>
                 </PopoverContent>
               </Popover>
             </div>
