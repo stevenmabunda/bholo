@@ -9,7 +9,7 @@ export default function MyProfilePage() {
   useEffect(() => {
     if (!loading) {
       if (user) {
-        redirect(`/profile/${user.uid}`);
+        redirect(`/profile/${user.id}`);
       } else {
         // If for some reason user is not logged in, redirect to login
         redirect('/login');

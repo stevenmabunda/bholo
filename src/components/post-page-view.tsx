@@ -7,8 +7,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { PostType } from '@/lib/data';
 import { useAuth } from '@/hooks/use-auth';
 import { usePosts } from '@/contexts/post-context';
-import { db } from '@/lib/firebase/config';
-import { collection, query, onSnapshot, orderBy, type Timestamp } from 'firebase/firestore';
+import { useLiveComments } from '@/hooks/use-live-comments';
 import { formatTimestamp, cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter } from 'next/navigation';
@@ -90,8 +89,20 @@ export function PostPageView({ postId }: { postId: string }) {
 
   const [post, setPost] = useState<PostType | null>(null);
   const [loadingPost, setLoadingPost] = useState(true);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [loadingComments, setLoadingComments] = useState(true);
+  const { comments: liveComments, loading: loadingComments } = useLiveComments(postId);
+  const comments: PostType[] = liveComments.map(c => ({
+    id: c.id,
+    authorId: c.authorId,
+    authorName: c.authorName,
+    authorHandle: c.authorHandle,
+    authorAvatar: c.authorAvatar,
+    content: c.content,
+    timestamp: formatTimestamp(new Date(c.createdAt)),
+    media: c.media.map(m => ({ ...m, url: m.url ?? '' })),
+    comments: c.comments,
+    reposts: c.reposts,
+    likes: c.likes,
+  }));
   const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false);
   
   const mainCommentBoxRef = useRef<HTMLDivElement>(null);
@@ -106,12 +117,11 @@ export function PostPageView({ postId }: { postId: string }) {
   };
 
   useEffect(() => {
-    if (!db || !postId) {
+    if (!postId) {
         setLoadingPost(false);
-        setLoadingComments(false);
         return;
     };
-    
+
     const fetchPostData = async () => {
         setLoadingPost(true);
         const fetchedPost = await getPost(postId);
@@ -122,45 +132,15 @@ export function PostPageView({ postId }: { postId: string }) {
     };
 
     fetchPostData();
-
-    const commentsRef = collection(db, 'posts', postId, 'comments');
-    const q = query(commentsRef, orderBy('createdAt', 'desc'));
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const fetchedComments = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        const createdAt = (data.createdAt as Timestamp)?.toDate();
-        return {
-            id: doc.id,
-            authorId: data.authorId,
-            authorName: data.authorName,
-            authorHandle: data.authorHandle,
-            authorAvatar: data.authorAvatar,
-            content: data.content,
-            timestamp: createdAt ? formatTimestamp(createdAt) : "now",
-            media: data.media || [],
-            comments: data.comments || 0,
-            reposts: data.reposts || 0,
-            likes: data.likes || 0,
-        }
-      }) as Comment[];
-      setComments(fetchedComments);
-      setLoadingComments(false);
-
-      if (window.location.hash === '#comments' && commentSectionRef.current) {
-        setTimeout(() => {
-            commentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 100);
-      }
-    }, (error) => {
-        console.error("Error fetching comments snapshot:", error);
-        setLoadingComments(false);
-    });
-
-     return () => {
-      unsubscribe();
-    };
   }, [postId]);
+
+  useEffect(() => {
+    if (!loadingComments && window.location.hash === '#comments' && commentSectionRef.current) {
+      setTimeout(() => {
+          commentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [loadingComments]);
 
   const handleCreateComment = async (data: { text: string, media: ReplyMedia[] }) => {
     if (!user || !postId) return null;

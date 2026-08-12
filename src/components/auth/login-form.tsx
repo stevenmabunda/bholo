@@ -1,20 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase/config';
+import { supabase } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import Link from 'next/link';
 import { AuthFormError } from './auth-form-error';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
-import Image from 'next/image';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -45,36 +42,6 @@ export function LoginForm() {
       password: '',
     },
   });
-  
-  // Handle redirect result from Google sign in
-  useEffect(() => {
-    const handleRedirect = async () => {
-      try {
-        setGoogleLoading(true);
-        const result = await getRedirectResult(auth);
-        if (result) {
-          const user = result.user;
-          const userDocRef = doc(db, 'users', user.uid);
-          const userDoc = await getDoc(userDocRef);
-          if (!userDoc.exists()) {
-             await setDoc(userDocRef, {
-                uid: user.uid, displayName: user.displayName, email: user.email, photoURL: user.photoURL,
-                handle: user.email?.split('@')[0] || `user${user.uid.substring(0, 5)}`,
-                joined: new Date().toISOString(), bio: 'Passionate football fan. Discussing all things football. ⚽',
-                location: '', country: '', favouriteClub: '', bannerUrl: 'https://placehold.co/1200x400.png',
-                followersCount: 0, followingCount: 0,
-            });
-          }
-          handleAuthSuccess();
-        }
-      } catch (err: any) {
-        handleAuthError(err);
-      } finally {
-        setGoogleLoading(false);
-      }
-    };
-    handleRedirect();
-  }, []);
 
   const handleAuthSuccess = () => {
     router.push('/home');
@@ -82,15 +49,10 @@ export function LoginForm() {
   }
 
   const handleAuthError = (err: any) => {
-    console.error("Login failed:", err); // Log the full error
-    if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+    console.error("Login failed:", err);
+    if (err.message?.toLowerCase().includes('invalid login credentials')) {
       setError('Invalid login credentials. Please check your email and password.');
-    } else if (err.code === 'auth/invalid-api-key') {
-       setError('Firebase API Key is not valid. Please check your configuration.');
-    } else if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-       setError('Sign-in cancelled. Please try again.');
-    }
-    else {
+    } else {
       setError('An unexpected error occurred. Please try again.');
     }
   }
@@ -98,28 +60,29 @@ export function LoginForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     setError(null);
-    if (!auth) {
-      setError('Authentication service is not available. Please try again later.');
-      console.error('Firebase auth is not initialized.');
+    const { error } = await supabase.auth.signInWithPassword({
+      email: values.email,
+      password: values.password,
+    });
+    if (error) {
+      handleAuthError(error);
       setLoading(false);
       return;
     }
-    try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
-      handleAuthSuccess();
-    } catch (err: any) {
-      handleAuthError(err);
-    } finally {
-      setLoading(false);
-    }
+    handleAuthSuccess();
   }
 
   async function handleGoogleSignIn() {
-    if (!auth || !db) return;
     setGoogleLoading(true);
     setError(null);
-    const provider = new GoogleAuthProvider();
-    await signInWithRedirect(auth, provider);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (error) {
+      handleAuthError(error);
+      setGoogleLoading(false);
+    }
   }
 
   return (

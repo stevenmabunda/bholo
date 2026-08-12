@@ -87,12 +87,12 @@ export default function NotificationsPage() {
     useEffect(() => {
         if (user) {
             setLoading(true);
-            getNotifications(user.uid)
+            getNotifications(user.id)
                 .then(setNotifications)
                 .finally(() => setLoading(false));
 
             // Mark notifications as read when the page is viewed
-            markNotificationsAsRead(user.uid);
+            markNotificationsAsRead(user.id);
         } else {
             setLoading(false);
         }

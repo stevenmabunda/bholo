@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import React, { useState, useRef, useContext } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { useProfile } from "@/hooks/use-profile";
 import { Image as ImageIcon, Film, X, Loader2, Smile, Clapperboard, StickyNote } from "lucide-react";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
@@ -48,6 +49,7 @@ function StickerPickerContents({ onStickerClick }: { onStickerClick: (sticker: a
 
 export function CreateComment({ onComment, isDialog = false }: { onComment: (data: { text: string; media: ReplyMedia[] }) => Promise<any>, isDialog?: boolean }) {
   const { user } = useAuth();
+  const { profile } = useProfile();
   const { toast } = useToast();
   const [text, setText] = useState("");
   const [media, setMedia] = useState<ReplyMedia[]>([]);
@@ -177,8 +179,8 @@ export function CreateComment({ onComment, isDialog = false }: { onComment: (dat
     <div className={cn("p-3 md:p-4", !isDialog && "border-t")}>
       <div className="flex space-x-3 md:space-x-4">
         <Avatar>
-          <AvatarImage src={user?.photoURL || guestAvatarSrc} alt={user?.displayName || "User"} data-ai-hint="user avatar" />
-          <AvatarFallback>{user?.displayName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+          <AvatarImage src={profile?.photo_url || guestAvatarSrc} alt={profile?.display_name || "User"} data-ai-hint="user avatar" />
+          <AvatarFallback>{profile?.display_name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
         </Avatar>
         <div className="flex-1 space-y-4">
           <Textarea

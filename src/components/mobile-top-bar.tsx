@@ -4,6 +4,7 @@
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
+import { useProfile } from "@/hooks/use-profile";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Mail, Bell } from "lucide-react";
 import { Button } from "./ui/button";
@@ -13,6 +14,7 @@ import Image from "next/image";
 
 export function MobileTopBar() {
     const { user } = useAuth();
+    const { profile } = useProfile();
     const [isVisible, setIsVisible] = useState(true);
     const lastScrollY = useRef(0);
 
@@ -42,8 +44,8 @@ export function MobileTopBar() {
             <SidebarTrigger asChild>
                 <button className="h-8 w-8 rounded-full overflow-hidden">
                     <Avatar className="h-full w-full">
-                        <AvatarImage src={user?.photoURL || undefined} data-ai-hint="user avatar" />
-                        <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                        <AvatarImage src={profile?.photo_url || undefined} data-ai-hint="user avatar" />
+                        <AvatarFallback>{profile?.display_name?.charAt(0) || 'U'}</AvatarFallback>
                     </Avatar>
                 </button>
             </SidebarTrigger>

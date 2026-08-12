@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { useTabContext } from "@/contexts/tab-context";
 import { SidebarTrigger } from "./ui/sidebar";
 import { useAuth } from "@/hooks/use-auth";
+import { useProfile } from "@/hooks/use-profile";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Bell, Mail } from "lucide-react";
@@ -18,6 +19,7 @@ export function MobileHeader() {
     const lastScrollY = useRef(0);
     const { activeTab, setActiveTab } = useTabContext();
     const { user } = useAuth();
+    const { profile } = useProfile();
 
     useEffect(() => {
         const handleScroll = () => {
@@ -53,8 +55,8 @@ export function MobileHeader() {
                 <SidebarTrigger asChild>
                     <button className="h-8 w-8 rounded-full overflow-hidden">
                         <Avatar className="h-full w-full">
-                            <AvatarImage src={user?.photoURL || undefined} data-ai-hint="user avatar" />
-                            <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                            <AvatarImage src={profile?.photo_url || undefined} data-ai-hint="user avatar" />
+                            <AvatarFallback>{profile?.display_name?.charAt(0) || 'U'}</AvatarFallback>
                         </Avatar>
                     </button>
                 </SidebarTrigger>

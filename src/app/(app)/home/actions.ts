@@ -8,10 +8,8 @@ import {
 } from '@/ai/flows/generate-trending-hashtags';
 import { getFixturesByDateFromApi, getLiveMatchesFromSportMonks } from '@/services/sportmonks-service';
 import type { MatchType, PostType } from '@/lib/data';
-import { db } from '@/lib/firebase/config';
-import { collection, getDocs, query, where, orderBy, type Timestamp, limit, startAfter, doc, getDoc } from 'firebase/firestore';
+import { createClient } from '@/lib/supabase/server';
 import { formatTimestamp } from '@/lib/utils';
-
 
 export async function getTrendingHashtags(
   input: GenerateTrendingHashtagsInput
@@ -39,185 +37,107 @@ export async function getLiveMatches(): Promise<MatchType[]> {
   }
 }
 
+function mapRow(row: any): PostType {
+  const createdAt = row.created_at ? new Date(row.created_at) : undefined;
+  return {
+    id: row.id,
+    authorId: row.author_id,
+    authorName: row.author_name,
+    authorHandle: row.author_handle,
+    authorAvatar: row.author_avatar,
+    content: row.content,
+    comments: row.comments_count,
+    reposts: row.reposts_count,
+    likes: row.likes_count,
+    views: row.views_count,
+    media: row.media,
+    poll: row.poll,
+    location: row.location,
+    timestamp: createdAt ? formatTimestamp(createdAt) : 'now',
+    createdAt: createdAt ? createdAt.toISOString() : undefined,
+  } as PostType;
+}
+
 export async function getFollowingPosts(userId: string): Promise<PostType[]> {
-    if (!db) {
-        return [];
-    }
-
-    try {
-        // 1. Get the list of users the current user is following.
-        const followingRef = collection(db, 'users', userId, 'following');
-        const followingSnapshot = await getDocs(followingRef);
-        const followingIds = followingSnapshot.docs.map(doc => doc.id);
-        
-        // Always include the user's own posts in their feed.
-        if (!followingIds.includes(userId)) {
-            followingIds.push(userId);
-        }
-
-        if (followingIds.length === 0) {
-            return [];
-        }
-
-        // 2. Query for posts where the authorId is in the list of followed users.
-        // Firestore 'in' query is limited to 30 items. For a larger app, this would need pagination or a different data model.
-        const postsRef = collection(db, 'posts');
-        const q = query(
-            postsRef,
-            where('authorId', 'in', followingIds.slice(0, 30)),
-            orderBy('createdAt', 'desc'),
-            limit(50) // Limit the number of posts fetched for performance.
-        );
-
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-            return [];
-        }
-
-        // 3. Map documents to PostType objects.
-        const posts = querySnapshot.docs.map(doc => {
-            const data = doc.data();
-            const createdAt = (data.createdAt as Timestamp)?.toDate();
-            return {
-                id: doc.id,
-                authorId: data.authorId,
-                authorName: data.authorName,
-                authorHandle: data.authorHandle,
-                authorAvatar: data.authorAvatar,
-                content: data.content,
-                comments: data.comments,
-                reposts: data.reposts,
-                likes: data.likes,
-                views: data.views,
-                media: data.media,
-                poll: data.poll,
-                timestamp: createdAt ? formatTimestamp(createdAt) : 'now',
-                createdAt: createdAt
-            } as PostType;
-        });
-        
-        return posts;
-
-    } catch (error) {
-        console.error("Error fetching following posts:", error);
-        return [];
-    }
-}
-
-const DUMMY_USER_IDS = ['bholo-bot', 'user-jane-smith', 'user-john-doe', 'user-cristiano-ronaldo'];
-
-export async function getRecentPosts(options: { limit?: number; lastPostId?: string } = {}): Promise<PostType[]> {
-    if (!db) {
-        return [];
-    }
-
-    try {
-        const postsRef = collection(db, 'posts');
-        const queryConstraints = [
-            orderBy('createdAt', 'desc'),
-            limit(options.limit || 20)
-        ];
-
-        if (options.lastPostId) {
-            const lastPostDoc = await getDoc(doc(db, 'posts', options.lastPostId));
-            if (lastPostDoc.exists()) {
-                queryConstraints.push(startAfter(lastPostDoc));
-            }
-        }
-        
-        const q = query(postsRef, ...queryConstraints);
-
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-            return [];
-        }
-
-        const posts = querySnapshot.docs
-            .map(doc => {
-                const data = doc.data();
-                const createdAt = (data.createdAt as Timestamp)?.toDate();
-                return {
-                    id: doc.id,
-                    authorId: data.authorId,
-                    authorName: data.authorName,
-                    authorHandle: data.authorHandle,
-                    authorAvatar: data.authorAvatar,
-                    content: data.content,
-                    comments: data.comments,
-                    reposts: data.reposts,
-                    likes: data.likes,
-                    views: data.views,
-                    media: data.media,
-                    poll: data.poll,
-                    timestamp: createdAt ? formatTimestamp(createdAt) : 'now',
-                    createdAt: createdAt
-                } as PostType;
-            })
-            .filter(post => !DUMMY_USER_IDS.includes(post.authorId)); // Filter out dummy posts
-        
-        return posts;
-
-    } catch (error) {
-        console.error("Error fetching recent posts:", error);
-        return [];
-    }
-}
-
-export async function getVideoPosts(options: { lastPostId?: string } = {}): Promise<PostType[]> {
-  if (!db) {
-    return [];
-  }
+  const supabase = await createClient();
 
   try {
-    const postsRef = collection(db, 'posts');
-    
-    // Fetch posts from the last 14 days
-    const twoWeeksAgo = new Date();
-    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+    const { data: following } = await supabase
+      .from('follows')
+      .select('followed_id')
+      .eq('follower_id', userId);
 
-    const queryConstraints = [
-      where('createdAt', '>=', twoWeeksAgo),
-      orderBy('createdAt', 'desc'),
-    ];
-    
-    // This part is for potential pagination in the future, but for now we fetch all within the date range.
+    const authorIds = (following ?? []).map(f => f.followed_id);
+    if (!authorIds.includes(userId)) authorIds.push(userId);
+
+    const { data, error } = await supabase
+      .from('posts')
+      .select('*')
+      .in('author_id', authorIds)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+    return (data ?? []).map(mapRow);
+  } catch (error) {
+    console.error("Error fetching following posts:", error);
+    return [];
+  }
+}
+
+export async function getRecentPosts(options: { limit?: number; lastPostId?: string } = {}): Promise<PostType[]> {
+  const supabase = await createClient();
+
+  try {
+    let query = supabase
+      .from('posts')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(options.limit || 20);
+
     if (options.lastPostId) {
-      const lastPostDoc = await getDoc(doc(db, 'posts', options.lastPostId));
-      if (lastPostDoc.exists()) {
-        queryConstraints.push(startAfter(lastPostDoc));
+      const { data: lastPost } = await supabase.from('posts').select('created_at').eq('id', options.lastPostId).single();
+      if (lastPost) {
+        query = query.lt('created_at', lastPost.created_at);
       }
     }
 
-    const allPostsSnapshot = await getDocs(query(postsRef, ...queryConstraints));
+    const { data, error } = await query;
+    if (error) throw error;
 
-    const filteredVideoPosts = allPostsSnapshot.docs
-      .map(doc => {
-        const data = doc.data();
-        const createdAt = (data.createdAt as Timestamp)?.toDate();
-        return {
-          id: doc.id,
-          authorId: data.authorId,
-          authorName: data.authorName,
-          authorHandle: data.authorHandle,
-          authorAvatar: data.authorAvatar,
-          content: data.content,
-          comments: data.comments,
-          reposts: data.reposts,
-          likes: data.likes,
-          views: data.views,
-          media: data.media,
-          poll: data.poll,
-          timestamp: createdAt ? formatTimestamp(createdAt) : 'now',
-          createdAt: createdAt
-        } as PostType;
-      })
-      .filter(post => post.media && post.media.some(m => m.type === 'video'))
-      .filter(post => !DUMMY_USER_IDS.includes(post.authorId));
+    return (data ?? []).map(mapRow);
+  } catch (error) {
+    console.error("Error fetching recent posts:", error);
+    return [];
+  }
+}
 
-    return filteredVideoPosts;
+export async function getVideoPosts(options: { lastPostId?: string } = {}): Promise<PostType[]> {
+  const supabase = await createClient();
 
+  try {
+    const twoWeeksAgo = new Date();
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+    let query = supabase
+      .from('posts')
+      .select('*')
+      .gte('created_at', twoWeeksAgo.toISOString())
+      .order('created_at', { ascending: false });
+
+    if (options.lastPostId) {
+      const { data: lastPost } = await supabase.from('posts').select('created_at').eq('id', options.lastPostId).single();
+      if (lastPost) {
+        query = query.lt('created_at', lastPost.created_at);
+      }
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return (data ?? [])
+      .map(mapRow)
+      .filter(post => post.media && post.media.some(m => m.type === 'video'));
   } catch (error) {
     console.error("Error fetching video posts:", error);
     return [];

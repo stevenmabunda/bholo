@@ -59,7 +59,7 @@ export function FollowListDialog({ profileId, type, children }: FollowListDialog
       setUserList(users);
 
       if (users.length > 0) {
-        const followChecks = users.map(u => getIsFollowing(currentUser.uid, u.uid));
+        const followChecks = users.map(u => getIsFollowing(currentUser.id, u.uid));
         const followStatuses = await Promise.all(followChecks);
         const newFollowedUserIds = new Set<string>();
         users.forEach((u, index) => {
@@ -122,9 +122,9 @@ export function FollowListDialog({ profileId, type, children }: FollowListDialog
                         </div>
                     </Link>
                   </DialogClose>
-                  {currentUser?.uid !== user.uid && (
-                    <FollowButton 
-                        profileId={user.uid} 
+                  {currentUser?.id !== user.uid && (
+                    <FollowButton
+                        profileId={user.uid}
                         isFollowing={followedUserIds.has(user.uid)}
                         onToggleFollow={(isFollowing) => handleFollowToggle(user.uid, isFollowing)}
                     />

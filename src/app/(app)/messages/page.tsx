@@ -31,7 +31,7 @@ export default function MessagesPage() {
     useEffect(() => {
         if (user) {
             setLoading(true);
-            getConversations(user.uid)
+            getConversations(user.id)
                 .then(setConversations)
                 .finally(() => setLoading(false));
         } else {
@@ -62,7 +62,7 @@ export default function MessagesPage() {
                                             <p className="text-sm text-muted-foreground truncate">@{convo.otherUser.handle}</p>
                                         </div>
                                         <p className={cn("text-sm truncate", convo.isRead ? "text-muted-foreground" : "text-foreground font-semibold")}>
-                                            {convo.lastMessage.senderId === user?.uid && 'You: '}{convo.lastMessage.text}
+                                            {convo.lastMessage.senderId === user?.id && 'You: '}{convo.lastMessage.text}
                                         </p>
                                     </div>
                                     <time className="text-xs text-muted-foreground flex-shrink-0">

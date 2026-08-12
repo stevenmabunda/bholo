@@ -1,21 +1,7 @@
 
 'use server';
 
-import { db } from '@/lib/firebase/config';
-import {
-    doc,
-    getDoc,
-    setDoc,
-    collection,
-    addDoc,
-    serverTimestamp,
-    query,
-    where,
-    getDocs,
-    orderBy,
-    limit,
-    type Timestamp,
-} from 'firebase/firestore';
+import { createClient } from '@/lib/supabase/server';
 import { getUserProfile, type ProfileData } from '@/app/(app)/profile/actions';
 
 export type Message = {
@@ -43,142 +29,111 @@ export type ConversationDetails = {
 };
 
 export async function getOrCreateConversation(currentUserId: string, otherUserId: string): Promise<string> {
-    if (!db) throw new Error("Firestore not initialized");
+    const supabase = await createClient();
 
-    // Create a consistent ID for the conversation regardless of who initiates it.
-    const conversationId = [currentUserId, otherUserId].sort().join('_');
-    const conversationRef = doc(db, 'conversations', conversationId);
+    // Find an existing 1:1 conversation between exactly these two users.
+    const { data: mine } = await supabase.from('conversation_participants').select('conversation_id').eq('user_id', currentUserId);
+    const { data: theirs } = await supabase.from('conversation_participants').select('conversation_id').eq('user_id', otherUserId);
 
-    const conversationSnap = await getDoc(conversationRef);
+    const mineIds = new Set((mine ?? []).map(r => r.conversation_id));
+    const shared = (theirs ?? []).map(r => r.conversation_id).find(id => mineIds.has(id));
 
-    if (!conversationSnap.exists()) {
-        const currentUserProfile = await getUserProfile(currentUserId);
-        const otherUserProfile = await getUserProfile(otherUserId);
+    if (shared) return shared;
 
-        if (!currentUserProfile || !otherUserProfile) {
-            throw new Error("Could not find user profiles to start conversation.");
-        }
-        
-        await setDoc(conversationRef, {
-            participantIds: [currentUserId, otherUserId],
-            participants: {
-                [currentUserId]: {
-                    displayName: currentUserProfile.displayName,
-                    photoURL: currentUserProfile.photoURL,
-                    handle: currentUserProfile.handle
-                },
-                [otherUserId]: {
-                    displayName: otherUserProfile.displayName,
-                    photoURL: otherUserProfile.photoURL,
-                    handle: otherUserProfile.handle
-                }
-            },
-            createdAt: serverTimestamp(),
-            lastMessage: null,
-        });
-    }
+    const { data: conversation, error } = await supabase.from('conversations').insert({}).select().single();
+    if (error || !conversation) throw error ?? new Error('Could not create conversation');
 
-    return conversationId;
+    const { error: participantsError } = await supabase.from('conversation_participants').insert([
+        { conversation_id: conversation.id, user_id: currentUserId },
+        { conversation_id: conversation.id, user_id: otherUserId },
+    ]);
+    if (participantsError) throw participantsError;
+
+    return conversation.id;
 }
 
 export async function sendMessage(conversationId: string, senderId: string, text: string): Promise<void> {
-    if (!db) throw new Error("Firestore not initialized");
+    const supabase = await createClient();
 
-    const conversationRef = doc(db, 'conversations', conversationId);
-    const messagesRef = collection(conversationRef, 'messages');
+    const { error } = await supabase.from('conversation_messages').insert({
+        conversation_id: conversationId,
+        sender_id: senderId,
+        content: text,
+    });
+    if (error) throw error;
 
-    const messageData = {
-        senderId,
-        text,
-        timestamp: serverTimestamp(),
-    };
-    
-    await addDoc(messagesRef, messageData);
-    
-    // Update the last message on the conversation for preview
-    await setDoc(conversationRef, { 
-        lastMessage: messageData,
-        isReadBy: [senderId] // Mark as read for the sender
-    }, { merge: true });
+    await supabase.from('conversation_participants')
+        .update({ last_read_at: new Date().toISOString() })
+        .eq('conversation_id', conversationId)
+        .eq('user_id', senderId);
 }
 
 export async function getConversations(userId: string): Promise<Conversation[]> {
-    if (!db) return [];
+    const supabase = await createClient();
 
-    // The query was causing an index error. Fetching first and then sorting in code.
-    const conversationsQuery = query(
-        collection(db, 'conversations'),
-        where('participantIds', 'array-contains', userId)
-    );
+    const { data: mine } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id, last_read_at')
+        .eq('user_id', userId);
 
-    const snapshot = await getDocs(conversationsQuery);
+    if (!mine || mine.length === 0) return [];
 
-    if (snapshot.empty) {
-        return [];
-    }
-    
-    const conversations = await Promise.all(
-        snapshot.docs.map(async (docSnap) => {
-            const data = docSnap.data();
-            const otherUserId = data.participantIds.find((id: string) => id !== userId);
-            
-            if (!otherUserId) return null;
+    const conversations = await Promise.all(mine.map(async ({ conversation_id, last_read_at }) => {
+        const [{ data: participants }, { data: lastMessageRows }] = await Promise.all([
+            supabase.from('conversation_participants').select('user_id').eq('conversation_id', conversation_id),
+            supabase.from('conversation_messages').select('*').eq('conversation_id', conversation_id).order('created_at', { ascending: false }).limit(1),
+        ]);
 
-            const otherUserData = data.participants?.[otherUserId];
+        const otherUserId = (participants ?? []).map(p => p.user_id).find(id => id !== userId);
+        const lastMessage = lastMessageRows?.[0];
+        if (!otherUserId || !lastMessage) return null;
 
-            if (!otherUserData || !data.lastMessage) return null;
-            
-            const otherUser: ProfileData = {
-                uid: otherUserId,
-                displayName: otherUserData.displayName || 'User',
-                handle: otherUserData.handle || 'user',
-                photoURL: otherUserData.photoURL || 'https://placehold.co/40x40.png',
-                // Fill with placeholder data as we don't need full profile here
-                bannerUrl: '', bio: '', country: '', favouriteClub: '', joined: '', followersCount: 0, followingCount: 0, location: ''
-            };
+        const otherUser = await getUserProfile(otherUserId);
+        if (!otherUser) return null;
 
-            const isRead = data.isReadBy?.includes(userId) || false;
+        const isRead = lastMessage.sender_id === userId || new Date(lastMessage.created_at) <= new Date(last_read_at);
 
-            return {
-                id: docSnap.id,
-                participantIds: data.participantIds,
-                lastMessage: {
-                    ...data.lastMessage,
-                    timestamp: (data.lastMessage.timestamp as Timestamp).toDate(),
-                },
-                otherUser,
-                isRead,
-            } as Conversation;
-        })
-    );
-    
+        return {
+            id: conversation_id,
+            participantIds: (participants ?? []).map(p => p.user_id),
+            lastMessage: {
+                text: lastMessage.content,
+                timestamp: new Date(lastMessage.created_at),
+                senderId: lastMessage.sender_id,
+            },
+            otherUser,
+            isRead,
+        } as Conversation;
+    }));
+
     const validConversations = conversations.filter((c): c is Conversation => c !== null);
-
-    // Sort conversations by the last message timestamp, descending
     validConversations.sort((a, b) => b.lastMessage.timestamp.getTime() - a.lastMessage.timestamp.getTime());
-    
+
     return validConversations;
 }
 
 export async function getConversationDetails(conversationId: string): Promise<ConversationDetails | null> {
-    if (!db) return null;
+    const supabase = await createClient();
 
-    const conversationRef = doc(db, 'conversations', conversationId);
-    const snap = await getDoc(conversationRef);
+    const { data: participantRows } = await supabase
+        .from('conversation_participants')
+        .select('user_id')
+        .eq('conversation_id', conversationId);
 
-    if (!snap.exists()) {
-        return null;
-    }
+    if (!participantRows) return null;
 
-    const data = snap.data();
-    const participantIds = data.participantIds as string[];
-
-    const participants = await Promise.all(
-        participantIds.map(id => getUserProfile(id))
-    );
+    const participants = await Promise.all(participantRows.map(p => getUserProfile(p.user_id)));
 
     return {
-        id: snap.id,
+        id: conversationId,
         participants: participants.filter((p): p is ProfileData => p !== null),
     };
+}
+
+export async function markConversationRead(conversationId: string, userId: string): Promise<void> {
+    const supabase = await createClient();
+    await supabase.from('conversation_participants')
+        .update({ last_read_at: new Date().toISOString() })
+        .eq('conversation_id', conversationId)
+        .eq('user_id', userId);
 }

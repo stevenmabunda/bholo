@@ -32,7 +32,7 @@ export function FollowButton({ profileId, isFollowing, isLoading: isParentLoadin
         }
 
         setIsUpdating(true);
-        const result = await toggleFollow(user.uid, profileId, isFollowing);
+        const result = await toggleFollow(user.id, profileId, isFollowing);
         if (result.success) {
             onToggleFollow(!isFollowing);
         } else {
@@ -41,7 +41,7 @@ export function FollowButton({ profileId, isFollowing, isLoading: isParentLoadin
         setIsUpdating(false);
     };
 
-    if (user && user.uid === profileId) {
+    if (user && user.id === profileId) {
         return null;
     }
 

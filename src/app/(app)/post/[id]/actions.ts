@@ -1,37 +1,31 @@
 'use server';
 
-import { db } from '@/lib/firebase/config';
-import { doc, getDoc, type Timestamp } from 'firebase/firestore';
+import { createClient } from '@/lib/supabase/server';
 import type { PostType } from '@/lib/data';
 import { formatTimestamp } from '@/lib/utils';
 
 export async function getPost(postId: string): Promise<PostType | null> {
-    if (!db || !postId) return null;
+    if (!postId) return null;
+    const supabase = await createClient();
 
-    const postRef = doc(db, 'posts', postId);
-    const docSnap = await getDoc(postRef);
+    const { data, error } = await supabase.from('posts').select('*').eq('id', postId).single();
+    if (error || !data) return null;
 
-    if (docSnap.exists()) {
-        const data = docSnap.data();
-        const createdAt = (data.createdAt as Timestamp)?.toDate();
-        const post: PostType = {
-            id: docSnap.id,
-            authorId: data.authorId,
-            authorName: data.authorName,
-            authorHandle: data.authorHandle,
-            authorAvatar: data.authorAvatar,
-            content: data.content,
-            comments: data.comments,
-            reposts: data.reposts,
-            likes: data.likes,
-            views: data.views,
-            media: data.media,
-            poll: data.poll,
-            timestamp: createdAt ? formatTimestamp(createdAt) : 'now',
-            createdAt: createdAt ? createdAt.toISOString() : undefined,
-        };
-        return post;
-    } else {
-        return null;
-    }
+    const createdAt = data.created_at ? new Date(data.created_at) : undefined;
+    return {
+        id: data.id,
+        authorId: data.author_id,
+        authorName: data.author_name,
+        authorHandle: data.author_handle,
+        authorAvatar: data.author_avatar,
+        content: data.content,
+        comments: data.comments_count,
+        reposts: data.reposts_count,
+        likes: data.likes_count,
+        views: data.views_count,
+        media: data.media,
+        poll: data.poll,
+        timestamp: createdAt ? formatTimestamp(createdAt) : 'now',
+        createdAt: createdAt ? createdAt.toISOString() : undefined,
+    };
 }

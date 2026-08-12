@@ -2,46 +2,42 @@
 'use client';
 
 import { createContext, useState, useEffect, type ReactNode } from 'react';
-import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
-import { getAuth, onAuthStateChanged, type Auth, type User } from 'firebase/auth';
-import { firebaseConfig } from '@/lib/firebase/clientConfig';
+import type { Session, User } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase/client';
 import Image from 'next/image';
-
-// Initialize Firebase
-let app: FirebaseApp;
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApp();
-}
-export const auth: Auth = getAuth(app);
-
 
 type AuthContextType = {
   user: User | null;
+  session: Session | null;
   loading: boolean;
 };
 
 export const AuthContext = createContext<AuthContextType>({
   user: null,
+  session: null,
   loading: true,
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
   const [authLoaded, setAuthLoaded] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
       setAuthLoaded(true);
     });
 
-    return () => unsubscribe();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      setAuthLoaded(true);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
-  
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (loading) {
@@ -54,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setTimeout(() => setLoading(false), 300); // Small delay for the 100% to show
                     return 100;
                 }
-                
+
                 // Animate up to 90% and wait
                 if (prev >= 90) {
                     return 90;
@@ -65,13 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
         }, 100);
     }
-    
+
     return () => clearInterval(interval);
 
   }, [loading, authLoaded]);
 
 
-  const value = { user, loading };
+  const value = { user: session?.user ?? null, session, loading };
 
   if (loading) {
     const displayProgress = Math.min(progress, 100);

@@ -1,21 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase/config';
+import { supabase } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import Link from 'next/link';
 import { AuthFormError } from './auth-form-error';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { MailCheck, Eye, EyeOff, Loader2 } from 'lucide-react';
-import Image from 'next/image';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.'}),
@@ -50,45 +47,11 @@ export function SignupForm() {
     },
   });
 
-  // Handle redirect result from Google sign in
-  useEffect(() => {
-    const handleRedirect = async () => {
-      try {
-        setGoogleLoading(true);
-        const result = await getRedirectResult(auth);
-        if (result) {
-          const user = result.user;
-          const userDocRef = doc(db, 'users', user.uid);
-          const userDoc = await getDoc(userDocRef);
-          if (!userDoc.exists()) {
-             await setDoc(userDocRef, {
-                uid: user.uid, displayName: user.displayName, email: user.email, photoURL: user.photoURL,
-                handle: user.email?.split('@')[0] || `user${user.uid.substring(0, 5)}`,
-                joined: new Date().toISOString(), bio: 'Passionate football fan. Discussing all things football. ⚽',
-                location: '', country: '', favouriteClub: '', bannerUrl: 'https://placehold.co/1200x400.png',
-                followersCount: 0, followingCount: 0,
-            });
-          }
-          router.push('/home');
-          router.refresh();
-        }
-      } catch (err: any) {
-        handleAuthError(err);
-      } finally {
-        setGoogleLoading(false);
-      }
-    };
-    handleRedirect();
-  }, []);
-
   const handleAuthError = (err: any) => {
-    console.error("Signup failed:", err); // Log the full error
-    if (err.code === 'auth/email-already-in-use') {
+    console.error("Signup failed:", err);
+    if (err.message?.toLowerCase().includes('already registered')) {
       setError('An account with this email already exists.');
-    } else if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-       setError('Sign-up cancelled. Please try again.');
-    }
-    else {
+    } else {
       setError('An unexpected error occurred. Please try again.');
     }
   };
@@ -98,51 +61,42 @@ export function SignupForm() {
     setError(null);
     setSuccess(false);
 
-    if (!auth || !db) {
-      setError('Authentication service is not available.');
+    const handle = values.email.split('@')[0] || `user${Date.now().toString(36)}`;
+
+    const { error } = await supabase.auth.signUp({
+      email: values.email,
+      password: values.password,
+      options: {
+        data: {
+          display_name: values.name,
+          handle,
+        },
+      },
+    });
+
+    if (error) {
+      handleAuthError(error);
       setLoading(false);
       return;
     }
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      const user = userCredential.user;
 
-      await sendEmailVerification(user);
-      await updateProfile(user, { displayName: values.name });
-
-      await setDoc(doc(db, 'users', user.uid), {
-        uid: user.uid,
-        displayName: values.name,
-        email: user.email,
-        photoURL: user.photoURL,
-        handle: user.email?.split('@')[0] || `user${user.uid.substring(0, 5)}`,
-        joined: new Date().toISOString(),
-        bio: 'Passionate football fan. Discussing all things football. ⚽',
-        location: '',
-        country: '',
-        favouriteClub: '',
-        bannerUrl: 'https://placehold.co/1200x400.png',
-        followersCount: 0,
-        followingCount: 0,
-      });
-      
-      setSuccess(true);
-      
-    } catch (err: any) {
-      handleAuthError(err);
-    } finally {
-      setLoading(false);
-    }
+    setSuccess(true);
+    setLoading(false);
   }
 
   async function handleGoogleSignIn() {
-    if (!auth || !db) return;
     setGoogleLoading(true);
     setError(null);
-    const provider = new GoogleAuthProvider();
-    await signInWithRedirect(auth, provider);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (error) {
+      handleAuthError(error);
+      setGoogleLoading(false);
+    }
   }
-  
+
   if (success) {
     return (
         <div className="space-y-4">

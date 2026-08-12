@@ -1,87 +1,58 @@
 
 'use server';
 
-import { db } from '@/lib/firebase/config';
+import { createClient } from '@/lib/supabase/server';
 import type { PostType } from '@/lib/data';
-import { collection, query, orderBy, getDocs, type Timestamp, where } from 'firebase/firestore';
 import { formatTimestamp } from '@/lib/utils';
 
-const DUMMY_USER_IDS = ['bholo-bot', 'user-jane-smith', 'user-john-doe', 'user-cristiano-ronaldo'];
-
 export async function getMostViewedPosts(): Promise<PostType[]> {
-  if (!db) {
-    console.error("Firestore not initialized, returning empty posts.");
-    return [];
-  }
-  
+  const supabase = await createClient();
+
   try {
-    // 1. Get the timestamp for 24 hours ago.
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    // 2. Query for posts created in the last 24 hours.
-    const postsRef = collection(db, 'posts');
-    const q = query(postsRef, where('createdAt', '>=', twentyFourHoursAgo));
-    
-    const querySnapshot = await getDocs(q);
+    const { data, error } = await supabase
+      .from('posts')
+      .select('*')
+      .gte('created_at', twentyFourHoursAgo.toISOString());
 
-    if (querySnapshot.empty) {
-      return [];
-    }
+    if (error) throw error;
 
-    // 3. Map documents to PostType objects, filter out dummy users, and filter for posts with images.
-    let imagePosts = querySnapshot.docs
-      .map(doc => {
-        const data = doc.data();
-        const createdAt = (data.createdAt as Timestamp)?.toDate();
+    let imagePosts = (data ?? [])
+      .map(row => {
+        const createdAt = row.created_at ? new Date(row.created_at) : undefined;
         return {
-            id: doc.id,
-            authorId: data.authorId,
-            authorName: data.authorName,
-            authorHandle: data.authorHandle,
-            authorAvatar: data.authorAvatar,
-            content: data.content,
-            comments: data.comments,
-            reposts: data.reposts,
-            likes: data.likes,
-            views: data.views,
-            media: data.media,
-            poll: data.poll,
+            id: row.id,
+            authorId: row.author_id,
+            authorName: row.author_name,
+            authorHandle: row.author_handle,
+            authorAvatar: row.author_avatar,
+            content: row.content,
+            comments: row.comments_count,
+            reposts: row.reposts_count,
+            likes: row.likes_count,
+            views: row.views_count,
+            media: row.media,
+            poll: row.poll,
             timestamp: createdAt ? formatTimestamp(createdAt) : 'now',
         } as PostType;
       })
-      .filter(p => !DUMMY_USER_IDS.includes(p.authorId)) // Filter out dummy posts
       .filter(p => p.media && p.media.length > 0 && p.media.some(m => m.type === 'image'));
 
-    if (imagePosts.length === 0) {
-        return [];
-    }
-    
-    // 4. Sort all recent image posts by views in descending order.
+    if (imagePosts.length === 0) return [];
+
     imagePosts.sort((a, b) => (b.views || 0) - (a.views || 0));
-
-    // 5. Take the top 25 posts.
     const topPosts = imagePosts.slice(0, 25);
+    if (topPosts.length === 0) return [];
 
-    if (topPosts.length === 0) {
-      return [];
-    }
-
-    // 6. Randomly select one to be the hero from the top 5.
     const heroCandidates = topPosts.slice(0, 5);
+    if (heroCandidates.length === 0) return topPosts;
 
-    // CRITICAL FIX: Ensure heroCandidates is not empty before trying to access it.
-    if (heroCandidates.length === 0) {
-      return topPosts; // Return the list as is if no candidates for hero.
-    }
-    
     const heroIndex = Math.floor(Math.random() * heroCandidates.length);
     const heroPost = heroCandidates[heroIndex];
-
-    // 7. Create the final list, hero first, then the rest of the top posts.
     const remainingPosts = topPosts.filter(p => p.id !== heroPost.id);
 
     return [heroPost, ...remainingPosts];
-
   } catch (error) {
     console.error("Error fetching most viewed posts:", error);
     return [];

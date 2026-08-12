@@ -6,9 +6,8 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import type { PostType } from '@/lib/data';
 import type { Media } from '@/components/create-post';
 import { useAuth } from '@/hooks/use-auth';
-import { db, storage } from '@/lib/firebase/config';
-import { collection, addDoc, serverTimestamp, getDocs, query, type Timestamp, doc, updateDoc, runTransaction, deleteDoc, orderBy, getDoc, setDoc, writeBatch, limit, onSnapshot, where, startAfter } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useProfile } from '@/hooks/use-profile';
+import { supabase } from '@/lib/supabase/client';
 import { formatTimestamp } from '@/lib/utils';
 import type { ReplyMedia } from '@/components/create-comment';
 import { getRecentPosts } from '@/app/(app)/home/actions';
@@ -18,7 +17,7 @@ type PostContextType = {
   newForYouPosts: PostType[];
   loadingForYou: boolean;
   showNewForYouPosts: () => void;
-  addPost: (data: { text: string; media: Media[], poll?: PostType['poll'], location?: string | null, tribeId?: string, communityId?: string }) => Promise<PostType | null>;
+  addPost: (data: { text: string; media: Media[], poll?: PostType['poll'], location?: string | null }) => Promise<PostType | null>;
   editPost: (postId: string, data: { text:string }) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
   addVote: (postId: string, choiceIndex: number) => Promise<void>;
@@ -55,7 +54,7 @@ function extractKeywords(text: string): string[] {
       topics.add(word.substring(1).toLowerCase());
       return;
     }
-    
+
     const lowerWord = word.toLowerCase();
 
     if (!commonStopWords.has(lowerWord) && lowerWord.length > 2 && !phraseWords.has(lowerWord)) {
@@ -77,16 +76,38 @@ const getImageDimensions = (file: File): Promise<{ width: number; height: number
   });
 };
 
+function mapRow(row: any): PostType {
+  const createdAt = row.created_at ? new Date(row.created_at) : undefined;
+  return {
+    id: row.id,
+    authorId: row.author_id,
+    authorName: row.author_name,
+    authorHandle: row.author_handle,
+    authorAvatar: row.author_avatar,
+    content: row.content,
+    comments: row.comments_count,
+    reposts: row.reposts_count,
+    likes: row.likes_count,
+    views: row.views_count,
+    media: row.media,
+    poll: row.poll,
+    location: row.location,
+    timestamp: createdAt ? formatTimestamp(createdAt) : 'now',
+    createdAt: createdAt ? createdAt.toISOString() : undefined,
+  } as PostType;
+}
+
 export function PostProvider({ children }: { children: ReactNode }) {
   const [forYouPosts, setForYouPosts] = useState<PostType[]>([]);
   const [newForYouPosts, setNewForYouPosts] = useState<PostType[]>([]);
-  
+
   const [loadingForYou, setLoadingForYou] = useState(true);
 
   const { user } = useAuth();
+  const { profile } = useProfile();
   const [bookmarkedPostIds, setBookmarkedPostIds] = useState<Set<string>>(new Set());
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
-  
+
   const [hasFetchedInitial, setHasFetchedInitial] = useState(false);
 
   const fetchForYouPosts = useCallback(async (options: { limit?: number; lastPostId?: string } = {}) => {
@@ -118,138 +139,105 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const showNewForYouPosts = () => {
     setForYouPosts(prev => {
-      // Create a set of existing post IDs for quick lookup
       const existingIds = new Set(prev.map(p => p.id));
-      // Filter out any new posts that might have already been added (e.g., by scrolling to top)
       const uniqueNewPosts = newForYouPosts.filter(p => !existingIds.has(p.id));
       return [...uniqueNewPosts, ...prev];
     });
     setNewForYouPosts([]);
   };
 
+  // Live bookmark/like IDs for the current user.
   useEffect(() => {
-    if (!db || !user) {
+    if (!user) {
         setBookmarkedPostIds(new Set());
         setLikedPostIds(new Set());
         return;
     }
-    
-    const bookmarksRef = collection(db, 'users', user.uid, 'bookmarks');
-    const unsubBookmarks = onSnapshot(bookmarksRef, (snapshot) => {
-        const ids = new Set(snapshot.docs.map(doc => doc.id));
-        setBookmarkedPostIds(ids);
-    });
 
-    const likesRef = collection(db, 'users', user.uid, 'likes');
-    const unsubLikes = onSnapshot(likesRef, (snapshot) => {
-        const ids = new Set(snapshot.docs.map(doc => doc.id));
-        setLikedPostIds(ids);
-    });
+    const loadIds = async () => {
+      const [{ data: bookmarks }, { data: likes }] = await Promise.all([
+        supabase.from('bookmarks').select('post_id').eq('user_id', user.id),
+        supabase.from('likes').select('post_id').eq('user_id', user.id).not('post_id', 'is', null),
+      ]);
+      setBookmarkedPostIds(new Set((bookmarks ?? []).map(b => b.post_id)));
+      setLikedPostIds(new Set((likes ?? []).map(l => l.post_id)));
+    };
+    loadIds();
+
+    const channel = supabase
+      .channel(`user-interactions-${user.id}-${Math.random().toString(36).slice(2)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookmarks', filter: `user_id=eq.${user.id}` }, loadIds)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'likes', filter: `user_id=eq.${user.id}` }, loadIds)
+      .subscribe();
 
     return () => {
-        unsubBookmarks();
-        unsubLikes();
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  // Live "new posts" banner: subscribe to inserts and filter client-side,
+  // same dedup logic the Firestore version used.
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`posts-feed-${Math.random().toString(36).slice(2)}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload) => {
+        const row = payload.new as any;
+        if (row.author_id === user.id) return;
+        const post = mapRow(row);
+        setForYouPosts(prev => {
+          if (prev.some(p => p.id === post.id)) return prev;
+          setNewForYouPosts(newPrev => {
+            if (newPrev.some(p => p.id === post.id)) return newPrev;
+            return [post, ...newPrev];
+          });
+          return prev;
+        });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
     };
   }, [user]);
 
 
-  useEffect(() => {
-    if (!db || !user) return;
-    
-    // The timestamp of the latest post currently visible in the feed
-    const latestPostTimestamp = forYouPosts.length > 0 && forYouPosts[0].createdAt
-      ? new Date(forYouPosts[0].createdAt)
-      : new Date(0);
-
-    const postsQuery = query(
-        collection(db, 'posts'), 
-        where('createdAt', '>', latestPostTimestamp),
-        orderBy('createdAt', 'desc')
-    );
-    
-    const unsubscribe = onSnapshot(postsQuery, (snapshot) => {
-        const incomingPosts: PostType[] = [];
-        snapshot.forEach((doc) => {
-            const postData = doc.data();
-            const createdAt = (postData.createdAt as Timestamp)?.toDate();
-            // Ensure post is not by the current user and not already in any list
-            if (postData.authorId !== user.uid && !forYouPosts.some(p => p.id === doc.id) && !newForYouPosts.some(p => p.id === doc.id)) {
-                 incomingPosts.push({
-                    id: doc.id,
-                    ...postData,
-                    timestamp: formatTimestamp(createdAt),
-                    createdAt: createdAt.toISOString()
-                 } as PostType);
-            }
-        });
-
-        if (incomingPosts.length > 0) {
-            setNewForYouPosts(prev => {
-                const existingNewIds = new Set(prev.map(p => p.id));
-                const trulyNewPosts = incomingPosts.filter(p => !existingNewIds.has(p.id));
-                return [...trulyNewPosts, ...prev];
-            });
-        }
-    });
-
-    return () => unsubscribe();
-  }, [user, forYouPosts, newForYouPosts]);
-
-
-  const addPost = async ({ text, media, poll, location, tribeId, communityId }: { text: string; media: Media[]; poll?: PostType['poll'], location?: string | null, tribeId?: string, communityId?: string }): Promise<PostType | null> => {
-    if (!user || !db || !storage) {
-        throw new Error("Cannot add post: user not logged in or Firebase not configured.");
+  const addPost = async ({ text, media, poll, location }: { text: string; media: Media[]; poll?: PostType['poll'], location?: string | null }): Promise<PostType | null> => {
+    if (!user || !profile) {
+        throw new Error("Cannot add post: user not logged in.");
     }
-    
-    const createdAt = new Date();
-    
-    const postDataForDb: any = {
-        authorId: user.uid,
-        authorName: user.displayName || 'Anonymous User',
-        authorHandle: user.email?.split('@')[0] || 'user',
-        authorAvatar: user.photoURL || 'https://placehold.co/40x40.png',
+
+    const insertRow: any = {
+        author_id: user.id,
+        author_name: profile.display_name || 'Anonymous User',
+        author_handle: profile.handle,
+        author_avatar: profile.photo_url,
         content: text,
-        createdAt: serverTimestamp(),
-        comments: 0, reposts: 0, likes: 0, views: 0,
-        media: [], // Start with empty media
+        media: [],
         ...(poll && { poll }),
         ...(location && { location }),
-        ...(tribeId && { tribeId }),
-        ...(communityId && { communityId }),
     };
 
-    const docRef = await addDoc(collection(db, "posts"), postDataForDb);
-    
-    const optimisticPost: PostType = {
-      id: docRef.id,
-      authorId: user.uid,
-      authorName: user.displayName || 'Anonymous User',
-      authorHandle: user.email?.split('@')[0] || 'user',
-      authorAvatar: user.photoURL || 'https://placehold.co/40x40.png',
-      content: text,
-      timestamp: formatTimestamp(createdAt),
-      createdAt: createdAt.toISOString(),
-      comments: 0, reposts: 0, likes: 0, views: 0,
-      media: media.map(m => ({ url: m.previewUrl, type: m.type, hint: 'user uploaded content' })),
-      ...(poll && { poll }),
-      ...(location && { location }),
-      ...(tribeId && { tribeId }),
-      ...(communityId && { communityId }),
-    };
-    
+    const { data: inserted, error } = await supabase.from('posts').insert(insertRow).select().single();
+    if (error || !inserted) {
+        throw error ?? new Error('Failed to create post');
+    }
+
+    const optimisticPost = mapRow({ ...inserted, media: media.map(m => ({ url: m.previewUrl, type: m.type, hint: 'user uploaded content' })) });
     setForYouPosts(prev => [optimisticPost, ...prev]);
 
     const uploadPromises = media.map(async (m) => {
         if (m.type === 'gif' || m.type === 'sticker') {
-            return { url: m.url, type: m.type, width: m.width, height: m.height, hint: 'giphy content' };
+            return { url: m.url ?? '', type: m.type, width: m.width, height: m.height, hint: 'giphy content' };
         }
-        const fileName = `${user.uid}-${Date.now()}-${m.file.name}`;
-        const storagePath = `posts/${user.uid}/${fileName}`;
-        const storageRef = ref(storage, storagePath);
-        await uploadBytes(storageRef, m.file);
-        const downloadURL = await getDownloadURL(storageRef);
-        const baseMediaData = { url: downloadURL, type: m.type, hint: 'user uploaded content' };
-        
+        const fileName = `${Date.now()}-${m.file.name}`;
+        const storagePath = `${user.id}/${fileName}`;
+        const { error: uploadError } = await supabase.storage.from('post-media').upload(storagePath, m.file);
+        if (uploadError) throw uploadError;
+        const { data: { publicUrl } } = supabase.storage.from('post-media').getPublicUrl(storagePath);
+        const baseMediaData = { url: publicUrl, type: m.type, hint: 'user uploaded content' };
+
         if (m.type === 'image') {
             const { width, height } = await getImageDimensions(m.file);
             return { ...baseMediaData, width, height };
@@ -257,8 +245,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
         return baseMediaData;
     });
 
-    Promise.all(uploadPromises).then(mediaUploads => {
-        updateDoc(docRef, { media: mediaUploads });
+    Promise.all(uploadPromises).then(async mediaUploads => {
+        await supabase.from('posts').update({ media: mediaUploads }).eq('id', inserted.id);
         const finalPost = { ...optimisticPost, media: mediaUploads };
         setForYouPosts(prev => prev.map(p => p.id === optimisticPost.id ? finalPost : p));
     }).catch(uploadError => {
@@ -267,31 +255,28 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
     if (text) {
       const topics = extractKeywords(text);
-      if (topics.length > 0 && db) {
-        const topicsCollectionRef = collection(db, 'topics');
-        const batch = writeBatch(db);
-        topics.forEach(topic => batch.set(doc(topicsCollectionRef), { topic, createdAt: serverTimestamp() }));
-        await batch.commit();
+      if (topics.length > 0) {
+        await supabase.from('topics').insert(topics.map(topic => ({ topic, post_id: inserted.id })));
       }
     }
-    
-    const finalPost = { ...optimisticPost, id: docRef.id };
-    return finalPost;
+
+    return optimisticPost;
   };
 
   const editPost = async (postId: string, data: { text: string }) => {
-    if (!db || !user) throw new Error("Not authorized or db not available");
-    const postRef = doc(db, 'posts', postId);
-    await updateDoc(postRef, { content: data.text });
-    
+    if (!user) throw new Error("Not authorized");
+    const { error } = await supabase.from('posts').update({ content: data.text }).eq('id', postId);
+    if (error) throw error;
+
     const updater = (posts: PostType[]) => posts.map(p => p.id === postId ? { ...p, content: data.text } : p)
     setForYouPosts(updater);
     setNewForYouPosts(updater);
   };
 
   const deletePost = async (postId: string) => {
-    if (!db || !user) throw new Error("Not authorized or db not available");
-    await deleteDoc(doc(db, 'posts', postId));
+    if (!user) throw new Error("Not authorized");
+    const { error } = await supabase.from('posts').delete().eq('id', postId);
+    if (error) throw error;
 
     const updater = (posts: PostType[]) => posts.filter(p => p.id !== postId)
     setForYouPosts(updater);
@@ -299,14 +284,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const addVote = async (postId: string, choiceIndex: number) => {
-    if (!db) throw new Error("Firestore not initialized");
-
-    const postRef = doc(db, "posts", postId);
-
     const updater = (posts: PostType[]) =>
       posts.map(p => {
         if (p.id === postId && p.poll) {
-          const newChoices = p.poll.choices.map((choice, index) => 
+          const newChoices = p.poll.choices.map((choice, index) =>
             index === choiceIndex ? { ...choice, votes: choice.votes + 1 } : choice
           );
           return { ...p, poll: { ...p.poll, choices: newChoices } };
@@ -317,72 +298,46 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setForYouPosts(updater);
     setNewForYouPosts(updater);
 
-    try {
-      await runTransaction(db, async (transaction) => {
-        const postDoc = await transaction.get(postRef);
-        if (!postDoc.exists()) throw "Document does not exist!";
-        
-        const postData = postDoc.data();
-        const currentChoices = postData.poll?.choices || [];
-        
-        const newChoices = currentChoices.map((choice: { text: string, votes: number }, index: number) => 
-            index === choiceIndex ? { ...choice, votes: choice.votes + 1 } : choice
-        );
-
-        transaction.update(postRef, { "poll.choices": newChoices });
-      });
-    } catch (error) {
-      console.error("Failed to update vote in Firestore:", error);
+    const { error } = await supabase.rpc('vote_on_poll', { p_post_id: postId, p_choice_index: choiceIndex });
+    if (error) {
+      console.error("Failed to update vote:", error);
       fetchForYouPosts();
     }
   };
 
   const addComment = async (postId: string, data: { text: string; media: ReplyMedia[] }): Promise<boolean | null> => {
-    if (!user || !db || !storage) throw new Error("User not authenticated or Firebase not initialized.");
-    
+    if (!user || !profile) throw new Error("User not authenticated.");
+
     const { text, media } = data;
     try {
-        const postRef = doc(db, 'posts', postId);
-        const commentsCollectionRef = collection(postRef, 'comments');
-
         const mediaUploads = await Promise.all(media.map(async (m) => {
             if (m.type === 'gif' || m.type === 'sticker') {
                 return { url: m.url, type: m.type, width: m.width, height: m.height, hint: 'giphy content' };
             }
             const { width, height } = m.type === 'image' ? await getImageDimensions(m.file) : { width: undefined, height: undefined };
-            const fileName = `${user.uid}-comment-${Date.now()}-${m.file.name}`;
-            const storagePath = `comments/${postId}/${fileName}`;
-            const storageRef = ref(storage, storagePath);
-            await uploadBytes(storageRef, m.file);
-            const downloadURL = await getDownloadURL(storageRef);
-            return { url: downloadURL, type: m.type, width, height, hint: 'user uploaded reply' };
+            const fileName = `comment-${Date.now()}-${m.file.name}`;
+            const storagePath = `${user.id}/comments/${postId}/${fileName}`;
+            const { error: uploadError } = await supabase.storage.from('post-media').upload(storagePath, m.file);
+            if (uploadError) throw uploadError;
+            const { data: { publicUrl } } = supabase.storage.from('post-media').getPublicUrl(storagePath);
+            return { url: publicUrl, type: m.type, width, height, hint: 'user uploaded reply' };
         }));
 
-        const commentData = {
-            authorId: user.uid, authorName: user.displayName || 'Anonymous User',
-            authorHandle: user.email?.split('@')[0] || 'user',
-            authorAvatar: user.photoURL || 'https://placehold.co/40x40.png',
-            content: text, media: mediaUploads, createdAt: serverTimestamp(),
-            likes: 0, reposts: 0, comments: 0
-        };
+        const { error } = await supabase.from('comments').insert({
+            post_id: postId,
+            author_id: user.id,
+            author_name: profile.display_name || 'Anonymous User',
+            author_handle: profile.handle,
+            author_avatar: profile.photo_url,
+            content: text,
+            media: mediaUploads,
+        });
+        if (error) throw error;
 
-        const postDoc = await getDoc(postRef);
-        await addDoc(commentsCollectionRef, commentData);
-        await updateDoc(postRef, { comments: (postDoc.data()?.comments || 0) + 1 });
-        
         const updater = (posts: PostType[]) => posts.map(p => p.id === postId ? { ...p, comments: p.comments + 1 } : p);
         setForYouPosts(updater);
         setNewForYouPosts(updater);
-        
-        const postAuthorId = postDoc.data()?.authorId;
-        if (user.uid !== postAuthorId) {
-            await addDoc(collection(db, 'users', postAuthorId, 'notifications'), {
-                type: 'comment', fromUserId: user.uid, fromUserName: user.displayName || 'User',
-                fromUserAvatar: user.photoURL || 'https://placehold.co/40x40.png',
-                postId: postId, postContentSnippet: text.substring(0, 50),
-                createdAt: serverTimestamp(), read: false,
-            });
-        }
+
         return true;
     } catch (e) {
         console.error("Error adding comment: ", e);
@@ -391,103 +346,52 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const likePost = async (postId: string, currentlyLiked: boolean) => {
-    if (!db || !user) return;
-
-    const postRef = doc(db, "posts", postId);
-    const likeRef = doc(db, 'users', user.uid, 'likes', postId);
+    if (!user) return;
     const shouldUnlike = currentlyLiked;
 
-    const updater = (posts: PostType[]) => posts.map(p => 
-        p.id === postId 
-        ? { ...p, likes: p.likes + (shouldUnlike ? -1 : 1) } 
+    const updater = (posts: PostType[]) => posts.map(p =>
+        p.id === postId
+        ? { ...p, likes: p.likes + (shouldUnlike ? -1 : 1) }
         : p
     );
     setForYouPosts(updater);
     setNewForYouPosts(updater);
 
-    try {
-        await runTransaction(db, async (transaction) => {
-            const postDoc = await transaction.get(postRef);
-            if (!postDoc.exists()) throw "Post does not exist!";
-            
-            const newLikeCount = postDoc.data().likes + (shouldUnlike ? -1 : 1);
-            transaction.update(postRef, { likes: Math.max(0, newLikeCount) });
-            
-            if (shouldUnlike) {
-                transaction.delete(likeRef);
-            } else {
-                transaction.set(likeRef, { createdAt: serverTimestamp() });
-            }
-        });
+    const { error } = shouldUnlike
+      ? await supabase.from('likes').delete().eq('user_id', user.id).eq('post_id', postId)
+      : await supabase.from('likes').insert({ user_id: user.id, post_id: postId });
 
-        if (!shouldUnlike) {
-            const postDoc = await getDoc(postRef);
-            if (postDoc.exists()) {
-                const postData = postDoc.data();
-                if (postData?.authorId && user.uid !== postData.authorId) {
-                    await addDoc(collection(db, 'users', postData.authorId, 'notifications'), {
-                        type: 'like', fromUserId: user.uid, fromUserName: user.displayName || 'User',
-                        fromUserAvatar: user.photoURL || 'https://placehold.co/40x40.png',
-                        postId: postId, postContentSnippet: (postData.content || '').substring(0, 50),
-                        createdAt: serverTimestamp(), read: false,
-                    });
-                }
-            }
-        }
-    } catch (error) {
+    if (error) {
         console.error("Error updating likes:", error);
-        const revertUpdater = (posts: PostType[]) => posts.map(p => 
-            p.id === postId 
-            ? { ...p, likes: p.likes + (shouldUnlike ? 1 : -1) } 
+        const revertUpdater = (posts: PostType[]) => posts.map(p =>
+            p.id === postId
+            ? { ...p, likes: p.likes + (shouldUnlike ? 1 : -1) }
             : p
         );
         setForYouPosts(revertUpdater);
         setNewForYouPosts(revertUpdater);
     }
   };
-  
-  const likeComment = async (postId: string, commentId: string, isUnlike: boolean) => {
-    if (!db || !user) return;
-    const commentRef = doc(db, "posts", postId, "comments", commentId);
 
-    try {
-        await runTransaction(db, async (transaction) => {
-            const commentDoc = await transaction.get(commentRef);
-            if (!commentDoc.exists()) throw "Comment does not exist!";
-            
-            const newLikeCount = (commentDoc.data().likes || 0) + (isUnlike ? -1 : 1);
-            transaction.update(commentRef, { likes: Math.max(0, newLikeCount) });
-        });
-    } catch (error) {
-        console.error("Error updating comment likes:", error);
-    }
+  const likeComment = async (postId: string, commentId: string, isUnlike: boolean) => {
+    if (!user) return;
+    const { error } = isUnlike
+      ? await supabase.from('likes').delete().eq('user_id', user.id).eq('comment_id', commentId)
+      : await supabase.from('likes').insert({ user_id: user.id, comment_id: commentId });
+    if (error) console.error("Error updating comment likes:", error);
   };
 
   const repostPost = async (postId: string, isReposted: boolean) => {
-    if (!db) return;
-    const postRef = doc(db, "posts", postId);
-    try {
-      await runTransaction(db, async (transaction) => {
-        const postDoc = await transaction.get(postRef);
-        if (!postDoc.exists()) throw "Document does not exist!";
-        const newReposts = postDoc.data().reposts + (isReposted ? -1 : 1);
-        transaction.update(postRef, { reposts: newReposts < 0 ? 0 : newReposts });
-      });
-    } catch (error) {
-      console.error("Error updating reposts:", error);
-    }
+    const { error } = await supabase.rpc('increment_repost_count', { p_post_id: postId, p_delta: isReposted ? -1 : 1 });
+    if (error) console.error("Error updating reposts:", error);
   };
 
   const bookmarkPost = async (postId: string, isBookmarked: boolean) => {
-    if (!db || !user) return;
-    const bookmarkRef = doc(db, 'users', user.uid, 'bookmarks', postId);
-
-    try {
-        if (isBookmarked) await deleteDoc(bookmarkRef);
-        else await setDoc(bookmarkRef, { createdAt: serverTimestamp() });
-    } catch (error) {
-        console.error("Error updating bookmark:", error);
-    }
+    if (!user) return;
+    const { error } = isBookmarked
+      ? await supabase.from('bookmarks').delete().eq('user_id', user.id).eq('post_id', postId)
+      : await supabase.from('bookmarks').insert({ user_id: user.id, post_id: postId });
+    if (error) console.error("Error updating bookmark:", error);
   };
 
   const value = {

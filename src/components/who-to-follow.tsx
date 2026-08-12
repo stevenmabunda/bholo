@@ -35,11 +35,11 @@ export function WhoToFollow() {
   useEffect(() => {
     if (user) {
         setLoading(true);
-        getUsersToFollow(user.uid)
+        getUsersToFollow(user.id)
             .then(async (users) => {
                 setUsersToFollow(users);
                 if (users.length > 0) {
-                    const followChecks = users.map(u => getIsFollowing(user.uid, u.uid));
+                    const followChecks = users.map(u => getIsFollowing(user.id, u.uid));
                     const followStatuses = await Promise.all(followChecks);
                     const newFollowedUserIds = new Set<string>();
                     users.forEach((u, index) => {

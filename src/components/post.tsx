@@ -51,8 +51,7 @@ import { FollowButton } from "./follow-button";
 import { getIsFollowing } from "@/app/(app)/profile/actions";
 import { ScrollArea } from "./ui/scroll-area";
 import { CreateComment } from "./create-comment";
-import { db } from '@/lib/firebase/config';
-import { collection, onSnapshot, orderBy, query, type Timestamp } from "firebase/firestore";
+import { useLiveComments } from '@/hooks/use-live-comments';
 import { Skeleton } from "./ui/skeleton";
 import useEmblaCarousel from 'embla-carousel-react';
 import { LoginOrSignupDialog } from "./login-or-signup-dialog";
@@ -345,8 +344,6 @@ export function Post(props: PostProps) {
   const { setActiveTab } = useTabContext();
   const isMobile = useIsMobile();
 
-  const [comments, setComments] = useState<CommentType[]>([]);
-  const [loadingComments, setLoadingComments] = useState(false);
   const [commentCount, setCommentCount] = useState(initialComments);
 
   const [likeCount, setLikeCount] = useState(initialLikes);
@@ -361,6 +358,19 @@ export function Post(props: PostProps) {
 
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   const [imageViewerStartIndex, setImageViewerStartIndex] = useState(0);
+
+  const { comments: liveComments, loading: loadingComments } = useLiveComments(isImageViewerOpen ? id : null);
+  const comments: CommentType[] = liveComments.map(c => ({
+    id: c.id,
+    authorId: c.authorId,
+    authorName: c.authorName,
+    authorHandle: c.authorHandle,
+    authorAvatar: c.authorAvatar,
+    content: c.content,
+    timestamp: formatTimestamp(new Date(c.createdAt)),
+    media: c.media.map(m => ({ ...m, url: m.url ?? '' })),
+    comments: 0, reposts: 0, likes: c.likes,
+  }));
   
   const [isExpanded, setIsExpanded] = useState(false);
   
@@ -383,7 +393,7 @@ export function Post(props: PostProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
-  const isAuthor = user && user.uid === authorId;
+  const isAuthor = user && user.id === authorId;
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, startIndex: imageViewerStartIndex });
   const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
@@ -477,35 +487,6 @@ export function Post(props: PostProps) {
   }, [isFeedVideoPlaying]);
 
 
-  useEffect(() => {
-    let unsubscribe = () => {};
-    if (isImageViewerOpen && db) {
-      setLoadingComments(true);
-      const commentsRef = collection(db, 'posts', id, 'comments');
-      const q = query(commentsRef, orderBy('createdAt', 'desc'));
-      unsubscribe = onSnapshot(q, (snapshot) => {
-        const fetchedComments = snapshot.docs.map(doc => {
-            const data = doc.data();
-            const createdAt = (data.createdAt as Timestamp)?.toDate();
-            return {
-                id: doc.id,
-                authorId: data.authorId,
-                authorName: data.authorName,
-                authorHandle: data.authorHandle,
-                authorAvatar: data.authorAvatar,
-                content: data.content,
-                timestamp: createdAt ? formatTimestamp(createdAt) : "now",
-                media: data.media || [],
-                comments: 0, reposts: 0, likes: data.likes || 0,
-            }
-        }) as CommentType[];
-        setComments(fetchedComments);
-        setLoadingComments(false);
-      });
-    }
-    return () => unsubscribe();
-  }, [isImageViewerOpen, id]);
-
   const handleCreateComment = async (data: { text: string; media: any[] }) => {
     if (!user || !id) return null;
     try {
@@ -523,9 +504,9 @@ export function Post(props: PostProps) {
 
 
   useEffect(() => {
-    if (user && user.uid !== authorId) {
+    if (user && user.id !== authorId) {
         setFollowLoading(true);
-        getIsFollowing(user.uid, authorId).then(status => {
+        getIsFollowing(user.id, authorId).then(status => {
             setIsFollowing(status);
             setFollowLoading(false);
         });

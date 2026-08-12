@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '@/lib/firebase/config';
+import { supabase } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
@@ -36,21 +35,17 @@ export default function ForgotPasswordPage() {
     setError(null);
     setSuccess(false);
 
-    if (!auth) {
-      setError('Authentication service is not available.');
-      setLoading(false);
-      return;
-    }
-    
-    try {
-      await sendPasswordResetEmail(auth, values.email);
-      setSuccess(true);
-    } catch (err: any) {
+    const { error } = await supabase.auth.resetPasswordForEmail(values.email, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/profile`,
+    });
+
+    if (error) {
       setError('Could not send reset email. Please check if the email address is correct.');
-      console.error(err);
-    } finally {
-      setLoading(false);
+      console.error(error);
+    } else {
+      setSuccess(true);
     }
+    setLoading(false);
   }
 
   return (

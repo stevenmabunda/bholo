@@ -66,7 +66,7 @@ export default function CreatorsPage() {
     }
     setLoadingTier(tierName);
     try {
-      const result = await applyForCreatorProgram(user.uid, tierName);
+      const result = await applyForCreatorProgram(user.id, tierName);
       if ('mailto' in result) {
         window.location.href = result.mailto;
         setApplicationSubmitted(true);

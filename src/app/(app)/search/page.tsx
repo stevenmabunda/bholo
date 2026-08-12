@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { searchEverything, type SearchResults } from './actions';
 import { Input } from '@/components/ui/input';
-import { Search, ArrowLeft, Users } from 'lucide-react';
+import { Search, ArrowLeft } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Post } from '@/components/post';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -15,11 +15,7 @@ import { PostSkeleton } from '@/components/post-skeleton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
-import Image from 'next/image';
 import { getIsFollowing } from '@/app/(app)/profile/actions';
-import type { Community } from '@/app/(app)/communities/actions';
-import { getJoinedCommunityIds } from '@/app/(app)/communities/actions';
-import { JoinCommunityButton } from '@/components/join-community-button';
 
 
 function UserResultSkeleton() {
@@ -37,32 +33,16 @@ function UserResultSkeleton() {
     );
 }
 
-function CommunityResultSkeleton() {
-    return (
-        <div className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-4">
-                <Skeleton className="h-12 w-12 rounded-lg" />
-                <div className="space-y-1">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-20" />
-                </div>
-            </div>
-            <Skeleton className="h-9 w-24 rounded-full" />
-        </div>
-    );
-}
-
 export default function SearchPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  
+
   const initialQuery = searchParams.get('q') || '';
   const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<SearchResults | null>(null);
   const [loading, setLoading] = useState(true);
-  
-  const [joinedCommunityIds, setJoinedCommunityIds] = useState<Set<string>>(new Set());
+
   const [followedUserIds, setFollowedUserIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -77,16 +57,11 @@ export default function SearchPage() {
   const fetchInitialData = useCallback(async () => {
     if (user) {
       setLoading(true);
-      const [communityIds, searchResults] = await Promise.all([
-        getJoinedCommunityIds(user.uid),
-        searchEverything(initialQuery)
-      ]);
-
-      setJoinedCommunityIds(new Set(communityIds));
+      const searchResults = await searchEverything(initialQuery);
       setResults(searchResults);
-      
+
       if (searchResults.users.length > 0) {
-        const followChecks = searchResults.users.map(u => getIsFollowing(user.uid, u.uid));
+        const followChecks = searchResults.users.map(u => getIsFollowing(user.id, u.uid));
         const followStatuses = await Promise.all(followChecks);
         const newFollowedUserIds = new Set<string>();
         searchResults.users.forEach((u, index) => {
@@ -96,7 +71,7 @@ export default function SearchPage() {
         });
         setFollowedUserIds(newFollowedUserIds);
       }
-      
+
       setLoading(false);
     } else if (initialQuery.trim()) {
       setLoading(true);
@@ -104,7 +79,7 @@ export default function SearchPage() {
       setResults(searchResults);
       setLoading(false);
     } else {
-      setResults({ users: [], posts: [], communities: [] });
+      setResults({ users: [], posts: [] });
       setLoading(false);
     }
   }, [user, initialQuery]);
@@ -121,7 +96,7 @@ export default function SearchPage() {
       }
     }
   };
-  
+
   const handleFollowToggle = (profileId: string, isFollowing: boolean) => {
       setFollowedUserIds(prev => {
           const newSet = new Set(prev);
@@ -134,21 +109,9 @@ export default function SearchPage() {
       })
   }
 
-  const handleMembershipChange = (communityId: string, isMember: boolean) => {
-    setJoinedCommunityIds(prev => {
-      const newSet = new Set(prev);
-      if (isMember) {
-        newSet.add(communityId);
-      } else {
-        newSet.delete(communityId);
-      }
-      return newSet;
-    });
-  }
-
   const hasResults = useMemo(() => {
     if (!results) return false;
-    return results.users.length > 0 || results.posts.length > 0 || results.communities.length > 0;
+    return results.users.length > 0 || results.posts.length > 0;
   }, [results]);
 
   return (
@@ -168,20 +131,18 @@ export default function SearchPage() {
           />
         </div>
       </header>
-      
+
       <Tabs defaultValue="top" className="w-full">
         <TabsList className="flex w-full justify-around rounded-none border-b bg-transparent p-0">
           <TabsTrigger value="top" className="flex-1 rounded-none py-3 text-sm font-semibold text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none">Top</TabsTrigger>
           <TabsTrigger value="users" className="flex-1 rounded-none py-3 text-sm font-semibold text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none">Users</TabsTrigger>
           <TabsTrigger value="posts" className="flex-1 rounded-none py-3 text-sm font-semibold text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none">Posts</TabsTrigger>
-           <TabsTrigger value="communities" className="flex-1 rounded-none py-3 text-sm font-semibold text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none">Communities</TabsTrigger>
         </TabsList>
         <main className="flex-1">
           {loading ? (
              <div className="divide-y divide-border">
                 <UserResultSkeleton />
                 <PostSkeleton />
-                <CommunityResultSkeleton />
              </div>
           ) : !hasResults ? (
              <div className="p-8 text-center text-muted-foreground">
@@ -205,7 +166,7 @@ export default function SearchPage() {
                                         <p className="text-sm text-muted-foreground">@{p.handle}</p>
                                         </div>
                                     </Link>
-                                    <FollowButton 
+                                    <FollowButton
                                       profileId={p.uid}
                                       isFollowing={followedUserIds.has(p.uid)}
                                       onToggleFollow={handleFollowToggle}
@@ -232,7 +193,7 @@ export default function SearchPage() {
                                         <p className="text-sm text-muted-foreground">@{p.handle}</p>
                                         </div>
                                     </Link>
-                                     <FollowButton 
+                                     <FollowButton
                                       profileId={p.uid}
                                       isFollowing={followedUserIds.has(p.uid)}
                                       onToggleFollow={handleFollowToggle}
@@ -246,34 +207,6 @@ export default function SearchPage() {
                 <TabsContent value="posts">
                      <div className="divide-y divide-border">
                         {results?.posts.map(post => <Post key={post.id} {...post} />)}
-                    </div>
-                </TabsContent>
-                <TabsContent value="communities">
-                     <div className="divide-y divide-border">
-                        {results?.communities.map(community => (
-                             <div key={community.id} className="p-4 hover:bg-accent/50">
-                                <div className="flex items-start justify-between gap-4">
-                                    <Link href={`/communities/${community.id}`} className="flex items-start gap-4 flex-1">
-                                        <Image src={community.bannerUrl} alt={community.name} width={64} height={64} className="rounded-lg object-cover h-16 w-16" />
-                                        <div className="flex-1">
-                                            <h3 className="font-bold hover:underline">{community.name}</h3>
-                                            <p className="text-sm text-muted-foreground line-clamp-2">{community.description}</p>
-                                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                                                <Users className="h-3 w-3" />
-                                                {community.memberCount} members
-                                            </p>
-                                        </div>
-                                    </Link>
-                                    <div className="w-36 flex-shrink-0">
-                                        <JoinCommunityButton
-                                            communityId={community.id}
-                                            isMember={joinedCommunityIds.has(community.id)}
-                                            onToggleMembership={handleMembershipChange}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
                     </div>
                 </TabsContent>
             </>

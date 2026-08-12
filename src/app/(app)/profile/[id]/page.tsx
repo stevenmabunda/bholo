@@ -11,8 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { PostSkeleton } from "@/components/post-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { db, storage } from "@/lib/firebase/config";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { supabase } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -20,8 +19,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { updateProfile } from "firebase/auth";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useParams, useRouter } from "next/navigation";
 import { getUserProfile, getIsFollowing, toggleFollow, type ProfileData, getLikedPosts, updateUserPosts, getMediaPosts, getUserPosts } from "../actions";
 import { FollowButton } from "@/components/follow-button";
@@ -62,7 +59,7 @@ export default function ProfilePage() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(true);
   
-  const isMyProfile = currentUser?.uid === profileId;
+  const isMyProfile = currentUser?.id === profileId;
   const hasFetchedLikedPosts = useRef(false);
   const hasFetchedMediaPosts = useRef(false);
 
@@ -90,8 +87,8 @@ export default function ProfilePage() {
            return;
         }
 
-        if (currentUser && currentUser.uid !== profileId) {
-            const followStatus = await getIsFollowing(currentUser.uid, profileId);
+        if (currentUser && currentUser.id !== profileId) {
+            const followStatus = await getIsFollowing(currentUser.id, profileId);
             setIsFollowing(followStatus);
         }
 
@@ -465,48 +462,45 @@ function EditProfileDialog({ isOpen, onOpenChange, profile, onProfileUpdate }: {
     }, [isDragging, handleMouseMove]);
 
 
-    const uploadImage = async (file: File, path: string): Promise<string> => {
-        if (!storage) throw new Error("Storage not initialized");
-        const storageRef = ref(storage, path);
-        await uploadBytes(storageRef, file);
-        return await getDownloadURL(storageRef);
+    const uploadImage = async (file: File, bucket: 'avatars' | 'banners', userId: string): Promise<string> => {
+        const path = `${userId}/${Date.now()}-${file.name}`;
+        const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true });
+        if (error) throw error;
+        const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
+        return publicUrl;
     };
 
     const onSubmit = async (data: z.infer<typeof profileFormSchema>) => {
-        if (!user || !db || !profile) return;
+        if (!user || !profile) return;
         setIsSaving(true);
         try {
             let newAvatarUrl = profile.photoURL;
             if (avatarFile) {
-                newAvatarUrl = await uploadImage(avatarFile, `avatars/${user.uid}`);
+                newAvatarUrl = await uploadImage(avatarFile, 'avatars', user.id);
             }
 
             let newBannerUrl = profile.bannerUrl;
             if (bannerFile) {
-                newBannerUrl = await uploadImage(bannerFile, `banners/${user.uid}`);
+                newBannerUrl = await uploadImage(bannerFile, 'banners', user.id);
             }
-            
-            await updateProfile(user, {
-                displayName: data.displayName,
-                photoURL: newAvatarUrl,
-            });
 
-            const userDocRef = doc(db, 'users', user.uid);
-            await setDoc(userDocRef, {
-                displayName: data.displayName,
-                photoURL: newAvatarUrl,
+            const { error } = await supabase.from('profiles').update({
+                display_name: data.displayName,
+                photo_url: newAvatarUrl,
                 bio: data.bio,
                 location: data.location,
                 country: data.country,
-                favouriteClub: data.favouriteClub,
-                bannerUrl: newBannerUrl,
-                bannerPosition: bannerPosition, // Save the new banner position
-            }, { merge: true });
+                favourite_club: data.favouriteClub,
+                banner_url: newBannerUrl,
+                banner_position: bannerPosition,
+            }).eq('id', user.id);
 
-            // This is slow and should be moved to a Cloud Function.
-            // await updateUserPosts(user.uid);
+            if (error) throw error;
 
-            toast({ title: "Success", description: "Profile updated! Changes to your posts will appear shortly." });
+            // Denormalized author fields on existing posts/comments are not
+            // backfilled automatically — call updateUserPosts(user.id) if needed.
+
+            toast({ title: "Success", description: "Profile updated!" });
             onProfileUpdate();
             onOpenChange(false);
         } catch (error) {

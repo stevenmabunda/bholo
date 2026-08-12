@@ -1,7 +1,7 @@
 
 'use client';
 import type { ReactNode } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { SidebarNav } from '@/components/sidebar-nav';
 import { RightSidebar } from '@/components/right-sidebar';
@@ -12,7 +12,6 @@ import { useEffect } from 'react';
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -24,10 +23,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     return null; // The global loader in AuthProvider handles this.
   }
   
-  // Conditionally hide the right sidebar content for specific routes
-  const isFantasyPage = pathname === '/fantasy';
-  const showRightSidebar = !isFantasyPage;
-
   return (
     <>
       {/* Desktop Layout */}
@@ -43,13 +38,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
              </ScrollArea>
           </main>
 
-          {showRightSidebar && (
-            <aside className="hidden xl:block w-[350px] shrink-0 h-screen">
-              <ScrollArea className="h-full">
-                  <RightSidebar />
-              </ScrollArea>
-            </aside>
-          )}
+          <aside className="hidden xl:block w-[350px] shrink-0 h-screen">
+            <ScrollArea className="h-full">
+                <RightSidebar />
+            </ScrollArea>
+          </aside>
         </div>
       </div>
       

@@ -26,7 +26,7 @@ export function MessageButton({ otherUserId }: { otherUserId: string }) {
 
         setIsLoading(true);
         try {
-            const conversationId = await getOrCreateConversation(user.uid, otherUserId);
+            const conversationId = await getOrCreateConversation(user.id, otherUserId);
             router.push(`/messages/${conversationId}`);
         } catch (error) {
             console.error("Failed to start conversation:", error);

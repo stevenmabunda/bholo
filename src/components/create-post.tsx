@@ -9,6 +9,7 @@ import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import { useProfile } from "@/hooks/use-profile";
 import { Input } from "./ui/input";
 import type { PostType } from "@/lib/data";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
@@ -52,8 +53,9 @@ function StickerPicker({ onStickerClick }: { onStickerClick: (sticker: any, e: R
 };
 
 
-export function CreatePost({ onPost, tribeId, communityId }: { onPost: (data: { text: string; media: Media[], poll?: PostType['poll'], location?: string | null, tribeId?: string, communityId?: string }) => Promise<any>, tribeId?: string, communityId?: string }) {
+export function CreatePost({ onPost }: { onPost: (data: { text: string; media: Media[], poll?: PostType['poll'], location?: string | null }) => Promise<any> }) {
   const { user } = useAuth();
+  const { profile } = useProfile();
   const [text, setText] = useState("");
   const [media, setMedia] = useState<Media[]>([]);
   const [posting, setPosting] = useState(false);
@@ -132,7 +134,7 @@ export function CreatePost({ onPost, tribeId, communityId }: { onPost: (data: { 
     
 
     try {
-        await onPost({ text, media, poll: pollData, location, tribeId, communityId });
+        await onPost({ text, media, poll: pollData, location });
         
         media.forEach(m => URL.revokeObjectURL(m.previewUrl));
 
@@ -267,8 +269,8 @@ export function CreatePost({ onPost, tribeId, communityId }: { onPost: (data: { 
       <div className="flex space-x-3 md:space-x-4">
         <div className="hidden md:block">
             <Avatar>
-            <AvatarImage src={user?.photoURL || "https://placehold.co/40x40.png"} alt={user?.displayName || "User"} data-ai-hint="user avatar" />
-            <AvatarFallback>{user?.displayName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+            <AvatarImage src={profile?.photo_url || "https://placehold.co/40x40.png"} alt={profile?.display_name || "User"} data-ai-hint="user avatar" />
+            <AvatarFallback>{profile?.display_name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
             </Avatar>
         </div>
         <div className="flex-1 space-y-3">

@@ -1,5 +1,3 @@
-import { type Timestamp } from 'firebase/firestore';
-
 export type PostType = {
   id: string;
   authorId: string;
@@ -13,8 +11,6 @@ export type PostType = {
   likes: number;
   views?: number;
   location?: string;
-  tribeId?: string;
-  communityId?: string;
   createdAt?: string; // Changed to string to be serializable
   media?: Array<{
     url: string;

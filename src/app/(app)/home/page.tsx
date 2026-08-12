@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useTabContext } from '@/contexts/tab-context';
 import { NewPostsNotification } from '@/components/new-posts-notification';
 import { useAuth } from '@/hooks/use-auth';
+import { useProfile } from '@/hooks/use-profile';
 import { Button } from '@/components/ui/button';
 import { Loader2, Bell, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -21,12 +22,10 @@ import Image from "next/image";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TrendingTopics } from '@/components/trending-topics';
-import { db } from '@/lib/firebase/config';
-import { onSnapshot, collection, query, where } from 'firebase/firestore';
+import { useUnreadNotificationCount } from '@/hooks/use-unread-notifications';
 import LivePage from '../live/page';
 import { Card } from '@/components/ui/card';
 import { SignupPrompt } from '@/components/signup-prompt';
-import FantasyPage from '../fantasy/page';
 import VideoFeedPage from '../video/page';
 
 
@@ -43,7 +42,8 @@ export default function HomePage() {
   const { toast } = useToast();
   const { activeTab, setActiveTab } = useTabContext();
   const { user } = useAuth();
-  
+  const { profile } = useProfile();
+
   const [showNotification, setShowNotification] = useState(false);
   const [hasScrolledFromTop, setHasScrolledFromTop] = useState(false);
   
@@ -52,20 +52,7 @@ export default function HomePage() {
   
   const [isHeaderHidden, setIsHeaderHidden] = useState(false);
   const lastScrollY = useRef(0);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
-
-  useEffect(() => {
-    if (user && db) {
-      const notificationsRef = collection(db, 'users', user.uid, 'notifications');
-      const q = query(notificationsRef, where('read', '==', false));
-      
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        setUnreadNotifications(snapshot.size);
-      });
-
-      return () => unsubscribe();
-    }
-  }, [user]);
+  const unreadNotifications = useUnreadNotificationCount();
 
   useEffect(() => {
     document.title = 'Home | BHOLO';
@@ -186,7 +173,6 @@ export default function HomePage() {
     { value: 'foryou', label: 'For You' },
     { value: 'discover', label: 'Discover' },
     // { value: 'live', label: 'Match Centre' },
-    // { value: 'fantasy', label: 'Fantasy' },
   ];
 
   return (
@@ -206,8 +192,8 @@ export default function HomePage() {
                      <SidebarTrigger asChild>
                         <button className="h-8 w-8 rounded-full overflow-hidden">
                             <Avatar className="h-full w-full">
-                                <AvatarImage src={user?.photoURL || undefined} data-ai-hint="user avatar" />
-                                <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                                <AvatarImage src={profile?.photo_url || undefined} data-ai-hint="user avatar" />
+                                <AvatarFallback>{profile?.display_name?.charAt(0) || 'U'}</AvatarFallback>
                             </Avatar>
                         </button>
                     </SidebarTrigger>
@@ -296,9 +282,6 @@ export default function HomePage() {
           </TabsContent>
           {/* <TabsContent value="live" className="h-full">
             <LivePage />
-          </TabsContent>
-          <TabsContent value="fantasy" className="h-full">
-            <FantasyPage isEmbedded={true} />
           </TabsContent> */}
         </main>
       </Tabs>

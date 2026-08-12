@@ -4,9 +4,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
-import { getConversationDetails, sendMessage, type Message, type ConversationDetails } from '../actions';
-import { onSnapshot, collection, query, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
+import { getConversationDetails, sendMessage, markConversationRead, type Message, type ConversationDetails } from '../actions';
+import { supabase } from '@/lib/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,22 +48,44 @@ export default function ChatPage() {
             }
         };
 
+        const fetchMessages = async () => {
+            const { data } = await supabase
+                .from('conversation_messages')
+                .select('*')
+                .eq('conversation_id', conversationId)
+                .order('created_at', { ascending: true });
+            setMessages((data ?? []).map(row => ({
+                id: row.id,
+                senderId: row.sender_id,
+                text: row.content,
+                timestamp: new Date(row.created_at),
+            })));
+        };
+
         fetchDetails();
+        fetchMessages();
 
-        const messagesRef = collection(db, 'conversations', conversationId, 'messages');
-        const q = query(messagesRef, orderBy('timestamp', 'asc'));
+        if (user) {
+            markConversationRead(conversationId, user.id);
+        }
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const fetchedMessages = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                timestamp: (doc.data().timestamp)?.toDate()
-            } as Message));
-            setMessages(fetchedMessages);
-        });
+        const channel = supabase
+            .channel(`conversation-${conversationId}-${Math.random().toString(36).slice(2)}`)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'conversation_messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => {
+                const row = payload.new as any;
+                setMessages(prev => [...prev, {
+                    id: row.id,
+                    senderId: row.sender_id,
+                    text: row.content,
+                    timestamp: new Date(row.created_at),
+                }]);
+            })
+            .subscribe();
 
-        return () => unsubscribe();
-    }, [conversationId]);
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [conversationId, user]);
 
 
     const handleSendMessage = async (e: React.FormEvent) => {
@@ -76,7 +97,7 @@ export default function ChatPage() {
         setNewMessage('');
 
         try {
-            await sendMessage(conversationId, user.uid, text);
+            await sendMessage(conversationId, user.id, text);
         } catch (error) {
             console.error("Failed to send message", error);
             setNewMessage(text); // Put message back in input on error
@@ -122,7 +143,7 @@ export default function ChatPage() {
         )
     }
 
-    const otherUser = conversation.participants.find(p => p.uid !== user?.uid);
+    const otherUser = conversation.participants.find(p => p.uid !== user?.id);
 
     return (
         <div className="flex flex-col h-screen">
@@ -142,8 +163,8 @@ export default function ChatPage() {
             </header>
             <main className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((msg) => (
-                    <div key={msg.id} className={cn("flex items-end gap-2", msg.senderId === user?.uid ? "justify-end" : "justify-start")}>
-                         {msg.senderId !== user?.uid && (
+                    <div key={msg.id} className={cn("flex items-end gap-2", msg.senderId === user?.id ? "justify-end" : "justify-start")}>
+                         {msg.senderId !== user?.id && (
                              <Avatar className="h-8 w-8 self-start">
                                 <AvatarImage src={otherUser?.photoURL} />
                                 <AvatarFallback>{otherUser?.displayName.charAt(0)}</AvatarFallback>
@@ -151,7 +172,7 @@ export default function ChatPage() {
                          )}
                          <div className={cn(
                              "max-w-xs md:max-w-md rounded-2xl px-4 py-2",
-                             msg.senderId === user?.uid 
+                             msg.senderId === user?.id 
                                 ? "bg-primary text-primary-foreground rounded-br-none"
                                 : "bg-secondary rounded-bl-none"
                          )}>

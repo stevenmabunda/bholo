@@ -1,24 +1,7 @@
 
-
 'use server';
 
-import { db } from '@/lib/firebase/config';
-import {
-  doc,
-  getDoc,
-  runTransaction,
-  collection,
-  addDoc,
-  serverTimestamp,
-  increment,
-  writeBatch,
-  getDocs,
-  type Timestamp,
-  query,
-  orderBy,
-  where,
-  limit,
-} from 'firebase/firestore';
+import { createClient } from '@/lib/supabase/server';
 import type { PostType } from '@/lib/data';
 import { formatTimestamp } from '@/lib/utils';
 
@@ -38,115 +21,79 @@ export type ProfileData = {
   followingCount: number;
 };
 
+function mapPostRow(row: any): PostType {
+  const createdAt = row.created_at ? new Date(row.created_at) : undefined;
+  return {
+    id: row.id,
+    authorId: row.author_id,
+    authorName: row.author_name,
+    authorHandle: row.author_handle,
+    authorAvatar: row.author_avatar,
+    content: row.content,
+    comments: row.comments_count,
+    reposts: row.reposts_count,
+    likes: row.likes_count,
+    media: row.media,
+    poll: row.poll,
+    timestamp: createdAt ? formatTimestamp(createdAt) : 'now',
+    createdAt: createdAt ? createdAt.toISOString() : undefined,
+  } as PostType & { createdAt?: string };
+}
+
 export async function getUserProfile(
   profileId: string
 ): Promise<ProfileData | null> {
-  if (!db) return null;
-  const userDocRef = doc(db, 'users', profileId);
-  const userDocSnap = await getDoc(userDocRef);
+  const supabase = await createClient();
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', profileId).single();
 
-  if (!userDocSnap.exists()) {
-    // This could be a seed user that doesn't have a full profile
-    // Return a default structure
-    if (profileId === 'bholo-bot') {
-       return {
-        uid: 'bholo-bot',
-        displayName: 'BHOLO Bot',
-        photoURL: 'https://placehold.co/128x128.png',
-        handle: 'bholobot',
-        joined: 'A while ago',
-        bio: 'The official bot of BHOLO.',
-        location: 'The Internet',
-        country: 'Digital Realm',
-        favouriteClub: 'All of them',
-        bannerUrl: 'https://placehold.co/1200x400.png',
-        bannerPosition: 50,
-        followersCount: 999,
-        followingCount: 1,
-      };
-    }
-    return null;
-  }
+  if (error || !data) return null;
 
-  const data = userDocSnap.data();
   return {
-    uid: data.uid,
-    displayName: data.displayName || 'User',
-    photoURL: data.photoURL || 'https://placehold.co/128x128.png',
+    uid: data.id,
+    displayName: data.display_name || 'User',
+    photoURL: data.photo_url || 'https://placehold.co/128x128.png',
     handle: data.handle || 'user',
-    joined: data.joined
-      ? new Date(data.joined).toLocaleDateString('en-US', {
-          month: 'long',
-          year: 'numeric',
-        })
+    joined: data.created_at
+      ? new Date(data.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
       : 'recently',
     bio: data.bio || '',
     location: data.location || '',
     country: data.country || '',
-    favouriteClub: data.favouriteClub || '',
-    bannerUrl: data.bannerUrl || 'https://placehold.co/1200x400.png',
-    bannerPosition: data.bannerPosition === undefined ? 50 : data.bannerPosition,
-    followersCount: data.followersCount || 0,
-    followingCount: data.followingCount || 0,
+    favouriteClub: data.favourite_club || '',
+    bannerUrl: data.banner_url || 'https://placehold.co/1200x400.png',
+    bannerPosition: data.banner_position ?? 50,
+    followersCount: data.followers_count || 0,
+    followingCount: data.following_count || 0,
   };
 }
 
 export async function getUserPosts(userId: string): Promise<PostType[]> {
-    if (!db) return [];
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('author_id', userId)
+      .order('created_at', { ascending: false });
 
-    const postsRef = collection(db, 'posts');
-    // Removed orderBy to avoid needing a composite index. We will sort in code.
-    const q = query(postsRef, where('authorId', '==', userId));
-
-    const querySnapshot = await getDocs(q);
-
-    const posts = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        const createdAt = (data.createdAt as Timestamp)?.toDate();
-        return {
-            id: doc.id,
-            authorId: data.authorId,
-            authorName: data.authorName,
-            authorHandle: data.authorHandle,
-            authorAvatar: data.authorAvatar,
-            content: data.content,
-            comments: data.comments,
-            reposts: data.reposts,
-            likes: data.likes,
-            media: data.media,
-            poll: data.poll,
-            timestamp: createdAt ? formatTimestamp(createdAt) : 'now',
-            createdAt: createdAt // Keep original timestamp for sorting
-        } as PostType & { createdAt?: Date };
-    });
-
-    // Sort posts by creation date descending
-    posts.sort((a, b) => {
-        const timeA = a.createdAt?.getTime() || 0;
-        const timeB = b.createdAt?.getTime() || 0;
-        return timeB - timeA;
-    });
-
-    // Remove the temporary createdAt from the final returned object if desired, although it's fine to keep.
-    return posts.map(({ createdAt, ...rest }) => rest);
+    if (error) return [];
+    return (data ?? []).map(mapPostRow);
 }
 
 export async function getIsFollowing(
   currentUserId: string,
   profileId: string
 ): Promise<boolean> {
-  if (!db || !currentUserId || !profileId || currentUserId === profileId) {
-    return false;
-  }
-  const followDocRef = doc(
-    db,
-    'users',
-    currentUserId,
-    'following',
-    profileId
-  );
-  const followDocSnap = await getDoc(followDocRef);
-  return followDocSnap.exists();
+  if (!currentUserId || !profileId || currentUserId === profileId) return false;
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from('follows')
+    .select('follower_id')
+    .eq('follower_id', currentUserId)
+    .eq('followed_id', profileId)
+    .maybeSingle();
+
+  return !!data;
 }
 
 export async function toggleFollow(
@@ -154,130 +101,41 @@ export async function toggleFollow(
   profileId: string,
   isCurrentlyFollowing: boolean
 ): Promise<{ success: boolean }> {
-  if (!db || currentUserId === profileId) {
-    return { success: false };
-  }
-
-  const currentUserFollowingRef = doc(
-    db,
-    'users',
-    currentUserId,
-    'following',
-    profileId
-  );
-  const profileUserFollowersRef = doc(
-    db,
-    'users',
-    profileId,
-    'followers',
-    currentUserId
-  );
-  const currentUserDocRef = doc(db, 'users', currentUserId);
-  const profileUserDocRef = doc(db, 'users', profileId);
+  if (currentUserId === profileId) return { success: false };
+  const supabase = await createClient();
 
   try {
-    await runTransaction(db, async (transaction) => {
-      if (isCurrentlyFollowing) {
-        // Unfollow
-        transaction.delete(currentUserFollowingRef);
-        transaction.delete(profileUserFollowersRef);
-        transaction.update(currentUserDocRef, {
-          followingCount: increment(-1),
-        });
-        transaction.update(profileUserDocRef, {
-          followersCount: increment(-1),
-        });
-      } else {
-        // Follow
-        transaction.set(currentUserFollowingRef, {
-          timestamp: serverTimestamp(),
-        });
-        transaction.set(profileUserFollowersRef, {
-          timestamp: serverTimestamp(),
-        });
-        transaction.update(currentUserDocRef, {
-          followingCount: increment(1),
-        });
-        transaction.update(profileUserDocRef, {
-          followersCount: increment(1),
-        });
-      }
-    });
+    // follower_count/following_count and the follow notification are both
+    // handled by triggers on this table — this insert/delete is the whole action.
+    const { error } = isCurrentlyFollowing
+      ? await supabase.from('follows').delete().eq('follower_id', currentUserId).eq('followed_id', profileId)
+      : await supabase.from('follows').insert({ follower_id: currentUserId, followed_id: profileId });
 
-    // Create notification only on follow
-    if (!isCurrentlyFollowing) {
-      const currentUserSnap = await getDoc(currentUserDocRef);
-      const currentUserData = currentUserSnap.data();
-
-      // Make sure the user being followed exists and is not a bot before sending a notification
-      const profileUserSnap = await getDoc(profileUserDocRef);
-      if (currentUserData && profileUserSnap.exists()) {
-        const notificationRef = collection(db, 'users', profileId, 'notifications');
-        await addDoc(notificationRef, {
-          type: 'follow',
-          fromUserId: currentUserId,
-          fromUserName: currentUserData.displayName || 'User',
-          fromUserAvatar:
-            currentUserData.photoURL || 'https://placehold.co/40x40.png',
-          createdAt: serverTimestamp(),
-          read: false,
-        });
-      }
-    }
-
+    if (error) throw error;
     return { success: true };
   } catch (error) {
-    console.error('Toggle follow transaction failed: ', error);
+    console.error('Toggle follow failed: ', error);
     return { success: false };
   }
 }
 
 export async function getLikedPosts(userId: string): Promise<PostType[]> {
-  if (!db || !userId) {
-    return [];
-  }
+  if (!userId) return [];
+  const supabase = await createClient();
 
-  const likesRef = collection(db, 'users', userId, 'likes');
-  const q = query(likesRef, orderBy('createdAt', 'desc'));
-  
   try {
-    const likesSnapshot = await getDocs(q);
-    
-    if (likesSnapshot.empty) {
-      return [];
-    }
+    const { data, error } = await supabase
+      .from('likes')
+      .select('created_at, posts(*)')
+      .eq('user_id', userId)
+      .not('post_id', 'is', null)
+      .order('created_at', { ascending: false });
 
-    const postIds = likesSnapshot.docs.map(doc => doc.id);
+    if (error) throw error;
 
-    // Fetch all the post documents in parallel.
-    const postPromises = postIds.map(postId => getDoc(doc(db, 'posts', postId)));
-    const postDocs = await Promise.all(postPromises);
-
-    // Map Firestore documents to PostType objects, filtering out any that don't exist.
-    const likedPosts = postDocs
-        .filter(docSnap => docSnap.exists())
-        .map(docSnap => {
-            const data = docSnap.data()!;
-            const createdAt = (data.createdAt as Timestamp)?.toDate();
-            return {
-                id: docSnap.id,
-                authorId: data.authorId,
-                authorName: data.authorName,
-                authorHandle: data.authorHandle,
-                authorAvatar: data.authorAvatar,
-                content: data.content,
-                comments: data.comments,
-                reposts: data.reposts,
-                likes: data.likes,
-                media: data.media,
-                poll: data.poll,
-                timestamp: createdAt ? formatTimestamp(createdAt) : 'now',
-            } as PostType;
-        });
-
-    // The posts are already sorted by the `likes` collection query, so we can just return them.
-    return likedPosts;
-
+    return (data ?? [])
+      .filter((row: any) => row.posts)
+      .map((row: any) => mapPostRow(row.posts));
   } catch (error) {
     console.error("Error fetching liked posts:", error);
     return [];
@@ -285,113 +143,43 @@ export async function getLikedPosts(userId: string): Promise<PostType[]> {
 }
 
 export async function getMediaPosts(userId?: string): Promise<PostType[]> {
-  if (!db) {
-    return [];
-  }
-
-  const postsRef = collection(db, 'posts');
-  let q;
-  
-  if (userId) {
-    // If a userId is provided, query for that user's media posts, but don't sort by 'createdAt' in the query.
-    q = query(
-      postsRef, 
-      where('authorId', '==', userId)
-    );
-  } else {
-    // If no userId, fetch all posts and sort by creation date.
-    q = query(postsRef, orderBy('createdAt', 'desc'));
-  }
-
+  const supabase = await createClient();
 
   try {
-    const querySnapshot = await getDocs(q);
+    let query = supabase.from('posts').select('*').order('created_at', { ascending: false });
+    if (userId) query = query.eq('author_id', userId);
 
-    if (querySnapshot.empty) {
-      return [];
-    }
+    const { data, error } = await query;
+    if (error) throw error;
 
-    let mediaPosts = querySnapshot.docs
-      .map(doc => {
-        const data = doc.data();
-        const createdAt = (data.createdAt as Timestamp)?.toDate();
-        return {
-          id: doc.id,
-          authorId: data.authorId,
-          authorName: data.authorName,
-          authorHandle: data.authorHandle,
-          authorAvatar: data.authorAvatar,
-          content: data.content,
-          comments: data.comments,
-          reposts: data.reposts,
-          likes: data.likes,
-          media: data.media,
-          poll: data.poll,
-          timestamp: createdAt ? formatTimestamp(createdAt) : 'now',
-          createdAt: createdAt // Keep the Date object for sorting
-        } as PostType & { createdAt?: Date };
-      })
-      .filter(post => post.media && post.media.length > 0); // Filter for posts that have media
-
-    // Sort by creation date descending in-memory if we didn't sort in the query
-    if (userId) {
-        mediaPosts.sort((a, b) => {
-            const timeA = a.createdAt?.getTime() || 0;
-            const timeB = b.createdAt?.getTime() || 0;
-            return timeB - timeA;
-        });
-    }
-
-    return mediaPosts.map(({ createdAt, ...rest }) => rest);
-
+    return (data ?? [])
+      .map(mapPostRow)
+      .filter(post => post.media && post.media.length > 0);
   } catch (error) {
     console.error("Error fetching media posts:", error);
     return [];
   }
 }
 
-// NOTE: This function is very slow and expensive on the client.
-// It is recommended to move this logic to a Cloud Function triggered
-// on user profile updates.
-export async function updateUserPosts(userId: string): Promise<{success: boolean, updatedCount: number, error?: string}> {
-  if (!db || !userId) {
-    return { success: false, updatedCount: 0, error: 'Database not available or user not specified.' };
-  }
+// Kept for parity with the old Firestore backfill utility — with author
+// fields still denormalized onto posts/comments, a display-name change
+// still requires this kind of explicit backfill, same limitation as before.
+export async function updateUserPosts(userId: string): Promise<{ success: boolean, updatedCount: number, error?: string }> {
+  if (!userId) return { success: false, updatedCount: 0, error: 'User not specified.' };
+  const supabase = await createClient();
 
   try {
-    // 1. Get the user's current profile data.
-    const userRef = doc(db, 'users', userId);
-    const userSnap = await getDoc(userRef);
+    const { data: profile } = await supabase.from('profiles').select('display_name, photo_url').eq('id', userId).single();
+    if (!profile) return { success: false, updatedCount: 0, error: 'User profile not found.' };
 
-    if (!userSnap.exists()) {
-      return { success: false, updatedCount: 0, error: 'User profile not found.' };
-    }
-    const userData = userSnap.data();
-    const newAuthorName = userData.displayName;
-    const newAuthorAvatar = userData.photoURL;
+    const { data: updated, error } = await supabase
+      .from('posts')
+      .update({ author_name: profile.display_name, author_avatar: profile.photo_url })
+      .eq('author_id', userId)
+      .select('id');
 
-    // 2. Find all posts by this user.
-    const postsQuery = query(collection(db, 'posts'), where('authorId', '==', userId));
-    const postsSnapshot = await getDocs(postsQuery);
-    
-    if (postsSnapshot.empty) {
-      return { success: true, updatedCount: 0 };
-    }
-
-    // 3. Create a batch write to update all posts.
-    const batch = writeBatch(db);
-    postsSnapshot.forEach(postDoc => {
-      batch.update(postDoc.ref, {
-        authorName: newAuthorName,
-        authorAvatar: newAuthorAvatar,
-      });
-    });
-
-    // 4. Commit the batch.
-    await batch.commit();
-    
-    return { success: true, updatedCount: postsSnapshot.size };
-
+    if (error) throw error;
+    return { success: true, updatedCount: updated?.length ?? 0 };
   } catch (error) {
     console.error("Error updating user's posts:", error);
     return { success: false, updatedCount: 0, error: 'An unexpected error occurred.' };
@@ -402,22 +190,31 @@ async function getFollowList(
   profileId: string,
   type: 'followers' | 'following'
 ): Promise<ProfileData[]> {
-  if (!db) return [];
+  const supabase = await createClient();
 
-  const listRef = collection(db, 'users', profileId, type);
-  const listSnap = await getDocs(listRef);
+  const { data, error } = type === 'followers'
+    ? await supabase.from('follows').select('profiles!follows_follower_id_fkey(*)').eq('followed_id', profileId)
+    : await supabase.from('follows').select('profiles!follows_followed_id_fkey(*)').eq('follower_id', profileId);
 
-  if (listSnap.empty) {
-    return [];
-  }
+  if (error || !data) return [];
 
-  const userIds = listSnap.docs.map((doc) => doc.id);
-
-  // Fetch user profiles for each ID
-  const userPromises = userIds.map((id) => getUserProfile(id));
-  const userProfiles = await Promise.all(userPromises);
-
-  return userProfiles.filter((p): p is ProfileData => p !== null);
+  return data
+    .map((row: any) => row.profiles)
+    .filter((p: any): p is any => !!p)
+    .map((p: any) => ({
+      uid: p.id,
+      displayName: p.display_name || 'User',
+      handle: p.handle || 'user',
+      photoURL: p.photo_url || 'https://placehold.co/40x40.png',
+      bannerUrl: p.banner_url || '',
+      bio: p.bio || '',
+      country: p.country || '',
+      favouriteClub: p.favourite_club || '',
+      joined: '',
+      followersCount: p.followers_count || 0,
+      followingCount: p.following_count || 0,
+      location: p.location || '',
+    } as ProfileData));
 }
 
 export async function getFollowers(profileId: string): Promise<ProfileData[]> {
@@ -429,41 +226,34 @@ export async function getFollowing(profileId: string): Promise<ProfileData[]> {
 }
 
 export async function getUsersToFollow(currentUserId: string): Promise<ProfileData[]> {
-    if (!db || !currentUserId) return [];
-    
+    if (!currentUserId) return [];
+    const supabase = await createClient();
+
     try {
-        // 1. Get the list of users the current user is already following.
-        const followingRef = collection(db, 'users', currentUserId, 'following');
-        const followingSnapshot = await getDocs(followingRef);
-        const followingIds = new Set(followingSnapshot.docs.map(doc => doc.id));
-        followingIds.add(currentUserId); // Also exclude the user themselves.
+        const { data: following } = await supabase.from('follows').select('followed_id').eq('follower_id', currentUserId);
+        const followingIds = new Set((following ?? []).map(f => f.followed_id));
+        followingIds.add(currentUserId);
 
-        // 2. Fetch all users, sorted by followers.
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, orderBy('followersCount', 'desc'), limit(20)); // Fetch more to have a pool for filtering.
-        const querySnapshot = await getDocs(q);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('followers_count', { ascending: false })
+          .limit(20);
+        if (error) throw error;
 
-        // 3. Filter out users the current user already follows.
-        const usersToSuggest = querySnapshot.docs
-          .map(doc => {
-            const data = doc.data();
-            return {
-              uid: doc.id,
-              displayName: data.displayName || 'User',
-              handle: data.handle || 'user',
-              photoURL: data.photoURL || 'https://placehold.co/40x40.png',
-              // These fields are not needed for the suggestion list but are part of the type
-              bannerUrl: '', bio: '', country: '', favouriteClub: '', joined: '', followersCount: 0, followingCount: 0, location: '', bannerPosition: 50
-            } as ProfileData;
-          })
-          .filter(user => !followingIds.has(user.uid)); // Exclude already followed users.
+        const usersToSuggest = (data ?? [])
+          .filter(p => !followingIds.has(p.id))
+          .map(p => ({
+              uid: p.id,
+              displayName: p.display_name || 'User',
+              handle: p.handle || 'user',
+              photoURL: p.photo_url || 'https://placehold.co/40x40.png',
+              bannerUrl: '', bio: '', country: '', favouriteClub: '', joined: '', followersCount: 0, followingCount: 0, location: '', bannerPosition: 50,
+          } as ProfileData));
 
-        // 4. Return the top 3 from the filtered list.
         return usersToSuggest.slice(0, 3);
     } catch (error) {
         console.error("Error getting users to follow:", error);
         return [];
     }
 }
-    
-    

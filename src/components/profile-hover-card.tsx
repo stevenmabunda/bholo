@@ -49,7 +49,7 @@ export function ProfileHoverCard({ children, userId }: ProfileHoverCardProps) {
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
-  const isMyProfile = currentUser?.uid === userId;
+  const isMyProfile = currentUser?.id === userId;
 
   const fetchProfile = useCallback(async () => {
     if (!isOpen || profile) return; // Don't fetch if already loaded or not open
@@ -58,8 +58,8 @@ export function ProfileHoverCard({ children, userId }: ProfileHoverCardProps) {
       const fetchedProfile = await getUserProfile(userId);
       if (fetchedProfile) {
         setProfile(fetchedProfile);
-        if (currentUser && currentUser.uid !== userId) {
-          const followStatus = await getIsFollowing(currentUser.uid, userId);
+        if (currentUser && currentUser.id !== userId) {
+          const followStatus = await getIsFollowing(currentUser.id, userId);
           setIsFollowing(followStatus);
         }
       }

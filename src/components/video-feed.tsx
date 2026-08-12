@@ -16,8 +16,7 @@ import { LoginOrSignupDialog } from './login-or-signup-dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { ScrollArea } from './ui/scroll-area';
 import { CreateComment } from './create-comment';
-import { db } from '@/lib/firebase/config';
-import { collection, onSnapshot, orderBy, query, type Timestamp } from 'firebase/firestore';
+import { useLiveComments } from '@/hooks/use-live-comments';
 import { Skeleton } from './ui/skeleton';
 import { Button } from './ui/button';
 import { Post } from './post';
@@ -48,28 +47,21 @@ function CommentSkeleton() {
 }
 
 function CommentSheet({ post, onOpenChange }: { post: PostType, onOpenChange: (open: boolean) => void }) {
-    const [comments, setComments] = useState<PostType[]>([]);
-    const [loading, setLoading] = useState(true);
     const { addComment } = usePosts();
-
-    useEffect(() => {
-        const commentsRef = collection(db, 'posts', post.id, 'comments');
-        const q = query(commentsRef, orderBy('createdAt', 'desc'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const fetchedComments = snapshot.docs.map(doc => {
-                 const data = doc.data();
-                 const createdAt = (data.createdAt as Timestamp)?.toDate();
-                 return {
-                    id: doc.id,
-                    ...data,
-                    timestamp: createdAt ? formatTimestamp(createdAt) : "now",
-                 } as PostType
-            });
-            setComments(fetchedComments);
-            setLoading(false);
-        });
-        return () => unsubscribe();
-    }, [post.id]);
+    const { comments: liveComments, loading } = useLiveComments(post.id);
+    const comments: PostType[] = liveComments.map(c => ({
+        id: c.id,
+        authorId: c.authorId,
+        authorName: c.authorName,
+        authorHandle: c.authorHandle,
+        authorAvatar: c.authorAvatar,
+        content: c.content,
+        media: c.media.map(m => ({ ...m, url: m.url ?? '' })),
+        comments: c.comments,
+        reposts: c.reposts,
+        likes: c.likes,
+        timestamp: formatTimestamp(new Date(c.createdAt)),
+    }));
 
     const handleComment = async (data: { text: string; media: any[] }) => {
         try {

@@ -15,7 +15,7 @@ export default function BookmarksPage() {
     useEffect(() => {
         if (user) {
             setLoading(true);
-            getBookmarkedPosts(user.uid)
+            getBookmarkedPosts(user.id)
                 .then(setBookmarkedPosts)
                 .finally(() => setLoading(false));
         } else {
