@@ -34,6 +34,7 @@ import Image from 'next/image';
 import { supabase } from '@/lib/supabase/client';
 import { SidebarBadge } from './ui/sidebar-badge';
 import { useUnreadNotificationCount } from '@/hooks/use-unread-notifications';
+import { YoutubeLivePanel } from './youtube-live-panel';
 
 const navItems = [
   { href: '/home', label: 'Home', icon: Home },
@@ -124,6 +125,7 @@ export function SidebarNav() {
               </Dialog>
             </SidebarMenuItem>
           </SidebarMenu>
+          <YoutubeLivePanel />
         </SidebarContent>
          <SidebarFooter className="mt-auto">
            {user && (

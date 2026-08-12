@@ -8,6 +8,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { cn, linkify, formatTimestamp, formatDetailedTimestamp } from "@/lib/utils";
+import { findFirstYoutubeVideoId } from "@/lib/youtube";
+import { YoutubeEmbed } from "@/components/youtube-embed";
 import {
   Dialog,
   DialogContent,
@@ -390,6 +392,7 @@ export function Post(props: PostProps) {
 
   const mediaExists = media && media.length > 0;
   const isVideo = mediaExists && media[0].type === 'video';
+  const youtubeVideoId = !mediaExists ? findFirstYoutubeVideoId(content) : null;
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
@@ -791,8 +794,10 @@ export function Post(props: PostProps) {
             </p>
         )}
 
+        {youtubeVideoId && <YoutubeEmbed videoId={youtubeVideoId} />}
+
         {poll && <Poll poll={poll} postId={id} />}
-        
+
         {mediaExists && (
           <div className={cn("mt-3 rounded-2xl overflow-hidden border", isVideo && 'relative w-full bg-black flex items-center justify-center max-h-[80vh] cursor-pointer group/video')} onClick={handlePostClick}>
             {isVideo && media[0].url ? (
