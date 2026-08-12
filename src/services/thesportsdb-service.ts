@@ -25,7 +25,8 @@ const FREE_KEY = "123";
 interface TsdbEvent {
   idEvent: string;
   dateEvent: string;
-  strTime: string;
+  strTime: string; // UTC kickoff — do not display directly, see strTimeLocal
+  strTimeLocal: string; // venue-local kickoff (SAST for PSL fixtures)
   strStatus: string; // 'NS' | 'FT' | live codes like '1H' | 'HT' | '2H' etc.
   strHomeTeam: string;
   strAwayTeam: string;
@@ -105,7 +106,7 @@ function mapEventToMatchType(event: TsdbEvent): MatchType {
   if (isLive) {
     timeDisplay = 'Live';
   } else if (isUpcoming) {
-    timeDisplay = event.strTime.slice(0, 5);
+    timeDisplay = event.strTimeLocal.slice(0, 5);
   } else {
     timeDisplay = 'FT';
   }
