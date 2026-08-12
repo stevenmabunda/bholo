@@ -6,7 +6,7 @@ import {
   type GenerateTrendingHashtagsInput,
   type GenerateTrendingHashtagsOutput,
 } from '@/ai/flows/generate-trending-hashtags';
-import { getFixturesByDateFromApi, getLiveMatches as getLiveMatchesFromApi } from '@/services/api-football-service';
+import { getFixturesByDateFromApi, getLiveMatches as getLiveMatchesFromApi } from '@/services/thesportsdb-service';
 import type { MatchType, PostType } from '@/lib/data';
 import { createClient } from '@/lib/supabase/server';
 import { formatTimestamp } from '@/lib/utils';

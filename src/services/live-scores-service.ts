@@ -3,7 +3,7 @@
 // directly callable from the client. It will be used by server actions.
 
 import type { MatchType } from '@/lib/data';
-import { getLiveMatches } from './api-football-service';
+import { getLiveMatches } from './thesportsdb-service';
 
 
 // Service function to get live matches.

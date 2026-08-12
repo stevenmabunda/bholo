@@ -24,13 +24,13 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'cdn.sportmonks.com',
+        hostname: 'www.thesportsdb.com',
         port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'media.api-sports.io',
+        hostname: 'r2.thesportsdb.com',
         port: '',
         pathname: '/**',
       },

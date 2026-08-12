@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getStandings } from '@/app/(app)/live/actions';
-import type { LeagueStanding } from '@/services/api-football-service';
+import type { LeagueStanding } from '@/services/thesportsdb-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
