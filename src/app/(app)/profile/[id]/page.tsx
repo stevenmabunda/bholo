@@ -492,7 +492,7 @@ function EditProfileDialog({ isOpen, onOpenChange, profile, onProfileUpdate }: {
                 country: data.country,
                 favourite_club: data.favouriteClub,
                 banner_url: newBannerUrl,
-                banner_position: bannerPosition,
+                banner_position: Math.round(bannerPosition),
             }).eq('id', user.id);
 
             if (error) throw error;
