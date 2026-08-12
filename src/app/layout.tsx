@@ -8,9 +8,37 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { TabProvider } from '@/contexts/tab-context';
 import Script from 'next/script';
 
+const siteDescription =
+  'BHOLO is South Africa\'s home for football banter — where Chiefs, Pirates, Sundowns and Betway Premiership fans clash, roast and hype every matchday. Post your hot takes, react with GIFs, track live PSL fixtures and standings, and join the conversation South African football deserves.';
+
 export const metadata: Metadata = {
-  title: 'BHOLO',
-  description: 'The football banter app.',
+  title: {
+    default: 'BHOLO — South African Football Banter',
+    template: '%s | BHOLO',
+  },
+  description: siteDescription,
+  keywords: [
+    'South African football',
+    'PSL banter',
+    'Betway Premiership',
+    'Kaizer Chiefs',
+    'Orlando Pirates',
+    'Mamelodi Sundowns',
+    'football fan app',
+    'soccer banter South Africa',
+  ],
+  openGraph: {
+    title: 'BHOLO — South African Football Banter',
+    description: siteDescription,
+    siteName: 'BHOLO',
+    locale: 'en_ZA',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'BHOLO — South African Football Banter',
+    description: siteDescription,
+  },
 };
 
 export default function RootLayout({
