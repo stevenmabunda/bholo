@@ -2,19 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { getStandings } from '@/app/(app)/live/actions';
-import type { SportMonksStanding } from '@/services/sportmonks-service';
+import type { LeagueStanding } from '@/services/api-football-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 
-// Helper to extract a specific detail from the standings details array
-const getDetail = (details: SportMonksStanding['details'], name: string) => {
-    return details.find(d => d.type.name === name)?.value || 0;
-};
-
 export function StandingsTable() {
-    const [standings, setStandings] = useState<SportMonksStanding[]>([]);
+    const [standings, setStandings] = useState<LeagueStanding[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -68,19 +63,19 @@ export function StandingsTable() {
                             ))
                         ) : (
                             standings.map((standing) => (
-                                <TableRow key={standing.participant_id}>
-                                    <TableCell>{standing.position}</TableCell>
+                                <TableRow key={standing.team.id}>
+                                    <TableCell>{standing.rank}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
-                                            <Image src={standing.participant.image_path} alt={standing.participant.name} width={24} height={24} className="h-6 w-6" />
-                                            <span className="font-semibold">{standing.participant.name}</span>
+                                            <Image src={standing.team.logo} alt={standing.team.name} width={24} height={24} className="h-6 w-6" />
+                                            <span className="font-semibold">{standing.team.name}</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-center">{getDetail(standing.details, 'matches_played')}</TableCell>
-                                    <TableCell className="text-center">{getDetail(standing.details, 'wins')}</TableCell>
-                                    <TableCell className="text-center">{getDetail(standing.details, 'draws')}</TableCell>
-                                    <TableCell className="text-center">{getDetail(standing.details, 'losses')}</TableCell>
-                                    <TableCell className="text-center">{getDetail(standing.details, 'goal_difference')}</TableCell>
+                                    <TableCell className="text-center">{standing.all.played}</TableCell>
+                                    <TableCell className="text-center">{standing.all.win}</TableCell>
+                                    <TableCell className="text-center">{standing.all.draw}</TableCell>
+                                    <TableCell className="text-center">{standing.all.lose}</TableCell>
+                                    <TableCell className="text-center">{standing.goalsDiff}</TableCell>
                                     <TableCell className="text-center font-bold">{standing.points}</TableCell>
                                 </TableRow>
                             ))

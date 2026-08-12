@@ -6,7 +6,7 @@ import {
   type GenerateTrendingHashtagsInput,
   type GenerateTrendingHashtagsOutput,
 } from '@/ai/flows/generate-trending-hashtags';
-import { getFixturesByDateFromApi, getLiveMatchesFromSportMonks } from '@/services/sportmonks-service';
+import { getFixturesByDateFromApi, getLiveMatches as getLiveMatchesFromApi } from '@/services/api-football-service';
 import type { MatchType, PostType } from '@/lib/data';
 import { createClient } from '@/lib/supabase/server';
 import { formatTimestamp } from '@/lib/utils';
@@ -29,7 +29,7 @@ export async function getTodaysFixtures(): Promise<MatchType[]> {
 
 export async function getLiveMatches(): Promise<MatchType[]> {
   try {
-    const matches = await getLiveMatchesFromSportMonks();
+    const matches = await getLiveMatchesFromApi();
     return matches;
   } catch (error) {
     console.error("Error in getLiveMatches server action:", error);

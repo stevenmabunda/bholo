@@ -3,13 +3,11 @@
 // directly callable from the client. It will be used by server actions.
 
 import type { MatchType } from '@/lib/data';
-import { getLiveMatchesFromSportMonks } from './sportmonks-service';
+import { getLiveMatches } from './api-football-service';
 
 
 // Service function to get live matches.
-// This now acts as a wrapper around the SportMonks service.
+// This now acts as a wrapper around the API-Football service.
 export async function getLiveMatchesFromApi(): Promise<MatchType[]> {
-  // Directly call the function from the SportMonks service.
-  // This simplifies the logic and ensures we use the correctly configured API.
-  return getLiveMatchesFromSportMonks();
+  return getLiveMatches();
 }

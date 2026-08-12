@@ -1,7 +1,7 @@
 'use server';
 
-import { getStandingsBySeasonId, type SportMonksStanding } from "@/services/sportmonks-service";
+import { getStandings as getPslStandings, type LeagueStanding } from "@/services/api-football-service";
 
-export async function getStandings(): Promise<SportMonksStanding[]> {
-    return getStandingsBySeasonId();
+export async function getStandings(): Promise<LeagueStanding[]> {
+    return getPslStandings();
 }
