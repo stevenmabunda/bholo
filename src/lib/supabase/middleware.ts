@@ -24,8 +24,10 @@ export async function updateSession(request: NextRequest) {
   );
 
   // Refresh the session if needed — required for server actions/components
-  // to see an authenticated user via cookies.
-  await supabase.auth.getUser();
+  // to see an authenticated user via cookies. The caller also uses this
+  // result to redirect unauthenticated requests before any protected
+  // route's JS bundle is fetched.
+  const { data: { user } } = await supabase.auth.getUser();
 
-  return supabaseResponse;
+  return { response: supabaseResponse, user };
 }
