@@ -854,6 +854,7 @@ export function Post(props: PostProps) {
                       src={item.url}
                       alt={item.hint || `Post image ${index + 1}`}
                       fill
+                      sizes="(max-width: 640px) 50vw, 300px"
                       className="object-cover"
                       data-ai-hint={item.hint}
                     />
