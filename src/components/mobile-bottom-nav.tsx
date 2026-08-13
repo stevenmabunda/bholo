@@ -54,8 +54,8 @@ export function MobileBottomNav() {
   };
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-black border-t border-border z-40">
-      <div className="flex justify-evenly items-center h-full">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-black border-t border-border z-40 pb-[env(safe-area-inset-bottom)]">
+      <div className="flex justify-evenly items-center h-16">
         {navItems.map((item) => {
           if (item.href === 'POST_ACTION') {
             return (

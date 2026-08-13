@@ -48,7 +48,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       
       {/* Mobile Layout */}
       <div className="md:hidden w-full">
-            <main className="w-full pb-16">
+            <main className="w-full pb-[calc(4rem+env(safe-area-inset-bottom))]">
               {children}
             </main>
           <MobileBottomNav />
