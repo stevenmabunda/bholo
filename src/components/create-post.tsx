@@ -14,6 +14,7 @@ import { Input } from "./ui/input";
 import type { PostType } from "@/lib/data";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Grid, SearchBar, SearchContext, SearchContextManager } from '@giphy/react-components';
+import { useResponsiveGridWidth } from "@/hooks/use-responsive-grid-width";
 
 export type Media = {
   file: File;
@@ -30,20 +31,22 @@ const EMOJIS = [
 
 function GiphyPicker({ onGifClick }: { onGifClick: (gif: any, e: React.SyntheticEvent<HTMLElement, Event>) => void }) {
   const { fetchGifs, searchKey } = useContext(SearchContext);
+  const width = useResponsiveGridWidth(550);
   return (
     <div className="flex flex-col">
         <SearchBar />
-        <Grid key={searchKey} width={550} columns={3} fetchGifs={fetchGifs} onGifClick={onGifClick} noResultsMessage="No GIFs found." />
+        <Grid key={searchKey} width={width} columns={3} fetchGifs={fetchGifs} onGifClick={onGifClick} noResultsMessage="No GIFs found." />
     </div>
   );
 }
 
 function StickerPicker({ onStickerClick }: { onStickerClick: (sticker: any, e: React.SyntheticEvent<HTMLElement, Event>) => void }) {
     const { fetchGifs, searchKey } = useContext(SearchContext);
+    const width = useResponsiveGridWidth(550);
     return (
         <div className="flex flex-col">
             <SearchBar />
-            <Grid key={searchKey} width={550} columns={3} fetchGifs={fetchGifs} onGifClick={onStickerClick} noResultsMessage="No stickers found." />
+            <Grid key={searchKey} width={width} columns={3} fetchGifs={fetchGifs} onGifClick={onStickerClick} noResultsMessage="No stickers found." />
         </div>
     );
 };

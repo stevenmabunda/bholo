@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { LoginOrSignupDialog } from "./login-or-signup-dialog";
 import { Grid, SearchBar, SearchContext, SearchContextManager } from '@giphy/react-components';
+import { useResponsiveGridWidth } from "@/hooks/use-responsive-grid-width";
 
 
 export type ReplyMedia = {
@@ -30,20 +31,22 @@ const EMOJIS = [
 
 function GiphyPickerContents({ onGifClick }: { onGifClick: (gif: any, e: React.SyntheticEvent<HTMLElement, Event>) => void }) {
   const { fetchGifs, searchKey } = useContext(SearchContext);
+  const width = useResponsiveGridWidth(300);
   return (
     <div className="flex flex-col">
       <SearchBar />
-      <Grid key={searchKey} width={300} columns={3} fetchGifs={fetchGifs} onGifClick={onGifClick} noResultsMessage="No GIFs found." />
+      <Grid key={searchKey} width={width} columns={3} fetchGifs={fetchGifs} onGifClick={onGifClick} noResultsMessage="No GIFs found." />
     </div>
   );
 }
 
 function StickerPickerContents({ onStickerClick }: { onStickerClick: (sticker: any, e: React.SyntheticEvent<HTMLElement, Event>) => void }) {
     const { fetchGifs, searchKey } = useContext(SearchContext);
+    const width = useResponsiveGridWidth(300);
     return (
       <div className="flex flex-col">
         <SearchBar />
-        <Grid key={searchKey} width={300} columns={3} fetchGifs={fetchGifs} onGifClick={onStickerClick} noResultsMessage="No stickers found." />
+        <Grid key={searchKey} width={width} columns={3} fetchGifs={fetchGifs} onGifClick={onStickerClick} noResultsMessage="No stickers found." />
       </div>
     );
 };
