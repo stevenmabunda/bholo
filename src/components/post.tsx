@@ -831,9 +831,9 @@ export function Post(props: PostProps) {
                   )}
               </div>
             ) : singleImage && media[0].url ? (
-              <div 
+              <div
                   className="relative w-full max-h-[500px] bg-black cursor-pointer"
-                  onClick={(e) => openImageViewer(e, 0)}
+                  onClick={(e) => { if (isStandalone) { openImageViewer(e, 0); } else { e.stopPropagation(); handlePostClick(); } }}
               >
                   <Image
                       src={media[0].url}
@@ -850,7 +850,7 @@ export function Post(props: PostProps) {
                    item.url && <div 
                       key={index} 
                       className={cn("relative cursor-pointer", imageCount === 3 && index === 0 && "row-span-2")}
-                      onClick={(e) => openImageViewer(e, index)}
+                      onClick={(e) => { if (isStandalone) { openImageViewer(e, index); } else { e.stopPropagation(); handlePostClick(); } }}
                   >
                     <Image
                       src={item.url}
@@ -979,15 +979,15 @@ export function Post(props: PostProps) {
           </AlertDialog>
           <ReplyDialog post={props} onReply={handleCreateComment} open={isReplyDialogOpen} onOpenChange={setIsReplyDialogOpen} />
            <Dialog open={isImageViewerOpen} onOpenChange={setIsImageViewerOpen}>
-                <DialogContent 
-                    className="max-w-none w-screen h-screen bg-black/90 border-none shadow-none p-0 flex flex-col md:flex-row"
+                <DialogContent
+                    className="max-w-none w-screen h-[100dvh] bg-black/90 border-none shadow-none p-0 flex flex-col md:flex-row"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <DialogTitle className="sr-only">Image Viewer</DialogTitle>
-                    
+
                     <div className="flex-1 flex flex-col min-h-0 md:h-full relative">
                         {/* Mobile Header for Image Viewer */}
-                         <div className="md:hidden absolute top-0 left-0 right-0 z-20 p-2 pt-4 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent">
+                         <div className="md:hidden absolute top-0 left-0 right-0 z-20 p-2 pt-4 flex items-center justify-between bg-gradient-to-b from-black/80 via-black/40 to-transparent pb-8">
                              <DialogClose asChild>
                                 <Button variant="ghost" size="icon" className="h-9 w-9 text-white rounded-full bg-black/50 hover:bg-black/70">
                                     <ChevronLeft />
@@ -1048,7 +1048,7 @@ export function Post(props: PostProps) {
                         <div className="flex-1 flex flex-col min-h-0">
                             <ScrollArea className="flex-1">
                                 <div className="p-3 md:p-4">
-                                     <div className="flex items-center gap-3">
+                                     <div className="hidden md:flex items-center gap-3">
                                         <Link href={`/profile/${authorId}`} className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                                             <Avatar>
                                                 <AvatarImage src={authorAvatar} alt={authorName} data-ai-hint="user avatar" />
