@@ -32,6 +32,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 const profileFormSchema = z.object({
     displayName: z.string().min(2, "Name must be at least 2 characters."),
+    handle: z.string()
+        .min(3, "Username must be at least 3 characters.")
+        .max(20, "Username must not exceed 20 characters.")
+        .regex(/^[a-z0-9_]+$/i, "Username can only contain letters, numbers and underscores.")
+        .transform((v) => v.toLowerCase()),
     bio: z.string().max(160, "Bio must not exceed 160 characters.").optional(),
     location: z.string().max(30, "Location must not exceed 30 characters.").optional(),
     country: z.string().max(50, "Country must not exceed 50 characters.").optional(),
@@ -391,6 +396,7 @@ function EditProfileDialog({ isOpen, onOpenChange, profile, onProfileUpdate }: {
         resolver: zodResolver(profileFormSchema),
         defaultValues: {
             displayName: profile?.displayName || '',
+            handle: profile?.handle || '',
             bio: profile?.bio || '',
             location: profile?.location || '',
             country: profile?.country || '',
@@ -402,6 +408,7 @@ function EditProfileDialog({ isOpen, onOpenChange, profile, onProfileUpdate }: {
         if (profile && isOpen) {
             form.reset({
                 displayName: profile.displayName || '',
+                handle: profile.handle || '',
                 bio: profile.bio || '',
                 location: profile.location || '',
                 country: profile.country || '',
@@ -486,6 +493,7 @@ function EditProfileDialog({ isOpen, onOpenChange, profile, onProfileUpdate }: {
 
             const { error } = await supabase.from('profiles').update({
                 display_name: data.displayName,
+                handle: data.handle,
                 photo_url: newAvatarUrl,
                 bio: data.bio,
                 location: data.location,
@@ -503,9 +511,16 @@ function EditProfileDialog({ isOpen, onOpenChange, profile, onProfileUpdate }: {
             toast({ title: "Success", description: "Profile updated!" });
             onProfileUpdate();
             onOpenChange(false);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error updating profile:", error);
-            toast({ variant: 'destructive', title: "Error", description: "Failed to update profile." });
+            const isHandleTaken = error?.code === '23505';
+            toast({
+                variant: 'destructive',
+                title: "Error",
+                description: isHandleTaken
+                    ? "That username is already taken. Please choose another."
+                    : "Failed to update profile.",
+            });
         } finally {
             setIsSaving(false);
         }
@@ -572,6 +587,12 @@ function EditProfileDialog({ isOpen, onOpenChange, profile, onProfileUpdate }: {
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
                             <Controller name="displayName" control={form.control} render={({ field }) => <Input placeholder="Name" {...field} />} />
                             {form.formState.errors.displayName && <p className="text-sm text-destructive">{form.formState.errors.displayName.message}</p>}
+
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">@</span>
+                                <Controller name="handle" control={form.control} render={({ field }) => <Input placeholder="username" className="pl-7" {...field} />} />
+                            </div>
+                            {form.formState.errors.handle && <p className="text-sm text-destructive">{form.formState.errors.handle.message}</p>}
 
                             <Controller name="bio" control={form.control} render={({ field }) => <Textarea placeholder="Bio" {...field} />} />
                             {form.formState.errors.bio && <p className="text-sm text-destructive">{form.formState.errors.bio.message}</p>}
