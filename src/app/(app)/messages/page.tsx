@@ -1,9 +1,10 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
-import { getConversations, type Conversation } from './actions';
+import { getConversations } from './actions';
+import { queryKeys } from '@/lib/query-keys';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
@@ -25,19 +26,15 @@ function ConversationSkeleton() {
 
 export default function MessagesPage() {
     const { user } = useAuth();
-    const [conversations, setConversations] = useState<Conversation[]>([]);
-    const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        if (user) {
-            setLoading(true);
-            getConversations(user.id)
-                .then(setConversations)
-                .finally(() => setLoading(false));
-        } else {
-            setLoading(false);
-        }
-    }, [user]);
+    const { data: conversations = [], isLoading } = useQuery({
+        queryKey: queryKeys.conversations(user?.id ?? 'anon'),
+        queryFn: () => getConversations(user!.id),
+        enabled: !!user,
+        staleTime: 15_000,
+    });
+
+    const loading = !!user && isLoading;
 
     return (
         <div className="flex h-full min-h-screen flex-col">

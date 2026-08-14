@@ -4,6 +4,8 @@
 import { Post } from '@/components/post';
 import { CreateComment, type ReplyMedia } from '@/components/create-comment';
 import { useState, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query-keys';
 import type { PostType } from '@/lib/data';
 import { useAuth } from '@/hooks/use-auth';
 import { usePosts } from '@/contexts/post-context';
@@ -86,9 +88,25 @@ export function PostPageView({ postId }: { postId: string }) {
   const { addComment } = usePosts();
   const router = useRouter();
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
 
-  const [post, setPost] = useState<PostType | null>(null);
-  const [loadingPost, setLoadingPost] = useState(true);
+  // Seed from the feed cache when the post is already known (the common
+  // case — you just tapped it from a feed that was already showing it),
+  // so the page renders instantly and revalidates in the background
+  // instead of flashing a skeleton on every open.
+  const cachedFromFeed = queryClient
+    .getQueryData<PostType[]>(queryKeys.feed())
+    ?.find(p => p.id === postId);
+
+  const { data: post = null, isLoading } = useQuery({
+    queryKey: queryKeys.post(postId),
+    queryFn: () => getPost(postId),
+    enabled: !!postId,
+    initialData: cachedFromFeed,
+    staleTime: 30_000,
+  });
+
+  const loadingPost = !!postId && isLoading && !cachedFromFeed;
   const { comments: liveComments, loading: loadingComments } = useLiveComments(postId);
   const comments: PostType[] = liveComments.map(c => ({
     id: c.id,
@@ -116,23 +134,6 @@ export function PostPageView({ postId }: { postId: string }) {
     }
   };
 
-  useEffect(() => {
-    if (!postId) {
-        setLoadingPost(false);
-        return;
-    };
-
-    const fetchPostData = async () => {
-        setLoadingPost(true);
-        const fetchedPost = await getPost(postId);
-        if (fetchedPost) {
-            setPost(fetchedPost);
-        }
-        setLoadingPost(false);
-    };
-
-    fetchPostData();
-  }, [postId]);
 
   useEffect(() => {
     if (!loadingComments && window.location.hash === '#comments' && commentSectionRef.current) {

@@ -10,6 +10,9 @@ import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { cn, linkify, formatTimestamp, formatDetailedTimestamp } from "@/lib/utils";
 import { findFirstYoutubeVideoId } from "@/lib/youtube";
 import { YoutubeEmbed } from "@/components/youtube-embed";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
+import { getPost } from "@/app/(app)/post/[id]/actions";
 import {
   Dialog,
   DialogContent,
@@ -345,6 +348,7 @@ export function Post(props: PostProps) {
   const { toast } = useToast();
   const { setActiveTab } = useTabContext();
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
 
   const [commentCount, setCommentCount] = useState(initialComments);
 
@@ -521,9 +525,20 @@ export function Post(props: PostProps) {
   const needsTruncation = !isStandalone && !isExpanded && content.length > 280;
   const displayText = needsTruncation ? `${content.substring(0, 280)}` : content;
 
+  // Warm the post's cache entry on hover/touch-start so tapping through
+  // usually has data ready before the navigation completes.
+  const prefetchPost = () => {
+    if (id.startsWith('temp_') || isStandalone || isReplyView) return;
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.post(id),
+      queryFn: () => getPost(id),
+      staleTime: 30_000,
+    });
+  };
+
   const handlePostClick = () => {
     if (id.startsWith('temp_')) return;
-    
+
     if (isVideo && isMobile) {
       saveScrollPosition();
       router.push(`/video?postId=${id}`);
@@ -952,9 +967,11 @@ export function Post(props: PostProps) {
   );
 
   return (
-      <div 
-        className={cn(!isStandalone && !isReplyView && 'cursor-pointer hover:bg-accent/20')} 
+      <div
+        className={cn(!isStandalone && !isReplyView && 'cursor-pointer hover:bg-accent/20')}
         onClick={handlePostClick}
+        onPointerEnter={prefetchPost}
+        onTouchStart={prefetchPost}
         data-post-id={id}
       >
           {mainPostContent}

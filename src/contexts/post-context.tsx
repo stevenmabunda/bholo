@@ -3,12 +3,14 @@
 
 import type { ReactNode } from 'react';
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PostType } from '@/lib/data';
 import type { Media } from '@/components/create-post';
 import { useAuth } from '@/hooks/use-auth';
 import { useProfile } from '@/hooks/use-profile';
 import { supabase } from '@/lib/supabase/client';
 import { formatTimestamp } from '@/lib/utils';
+import { queryKeys } from '@/lib/query-keys';
 import type { ReplyMedia } from '@/components/create-comment';
 import { getRecentPosts } from '@/app/(app)/home/actions';
 
@@ -98,82 +100,103 @@ function mapRow(row: any): PostType {
 }
 
 export function PostProvider({ children }: { children: ReactNode }) {
-  const [forYouPosts, setForYouPosts] = useState<PostType[]>([]);
+  const queryClient = useQueryClient();
   const [newForYouPosts, setNewForYouPosts] = useState<PostType[]>([]);
-
-  const [loadingForYou, setLoadingForYou] = useState(true);
 
   const { user } = useAuth();
   const { profile } = useProfile();
-  const [bookmarkedPostIds, setBookmarkedPostIds] = useState<Set<string>>(new Set());
-  const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
 
-  const [hasFetchedInitial, setHasFetchedInitial] = useState(false);
+  // The feed lives in the query cache, so navigating away and back
+  // renders instantly from cache instead of refetching behind a
+  // skeleton. Pagination appends into this same cache entry.
+  const { data: forYouPosts = [], isLoading: loadingForYou } = useQuery({
+    queryKey: queryKeys.feed(),
+    queryFn: () => getRecentPosts({ limit: 20 }),
+    staleTime: 60_000,
+  });
 
-  const fetchForYouPosts = useCallback(async (options: { limit?: number; lastPostId?: string } = {}) => {
-      if (!options.lastPostId) setLoadingForYou(true);
+  // Helper so mutations can edit the cached feed the same way they used
+  // to edit local state.
+  const updateFeed = useCallback(
+    (updater: (posts: PostType[]) => PostType[]) => {
+      queryClient.setQueryData<PostType[]>(queryKeys.feed(), (prev) => updater(prev ?? []));
+    },
+    [queryClient]
+  );
+
+  const fetchForYouPosts = useCallback(
+    async (options: { limit?: number; lastPostId?: string } = {}) => {
       try {
-          const posts = await getRecentPosts(options);
-          if (options.lastPostId) {
-              setForYouPosts(prev => [...prev, ...posts]);
-          } else {
-              setForYouPosts(posts);
-          }
-          return posts;
+        const posts = await getRecentPosts(options);
+        if (options.lastPostId) {
+          // Pagination: append into the cached feed.
+          updateFeed((prev) => {
+            const existingIds = new Set(prev.map((p) => p.id));
+            return [...prev, ...posts.filter((p) => !existingIds.has(p.id))];
+          });
+        } else {
+          queryClient.setQueryData(queryKeys.feed(), posts);
+        }
+        return posts;
       } catch (error) {
-          console.error("Failed to fetch 'For You' posts:", error);
-          return [];
-      } finally {
-          setLoadingForYou(false);
+        console.error("Failed to fetch 'For You' posts:", error);
+        return [];
       }
-  }, []);
-
-
-  useEffect(() => {
-    if (!hasFetchedInitial) {
-        fetchForYouPosts({ limit: 20 });
-        setHasFetchedInitial(true);
-    }
-  }, [hasFetchedInitial, fetchForYouPosts]);
-
+    },
+    [queryClient, updateFeed]
+  );
 
   const showNewForYouPosts = () => {
-    setForYouPosts(prev => {
-      const existingIds = new Set(prev.map(p => p.id));
-      const uniqueNewPosts = newForYouPosts.filter(p => !existingIds.has(p.id));
+    updateFeed((prev) => {
+      const existingIds = new Set(prev.map((p) => p.id));
+      const uniqueNewPosts = newForYouPosts.filter((p) => !existingIds.has(p.id));
       return [...uniqueNewPosts, ...prev];
     });
     setNewForYouPosts([]);
   };
 
-  // Live bookmark/like IDs for the current user.
-  useEffect(() => {
-    if (!user) {
-        setBookmarkedPostIds(new Set());
-        setLikedPostIds(new Set());
-        return;
-    }
-
-    const loadIds = async () => {
+  // Per-user interaction sets (bookmarks/likes), cached and kept live.
+  const { data: interactions } = useQuery({
+    queryKey: queryKeys.interactions(user?.id ?? 'anon'),
+    enabled: !!user,
+    staleTime: 60_000,
+    queryFn: async () => {
+      if (!user) return { bookmarked: [] as string[], liked: [] as string[] };
       const [{ data: bookmarks }, { data: likes }] = await Promise.all([
         supabase.from('bookmarks').select('post_id').eq('user_id', user.id),
         supabase.from('likes').select('post_id').eq('user_id', user.id).not('post_id', 'is', null),
       ]);
-      setBookmarkedPostIds(new Set((bookmarks ?? []).map(b => b.post_id)));
-      setLikedPostIds(new Set((likes ?? []).map(l => l.post_id)));
+      return {
+        bookmarked: (bookmarks ?? []).map((b) => b.post_id as string),
+        liked: (likes ?? []).map((l) => l.post_id as string),
+      };
+    },
+  });
+
+  const bookmarkedPostIds = new Set(interactions?.bookmarked ?? []);
+  const likedPostIds = new Set(interactions?.liked ?? []);
+
+  // Live bookmark/like IDs for the current user — realtime now feeds the
+  // query cache rather than separate component state, so there's one
+  // source of truth.
+  useEffect(() => {
+    if (!user) return;
+
+    const invalidate = () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.interactions(user.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.bookmarks(user.id) });
     };
-    loadIds();
 
     const channel = supabase
       .channel(`user-interactions-${user.id}-${Math.random().toString(36).slice(2)}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookmarks', filter: `user_id=eq.${user.id}` }, loadIds)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'likes', filter: `user_id=eq.${user.id}` }, loadIds)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookmarks', filter: `user_id=eq.${user.id}` }, invalidate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'likes', filter: `user_id=eq.${user.id}` }, invalidate)
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, queryClient]);
 
   // Live "new posts" banner: subscribe to inserts and filter client-side,
   // same dedup logic the Firestore version used.
@@ -186,13 +209,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
         const row = payload.new as any;
         if (row.author_id === user.id) return;
         const post = mapRow(row);
-        setForYouPosts(prev => {
-          if (prev.some(p => p.id === post.id)) return prev;
-          setNewForYouPosts(newPrev => {
-            if (newPrev.some(p => p.id === post.id)) return newPrev;
-            return [post, ...newPrev];
-          });
-          return prev;
+        const cached = queryClient.getQueryData<PostType[]>(queryKeys.feed()) ?? [];
+        if (cached.some(p => p.id === post.id)) return;
+        setNewForYouPosts(newPrev => {
+          if (newPrev.some(p => p.id === post.id)) return newPrev;
+          return [post, ...newPrev];
         });
       })
       .subscribe();
@@ -200,7 +221,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, queryClient]);
 
 
   const addPost = async ({ text, media, poll, location }: { text: string; media: Media[]; poll?: PostType['poll'], location?: string | null }): Promise<PostType | null> => {
@@ -225,7 +246,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
 
     const optimisticPost = mapRow({ ...inserted, media: media.map(m => ({ url: m.previewUrl, type: m.type, hint: 'user uploaded content' })) });
-    setForYouPosts(prev => [optimisticPost, ...prev]);
+    updateFeed(prev => [optimisticPost, ...prev]);
 
     const uploadPromises = media.map(async (m) => {
         if (m.type === 'gif' || m.type === 'sticker') {
@@ -248,7 +269,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     Promise.all(uploadPromises).then(async mediaUploads => {
         await supabase.from('posts').update({ media: mediaUploads }).eq('id', inserted.id);
         const finalPost = { ...optimisticPost, media: mediaUploads };
-        setForYouPosts(prev => prev.map(p => p.id === optimisticPost.id ? finalPost : p));
+        updateFeed(prev => prev.map(p => p.id === optimisticPost.id ? finalPost : p));
+        queryClient.setQueryData(queryKeys.post(optimisticPost.id), finalPost);
     }).catch(uploadError => {
         console.error("Error during media upload, post created without media:", uploadError);
     });
@@ -269,8 +291,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
 
     const updater = (posts: PostType[]) => posts.map(p => p.id === postId ? { ...p, content: data.text } : p)
-    setForYouPosts(updater);
+    updateFeed(updater);
     setNewForYouPosts(updater);
+    queryClient.setQueryData<PostType>(queryKeys.post(postId), prev =>
+      prev ? { ...prev, content: data.text } : prev
+    );
   };
 
   const deletePost = async (postId: string) => {
@@ -279,8 +304,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
 
     const updater = (posts: PostType[]) => posts.filter(p => p.id !== postId)
-    setForYouPosts(updater);
+    updateFeed(updater);
     setNewForYouPosts(updater);
+    queryClient.removeQueries({ queryKey: queryKeys.post(postId) });
+    if (user) queryClient.invalidateQueries({ queryKey: queryKeys.bookmarks(user.id) });
   };
 
   const addVote = async (postId: string, choiceIndex: number) => {
@@ -295,13 +322,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
         return p;
       });
 
-    setForYouPosts(updater);
+    updateFeed(updater);
     setNewForYouPosts(updater);
 
     const { error } = await supabase.rpc('vote_on_poll', { p_post_id: postId, p_choice_index: choiceIndex });
     if (error) {
       console.error("Failed to update vote:", error);
-      fetchForYouPosts();
+      queryClient.invalidateQueries({ queryKey: queryKeys.feed() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.post(postId) });
     }
   };
 
@@ -335,8 +363,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
 
         const updater = (posts: PostType[]) => posts.map(p => p.id === postId ? { ...p, comments: p.comments + 1 } : p);
-        setForYouPosts(updater);
+        updateFeed(updater);
         setNewForYouPosts(updater);
+        queryClient.setQueryData<PostType>(queryKeys.post(postId), prev =>
+          prev ? { ...prev, comments: prev.comments + 1 } : prev
+        );
 
         return true;
     } catch (e) {
@@ -354,8 +385,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
         ? { ...p, likes: p.likes + (shouldUnlike ? -1 : 1) }
         : p
     );
-    setForYouPosts(updater);
+    updateFeed(updater);
     setNewForYouPosts(updater);
+    queryClient.setQueryData<PostType>(queryKeys.post(postId), prev =>
+      prev ? { ...prev, likes: prev.likes + (shouldUnlike ? -1 : 1) } : prev
+    );
+    // Optimistically flip membership so the heart fills immediately
+    // instead of waiting on the realtime round trip.
+    queryClient.setQueryData<{ bookmarked: string[]; liked: string[] }>(
+      queryKeys.interactions(user.id),
+      prev => prev
+        ? {
+            ...prev,
+            liked: shouldUnlike
+              ? prev.liked.filter(pid => pid !== postId)
+              : [...prev.liked, postId],
+          }
+        : prev
+    );
 
     const { error } = shouldUnlike
       ? await supabase.from('likes').delete().eq('user_id', user.id).eq('post_id', postId)
@@ -368,8 +415,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
             ? { ...p, likes: p.likes + (shouldUnlike ? 1 : -1) }
             : p
         );
-        setForYouPosts(revertUpdater);
+        updateFeed(revertUpdater);
         setNewForYouPosts(revertUpdater);
+        queryClient.setQueryData<PostType>(queryKeys.post(postId), prev =>
+          prev ? { ...prev, likes: prev.likes + (shouldUnlike ? 1 : -1) } : prev
+        );
+        queryClient.invalidateQueries({ queryKey: queryKeys.interactions(user.id) });
     }
   };
 
@@ -388,10 +439,28 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const bookmarkPost = async (postId: string, isBookmarked: boolean) => {
     if (!user) return;
+
+    queryClient.setQueryData<{ bookmarked: string[]; liked: string[] }>(
+      queryKeys.interactions(user.id),
+      prev => prev
+        ? {
+            ...prev,
+            bookmarked: isBookmarked
+              ? prev.bookmarked.filter(pid => pid !== postId)
+              : [...prev.bookmarked, postId],
+          }
+        : prev
+    );
+
     const { error } = isBookmarked
       ? await supabase.from('bookmarks').delete().eq('user_id', user.id).eq('post_id', postId)
       : await supabase.from('bookmarks').insert({ user_id: user.id, post_id: postId });
-    if (error) console.error("Error updating bookmark:", error);
+
+    if (error) {
+      console.error("Error updating bookmark:", error);
+      queryClient.invalidateQueries({ queryKey: queryKeys.interactions(user.id) });
+    }
+    queryClient.invalidateQueries({ queryKey: queryKeys.bookmarks(user.id) });
   };
 
   const value = {

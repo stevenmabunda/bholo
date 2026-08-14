@@ -1,27 +1,24 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
 import { getBookmarkedPosts } from './actions';
-import type { PostType } from '@/lib/data';
 import { Post } from '@/components/post';
 import { PostSkeleton } from '@/components/post-skeleton';
+import { queryKeys } from '@/lib/query-keys';
 
 export default function BookmarksPage() {
     const { user } = useAuth();
-    const [bookmarkedPosts, setBookmarkedPosts] = useState<PostType[]>([]);
-    const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        if (user) {
-            setLoading(true);
-            getBookmarkedPosts(user.id)
-                .then(setBookmarkedPosts)
-                .finally(() => setLoading(false));
-        } else {
-            setLoading(false);
-        }
-    }, [user]);
+    const { data: bookmarkedPosts = [], isLoading } = useQuery({
+        queryKey: queryKeys.bookmarks(user?.id ?? 'anon'),
+        queryFn: () => getBookmarkedPosts(user!.id),
+        enabled: !!user,
+    });
+
+    // Skeletons only on a genuine first load — a revisit renders from
+    // cache while any refetch happens silently in the background.
+    const loading = !!user && isLoading;
 
   return (
       <div className="flex h-full min-h-screen flex-col">

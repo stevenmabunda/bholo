@@ -3,6 +3,8 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query-keys';
 import { searchEverything, type SearchResults } from './actions';
 import { Input } from '@/components/ui/input';
 import { Search, ArrowLeft } from 'lucide-react';
@@ -54,39 +56,41 @@ export default function SearchPage() {
     };
   }, [initialQuery]);
 
-  const fetchInitialData = useCallback(async () => {
-    if (user) {
-      setLoading(true);
+  // Cached per query string, so going back to a previous search (or
+  // revisiting the same one) renders instantly instead of refetching.
+  const { data: queryResults, isLoading } = useQuery({
+    queryKey: queryKeys.search(initialQuery),
+    queryFn: async () => {
       const searchResults = await searchEverything(initialQuery);
-      setResults(searchResults);
 
-      if (searchResults.users.length > 0) {
-        const followChecks = searchResults.users.map(u => getIsFollowing(user.id, u.uid));
-        const followStatuses = await Promise.all(followChecks);
-        const newFollowedUserIds = new Set<string>();
-        searchResults.users.forEach((u, index) => {
-          if (followStatuses[index]) {
-            newFollowedUserIds.add(u.uid);
-          }
-        });
-        setFollowedUserIds(newFollowedUserIds);
+      let followed: string[] = [];
+      if (user && searchResults.users.length > 0) {
+        const followStatuses = await Promise.all(
+          searchResults.users.map(u => getIsFollowing(user.id, u.uid))
+        );
+        followed = searchResults.users
+          .filter((_, index) => followStatuses[index])
+          .map(u => u.uid);
       }
 
-      setLoading(false);
-    } else if (initialQuery.trim()) {
-      setLoading(true);
-      const searchResults = await searchEverything(initialQuery);
-      setResults(searchResults);
-      setLoading(false);
-    } else {
-      setResults({ users: [], posts: [] });
-      setLoading(false);
-    }
-  }, [user, initialQuery]);
+      return { searchResults, followed };
+    },
+    enabled: !!user || !!initialQuery.trim(),
+    staleTime: 60_000,
+  });
 
   useEffect(() => {
-    fetchInitialData();
-  }, [fetchInitialData]);
+    if (queryResults) {
+      setResults(queryResults.searchResults);
+      setFollowedUserIds(new Set(queryResults.followed));
+    } else if (!user && !initialQuery.trim()) {
+      setResults({ users: [], posts: [] });
+    }
+  }, [queryResults, user, initialQuery]);
+
+  useEffect(() => {
+    setLoading(isLoading && (!!user || !!initialQuery.trim()));
+  }, [isLoading, user, initialQuery]);
 
   const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {

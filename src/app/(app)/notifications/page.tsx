@@ -4,7 +4,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UserPlus, Heart, MessageCircle } from "lucide-react";
 import { getNotifications, markNotificationsAsRead, type NotificationType } from './actions';
 import { useAuth } from '@/hooks/use-auth';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query-keys';
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -81,21 +83,20 @@ function NotificationItem({ notification }: { notification: NotificationType }) 
 
 export default function NotificationsPage() {
     const { user } = useAuth();
-    const [notifications, setNotifications] = useState<NotificationType[]>([]);
-    const [loading, setLoading] = useState(true);
+
+    const { data: notifications = [], isLoading } = useQuery({
+        queryKey: queryKeys.notifications(user?.id ?? 'anon'),
+        queryFn: () => getNotifications(user!.id),
+        enabled: !!user,
+        // Shorter than the app default: notifications are the feed where
+        // staleness is most noticeable.
+        staleTime: 15_000,
+    });
+
+    const loading = !!user && isLoading;
 
     useEffect(() => {
-        if (user) {
-            setLoading(true);
-            getNotifications(user.id)
-                .then(setNotifications)
-                .finally(() => setLoading(false));
-
-            // Mark notifications as read when the page is viewed
-            markNotificationsAsRead(user.id);
-        } else {
-            setLoading(false);
-        }
+        if (user) markNotificationsAsRead(user.id);
     }, [user]);
 
     return (

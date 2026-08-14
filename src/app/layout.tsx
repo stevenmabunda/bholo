@@ -7,6 +7,7 @@ import { AuthProvider } from '@/contexts/auth-context';
 import { PostProvider } from '@/contexts/post-context';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TabProvider } from '@/contexts/tab-context';
+import { AppQueryProvider } from '@/lib/query-provider';
 import Script from 'next/script';
 
 const siteDescription =
@@ -60,15 +61,17 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </head>
       <body className="font-body antialiased">
-        <AuthProvider>
-          <PostProvider>
-            <SidebarProvider>
-              <TabProvider>
-                  {children}
-              </TabProvider>
-            </SidebarProvider>
-          </PostProvider>
-        </AuthProvider>
+        <AppQueryProvider>
+          <AuthProvider>
+            <PostProvider>
+              <SidebarProvider>
+                <TabProvider>
+                    {children}
+                </TabProvider>
+              </SidebarProvider>
+            </PostProvider>
+          </AuthProvider>
+        </AppQueryProvider>
         <Toaster />
         
         {/* <!-- Google tag (gtag.js) --> */}
