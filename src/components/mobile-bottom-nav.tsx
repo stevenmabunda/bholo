@@ -11,7 +11,6 @@ import { CreatePost, type Media } from '@/components/create-post';
 import { usePosts } from '@/contexts/post-context';
 import { useToast } from '@/hooks/use-toast';
 import type { PostType } from '@/lib/data';
-import { ScrollArea } from './ui/scroll-area';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from './ui/button';
 
@@ -65,19 +64,17 @@ export function MobileBottomNav() {
                     <item.icon className='h-7 w-7 text-muted-foreground' strokeWidth={2.5} />
                   </button>
                 </SheetTrigger>
-                <SheetContent 
-                    side="bottom" 
-                    className="rounded-t-lg p-0 h-[90vh]"
+                <SheetContent
+                    side="bottom"
+                    className="rounded-t-lg p-0 h-[90vh] flex flex-col"
                     onOpenAutoFocus={(e) => e.preventDefault()}
                 >
-                    <SheetHeader className="p-3 md:p-4 pb-0">
+                    <SheetHeader className="p-3 md:p-4 pb-0 flex-shrink-0">
                       <SheetTitle>Create a new post</SheetTitle>
                     </SheetHeader>
-                    <ScrollArea className="h-full">
-                        <div className="p-3 md-p-4 pt-0">
-                            <CreatePost onPost={handlePost} />
-                        </div>
-                    </ScrollArea>
+                    <div className="p-3 md:p-4 pt-0 flex-1 min-h-0">
+                        <CreatePost onPost={handlePost} />
+                    </div>
                 </SheetContent>
               </Sheet>
             );
