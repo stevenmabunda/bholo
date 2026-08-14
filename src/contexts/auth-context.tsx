@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createContext, useState, useEffect, type ReactNode } from 'react';
@@ -18,70 +17,57 @@ export const AuthContext = createContext<AuthContextType>({
   loading: true,
 });
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({
+  children,
+  initialUser = null,
+}: {
+  children: ReactNode;
+  initialUser?: User | null;
+}) {
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [progress, setProgress] = useState(0);
-  const [authLoaded, setAuthLoaded] = useState(false);
+  // The server already resolved the session from cookies (see the root
+  // layout). When it hands us a user, we know who this is on the very
+  // first render — no loading gate, and every child (PostProvider, the
+  // query cache) mounts and starts fetching immediately instead of
+  // waiting on a client-side round trip we didn't need.
+  const [user, setUser] = useState<User | null>(initialUser);
+  const [resolved, setResolved] = useState(!!initialUser);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      setAuthLoaded(true);
+      setUser(data.session?.user ?? null);
+      setResolved(true);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
-      setAuthLoaded(true);
+      setUser(newSession?.user ?? null);
+      setResolved(true);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (loading) {
-        interval = setInterval(() => {
-            setProgress(prev => {
-                // If auth is loaded, jump to 100 and finish.
-                if (authLoaded) {
-                    if (prev < 100) return 100;
-                    clearInterval(interval);
-                    setTimeout(() => setLoading(false), 300); // Small delay for the 100% to show
-                    return 100;
-                }
+  const loading = !resolved;
+  const value = { user, session, loading };
 
-                // Animate up to 90% and wait
-                if (prev >= 90) {
-                    return 90;
-                }
-                // Animate quickly at the start, then slow down
-                const increment = prev < 50 ? 15 : 5;
-                return Math.min(prev + increment, 90);
-            });
-        }, 100);
-    }
-
-    return () => clearInterval(interval);
-
-  }, [loading, authLoaded]);
-
-
-  const value = { user: session?.user ?? null, session, loading };
-
+  // Only gate rendering when we genuinely don't know who the user is
+  // yet (i.e. the server had no session to hand us). Previously this
+  // ran an artificial progress animation — ~1s to crawl to 90%, then a
+  // further 300ms timeout — which blocked the whole app tree on every
+  // load regardless of how fast auth actually resolved.
   if (loading) {
-    const displayProgress = Math.min(progress, 100);
     return (
-        <div className="flex items-center justify-center h-screen bg-background">
-            <div className="flex flex-col items-center gap-4 text-center">
-                <div className="w-48">
-                   <Image src="/bholo_logo.png" alt="BHOLO Logo" width={200} height={80} priority />
-                </div>
-                <p className="text-muted-foreground font-semibold">Banter them up in a few... {displayProgress}%</p>
-                <div className="w-48 h-1 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-primary transition-all duration-150" style={{ width: `${displayProgress}%` }} />
-                </div>
-            </div>
+      <div className="flex items-center justify-center h-screen bg-background">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="w-48">
+            <Image src="/bholo_logo.png" alt="BHOLO Logo" width={200} height={80} priority />
+          </div>
+          <div className="w-48 h-1 bg-muted rounded-full overflow-hidden">
+            <div className="h-full w-1/3 bg-primary animate-pulse" />
+          </div>
+        </div>
       </div>
     );
   }

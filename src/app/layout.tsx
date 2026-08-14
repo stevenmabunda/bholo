@@ -8,6 +8,7 @@ import { PostProvider } from '@/contexts/post-context';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TabProvider } from '@/contexts/tab-context';
 import { AppQueryProvider } from '@/lib/query-provider';
+import { createClient } from '@/lib/supabase/server';
 import Script from 'next/script';
 
 const siteDescription =
@@ -50,11 +51,18 @@ const inter = Inter({
   display: 'swap',
 });
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Resolve the session server-side from cookies and hand it to the
+  // client provider, so the app knows who the user is on first render
+  // instead of blocking the whole tree on a client-side auth round trip.
+  // Middleware already refreshes this cookie on every request.
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   return (
     <html lang="en" className={`dark ${inter.variable}`}>
       <head>
@@ -62,7 +70,7 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <AppQueryProvider>
-          <AuthProvider>
+          <AuthProvider initialUser={user}>
             <PostProvider>
               <SidebarProvider>
                 <TabProvider>
