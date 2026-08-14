@@ -275,7 +275,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const deletePost = async (postId: string) => {
     if (!user) throw new Error("Not authorized");
-    const { error } = await supabase.from('posts').delete().eq('id', postId);
+    const { error } = await supabase.rpc('delete_post', { p_post_id: postId });
     if (error) throw error;
 
     const updater = (posts: PostType[]) => posts.filter(p => p.id !== postId)
