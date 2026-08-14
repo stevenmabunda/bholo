@@ -698,14 +698,16 @@ export function Post(props: PostProps) {
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-start gap-2">
             <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap text-sm">
-                    <ProfileHoverCard userId={authorId}>
-                      <Link href={`/profile/${authorId}`} className="font-bold hover:underline truncate" onClick={(e) => e.stopPropagation()}>
-                          {authorName}
-                      </Link>
-                    </ProfileHoverCard>
-                    <span className="text-muted-foreground truncate">@{authorHandle}</span>
-                    <span className="text-muted-foreground">·</span>
+                <div className="flex items-center gap-1 text-sm min-w-0">
+                    <div className="flex items-center gap-1 min-w-0 overflow-hidden">
+                      <ProfileHoverCard userId={authorId}>
+                        <Link href={`/profile/${authorId}`} className="font-bold hover:underline truncate" onClick={(e) => e.stopPropagation()}>
+                            {authorName}
+                        </Link>
+                      </ProfileHoverCard>
+                      <span className="text-muted-foreground truncate">@{authorHandle}</span>
+                    </div>
+                    <span className="text-muted-foreground flex-shrink-0">·</span>
                     <span className="text-muted-foreground flex-shrink-0">{timestamp}</span>
                 </div>
             </div>
@@ -1053,11 +1055,11 @@ export function Post(props: PostProps) {
                                                 <AvatarFallback>{authorName.charAt(0)}</AvatarFallback>
                                             </Avatar>
                                         </Link>
-                                        <div className="flex-1 min-w-0">
+                                        <div className="flex-1 min-w-0 flex items-center gap-2 overflow-hidden">
                                             <Link href={`/profile/${authorId}`} className="font-bold hover:underline truncate" onClick={(e) => e.stopPropagation()}>
                                                 {authorName}
                                             </Link>
-                                            <span className="text-sm text-muted-foreground ml-2 truncate">@{authorHandle}</span>
+                                            <span className="text-sm text-muted-foreground truncate flex-shrink-0">@{authorHandle}</span>
                                         </div>
                                     </div>
                                     <p className="mt-2 whitespace-pre-wrap text-sm">{linkify(content)}</p>
