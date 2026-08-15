@@ -275,7 +275,7 @@ function Comment({ comment, parentPostId, onReplyClick }: { comment: CommentType
                   <span className="text-muted-foreground">·</span>
                   <span className="text-muted-foreground">{comment.timestamp}</span>
               </div>
-              <p className="mt-0.5 whitespace-pre-wrap">{comment.content}</p>
+              <p className="mt-0 whitespace-pre-wrap">{linkify(comment.content)}</p>
               {hasMedia && (
                 <div className={cn("mt-3 rounded-2xl overflow-hidden border max-h-[400px]")}>
                   {isVideo ? (
@@ -795,7 +795,7 @@ export function Post(props: PostProps) {
                 </div>
             </div>
         ) : (
-            <p className={cn("whitespace-pre-wrap text-sm", "mt-0.5", isStandalone && "text-base")}>
+            <p className={cn("whitespace-pre-wrap text-sm", "mt-0", isStandalone && "text-base")}>
                 {linkify(isReplyView ? content : displayText)}
                 {needsTruncation && (
                     <button
