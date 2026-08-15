@@ -539,7 +539,14 @@ export function Post(props: PostProps) {
   const handlePostClick = () => {
     if (id.startsWith('temp_')) return;
 
-    if (isVideo && isMobile) {
+    // Resolved at click time rather than from useIsMobile(), which is
+    // undefined until after mount — a click landing before that resolved
+    // would fall through to the post page instead of the immersive feed.
+    const onMobile = typeof window !== 'undefined'
+      ? window.matchMedia('(max-width: 767px)').matches
+      : !!isMobile;
+
+    if (isVideo && onMobile) {
       saveScrollPosition();
       router.push(`/video?postId=${id}`);
       return;
@@ -656,6 +663,22 @@ export function Post(props: PostProps) {
   const handleMuteToggle = (e: React.MouseEvent) => {
       e.stopPropagation();
       setIsMuted(prev => !prev);
+  }
+
+  // Explicit play/pause. Lives in the control bar rather than on the
+  // video body, so tapping the video itself is free to open the
+  // immersive feed.
+  const handlePlayPauseToggle = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const video = videoRef.current;
+      if (!video) return;
+      if (video.paused) {
+          video.play().catch(err => {
+              if (err.name !== 'AbortError') console.error("Play failed", err);
+          });
+      } else {
+          video.pause();
+      }
   }
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -827,21 +850,31 @@ export function Post(props: PostProps) {
                     playsInline
                     loop
                   />
-                  <div className="absolute top-2 left-2 z-10">
+                  {/* Play/pause and mute sit together in a bar at the
+                      bottom, so the video body itself stays tappable for
+                      opening the immersive feed. */}
+                  <div className="absolute bottom-3 left-2 z-10 flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-black/50 hover:bg-black/75 text-white hover:text-white" onClick={handlePlayPauseToggle}>
+                           {isFeedVideoPlaying ? <Pause className="h-4 w-4" fill="currentColor" /> : <Play className="h-4 w-4" fill="currentColor" />}
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-black/50 hover:bg-black/75 text-white hover:text-white" onClick={handleMuteToggle}>
                            {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                         </Button>
                   </div>
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover/video:opacity-100 transition-opacity">
+                  {/* Desktop-only hover affordance. It was previously shown
+                      on mobile too, where there's no real hover — a tap left
+                      the state stuck, which is why the play icon appeared to
+                      be permanently on top of the video. */}
+                  <div className="hidden md:flex absolute inset-0 items-center justify-center pointer-events-none opacity-0 group-hover/video:opacity-100 transition-opacity">
                       {isFeedVideoPlaying ? <Pause className="h-12 w-12 text-white/70 drop-shadow-lg" fill="currentColor" /> : <Play className="h-12 w-12 text-white/70 drop-shadow-lg" fill="currentColor" />}
                   </div>
                   {isFeedVideoPlaying && (
-                    <div 
+                    <div
                       ref={progressRef}
-                      className="absolute bottom-2 left-2 right-2 h-2.5 cursor-pointer"
+                      className="absolute bottom-0 left-0 right-0 h-1.5 cursor-pointer"
                       onClick={handleSeek}
                     >
-                        <Progress value={videoProgress} className="h-full" />
+                        <Progress value={videoProgress} className="h-full rounded-none" />
                     </div>
                   )}
               </div>

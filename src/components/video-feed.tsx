@@ -238,7 +238,13 @@ function VideoPlayer({ post, isActive, isMuted, onMuteToggle }: { post: PostType
         </div>
       )}
       <div className="absolute bottom-[80px] left-3 text-white z-10 w-3/4">
-        <Link href={`/profile/${post.authorId}`} className="font-bold">@{post.authorHandle}</Link>
+        <Link href={`/profile/${post.authorId}`} className="flex items-center gap-2 w-fit">
+          <Avatar className="h-8 w-8 border border-white/40">
+            <AvatarImage src={post.authorAvatar} alt={post.authorName} />
+            <AvatarFallback>{post.authorName?.charAt(0) || 'U'}</AvatarFallback>
+          </Avatar>
+          <span className="font-bold truncate">@{post.authorHandle}</span>
+        </Link>
         <p className="mt-1 text-sm line-clamp-2">{post.content}</p>
         <div className="flex items-center gap-2 mt-2 text-xs">
             <Music className="h-4 w-4" />
