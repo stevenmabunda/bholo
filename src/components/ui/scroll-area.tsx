@@ -14,7 +14,15 @@ const ScrollArea = React.forwardRef<
     className={cn("relative overflow-hidden", className)}
     {...props}
   >
-    <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]">
+    {/* Radix wraps children in a `display: table` div (its trick for
+        detecting horizontal content). A table sizes to its content, so
+        padding on a full-width child gets ADDED to the column width
+        instead of fitting inside it — in the right sidebar that pushed
+        the cards ~30px wider than the 350px column and clipped their
+        right border. These areas only ever scroll vertically, so forcing
+        the wrapper back to a normal block makes children respect the
+        container width. */}
+    <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit] [&>div]:!block">
       {children}
     </ScrollAreaPrimitive.Viewport>
     <ScrollBar />
