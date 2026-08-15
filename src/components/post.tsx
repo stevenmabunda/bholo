@@ -275,7 +275,7 @@ function Comment({ comment, parentPostId, onReplyClick }: { comment: CommentType
                   <span className="text-muted-foreground">·</span>
                   <span className="text-muted-foreground">{comment.timestamp}</span>
               </div>
-              <p className="mt-2 whitespace-pre-wrap">{comment.content}</p>
+              <p className="mt-0.5 whitespace-pre-wrap">{comment.content}</p>
               {hasMedia && (
                 <div className={cn("mt-3 rounded-2xl overflow-hidden border max-h-[400px]")}>
                   {isVideo ? (
@@ -730,7 +730,7 @@ export function Post(props: PostProps) {
                 <div className="flex-shrink-0">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 -my-1 text-muted-foreground" onClick={(e) => e.stopPropagation()}>
                                 <MoreHorizontal className="h-5 w-5" />
                                 <span className="sr-only">More options</span>
                             </Button>
@@ -760,7 +760,7 @@ export function Post(props: PostProps) {
                 <div className="flex-shrink-0">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 -my-1 text-muted-foreground" onClick={(e) => e.stopPropagation()}>
                                 <MoreHorizontal className="h-5 w-5" />
                                 <span className="sr-only">More options</span>
                             </Button>
@@ -795,7 +795,7 @@ export function Post(props: PostProps) {
                 </div>
             </div>
         ) : (
-            <p className={cn("whitespace-pre-wrap text-sm", "mt-2", isStandalone && "text-base")}>
+            <p className={cn("whitespace-pre-wrap text-sm", "mt-0.5", isStandalone && "text-base")}>
                 {linkify(isReplyView ? content : displayText)}
                 {needsTruncation && (
                     <button
