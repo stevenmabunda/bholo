@@ -3,8 +3,9 @@
 
 import { Button } from "./ui/button";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getMostViewedPosts } from "@/app/(app)/discover/actions";
+import { queryKeys } from "@/lib/query-keys";
 import { Skeleton } from "./ui/skeleton";
 import type { PostType } from "@/lib/data";
 import { Eye, MessageCircle, Heart } from "lucide-react";
@@ -25,24 +26,12 @@ function HeadlineSkeleton() {
 }
 
 export function DiscoverFeed() {
-  const [posts, setPosts] = useState<PostType[]>([]);
-  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchPosts = async () => {
-        setLoading(true);
-        try {
-            const result = await getMostViewedPosts();
-            setPosts(result);
-        } catch (error) {
-            console.error("Failed to fetch discover posts:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-    fetchPosts();
-  }, []);
+  const { data: posts = [], isLoading: loading } = useQuery({
+    queryKey: queryKeys.explorePosts(),
+    queryFn: () => getMostViewedPosts(),
+  });
 
   const [heroPost, ...otherPosts] = posts;
 

@@ -1,46 +1,24 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
-import { getTrendingKeywords, type TrendingKeyword } from '@/app/(app)/explore/actions';
+import { useQuery } from '@tanstack/react-query';
+import { getTrendingKeywords } from '@/app/(app)/explore/actions';
+import { queryKeys } from '@/lib/query-keys';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from './ui/button';
 import { MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 
 export function TrendingTopics() {
-  const [topics, setTopics] = useState<TrendingKeyword[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchTopics = async (isInitialLoad = false) => {
-    if (isInitialLoad) {
-      setLoading(true);
-    }
-    try {
-      const result = await getTrendingKeywords({ numberOfTopics: 5 });
-      setTopics(result);
-    } catch (error) {
-      console.error("Failed to fetch trending topics:", error);
-    } finally {
-      if (isInitialLoad) {
-        setLoading(false);
-      }
-    }
-  };
-
-  useEffect(() => {
-    // Fetch immediately on mount
-    fetchTopics(true);
-
-    // Then, set up an interval to fetch every hour
-    const intervalId = setInterval(() => {
-      fetchTopics(false); // Subsequent fetches are not initial loads
-    }, 60 * 60 * 1000); // 1 hour in milliseconds
-
-    // Clean up the interval when the component unmounts
-    return () => clearInterval(intervalId);
-  }, []);
+  const { data: topics = [], isLoading: loading } = useQuery({
+    queryKey: queryKeys.trendingKeywords(),
+    queryFn: () => getTrendingKeywords({ numberOfTopics: 5 }),
+    // Trending shifts slowly; the previous version refetched hourly on
+    // an interval, so an hour of cache matches that intent while making
+    // every navigation render it instantly from cache.
+    staleTime: 60 * 60_000,
+    refetchInterval: 60 * 60_000,
+  });
 
   return (
      <>

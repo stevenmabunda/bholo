@@ -12,6 +12,7 @@ import { usePosts } from '@/contexts/post-context';
 import { useToast } from '@/hooks/use-toast';
 import type { PostType } from '@/lib/data';
 import { useAuth } from '@/hooks/use-auth';
+import { usePrefetchRouteData } from '@/hooks/use-prefetch-route-data';
 import { Button } from './ui/button';
 
 const navItems = [
@@ -28,6 +29,7 @@ export function MobileBottomNav() {
   const { user } = useAuth();
   const { addPost } = usePosts();
   const { toast } = useToast();
+  const prefetchRouteData = usePrefetchRouteData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
   const handlePost = async (data: { text: string; media: Media[], poll?: PostType['poll'], location?: string | null }) => {
@@ -88,7 +90,13 @@ export function MobileBottomNav() {
           const isActive = pathname === href || (item.href !== '/home' && pathname.startsWith(item.href));
           
           return (
-            <Link key={item.href + item.label} href={href} className="flex-1 flex justify-center items-center h-full">
+            <Link
+              key={item.href + item.label}
+              href={href}
+              className="flex-1 flex justify-center items-center h-full"
+              onTouchStart={() => prefetchRouteData(href)}
+              onPointerEnter={() => prefetchRouteData(href)}
+            >
               <item.icon
                 className={cn(
                   'h-6 w-6 text-muted-foreground transition-colors',

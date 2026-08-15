@@ -3,32 +3,18 @@
 import { getTodaysFixtures } from "@/app/(app)/home/actions";
 import { FixturesWidget } from "@/components/fixtures-widget";
 import { StandingsTable } from "@/components/standings-table";
-import { useEffect, useState } from "react";
-import type { MatchType } from "@/lib/data";
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 
 export default function LivePage() {
-    const [todaysMatches, setTodaysMatches] = useState<MatchType[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchFixtures = async () => {
-            setLoading(true);
-            try {
-                const matches = await getTodaysFixtures();
-                setTodaysMatches(matches);
-            } catch (error) {
-                console.error("Failed to fetch today's fixtures:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchFixtures();
-         // Refresh every minute for live scores
-        const intervalId = setInterval(fetchFixtures, 1 * 60 * 1000);
-
-        return () => clearInterval(intervalId);
-    }, []);
+    // Same cache key the sidebar FixturesWidget uses, so the two share
+    // one entry instead of each fetching the same fixtures separately.
+    const { data: todaysMatches = [], isLoading: loading } = useQuery({
+        queryKey: queryKeys.fixtures(),
+        queryFn: () => getTodaysFixtures(),
+        staleTime: 60_000,
+        refetchInterval: 60_000,
+    });
 
     return (
         <div className="flex h-full min-h-screen flex-col">

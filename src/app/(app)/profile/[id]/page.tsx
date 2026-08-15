@@ -11,6 +11,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { PostSkeleton } from "@/components/post-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query-keys';
 import { supabase } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
@@ -49,24 +51,53 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const params = useParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const profileId = params.id as string;
 
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [userPosts, setUserPosts] = useState<PostType[]>([]);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [postsLoading, setPostsLoading] = useState(true);
-  const [likedPosts, setLikedPosts] = useState<PostType[]>([]);
-  const [likedPostsLoading, setLikedPostsLoading] = useState(false);
-  const [mediaPosts, setMediaPosts] = useState<PostType[]>([]);
-  const [mediaPostsLoading, setMediaPostsLoading] = useState(false);
-  
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [followLoading, setFollowLoading] = useState(true);
-  
+  const [followOverride, setFollowOverride] = useState<boolean | null>(null);
+  // Which secondary tabs have been opened — their data is fetched lazily
+  // the first time you visit the tab, then cached like everything else.
+  const [openedTabs, setOpenedTabs] = useState<Set<string>>(new Set());
+
   const isMyProfile = currentUser?.id === profileId;
-  const hasFetchedLikedPosts = useRef(false);
-  const hasFetchedMediaPosts = useRef(false);
+
+  // Profile and posts run in PARALLEL. Previously posts were chained
+  // behind the profile fetch (fetchProfileData().then(fetchPosts)),
+  // so the page paid two sequential round trips to the database region
+  // before it could show anything.
+  const { data: profile = null, isLoading: profileLoading } = useQuery({
+    queryKey: queryKeys.profile(profileId),
+    queryFn: () => getUserProfile(profileId),
+    enabled: !!profileId,
+  });
+
+  const { data: userPosts = [], isLoading: postsLoading } = useQuery({
+    queryKey: queryKeys.profilePosts(profileId, 'posts'),
+    queryFn: () => getUserPosts(profileId),
+    enabled: !!profileId,
+  });
+
+  const { data: fetchedIsFollowing = false, isLoading: followLoading } = useQuery({
+    queryKey: ['profile', profileId, 'is-following', currentUser?.id ?? 'anon'],
+    queryFn: () => getIsFollowing(currentUser!.id, profileId),
+    enabled: !!profileId && !!currentUser && currentUser.id !== profileId,
+  });
+
+  const isFollowing = followOverride ?? fetchedIsFollowing;
+  const setIsFollowing = (value: boolean) => setFollowOverride(value);
+
+  const { data: likedPosts = [], isLoading: likedPostsLoading } = useQuery({
+    queryKey: queryKeys.profilePosts(profileId, 'likes'),
+    queryFn: () => getLikedPosts(profileId),
+    enabled: !!profileId && openedTabs.has('likes'),
+  });
+
+  const { data: mediaPosts = [], isLoading: mediaPostsLoading } = useQuery({
+    queryKey: queryKeys.profilePosts(profileId, 'media'),
+    queryFn: () => getMediaPosts(profileId),
+    enabled: !!profileId && openedTabs.has('media'),
+  });
 
   useEffect(() => {
     if (profile) {
@@ -77,85 +108,27 @@ export default function ProfilePage() {
     };
   }, [profile]);
 
+  // Re-read profile + posts after an edit saves.
   const fetchProfileData = useCallback(async () => {
-    if (!profileId) return;
-    setProfileLoading(true);
-    setFollowLoading(true);
-    try {
-        const fetchedProfile = await getUserProfile(profileId);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.profile(profileId) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.profilePosts(profileId, 'posts') }),
+    ]);
+  }, [queryClient, profileId]);
 
-        if (fetchedProfile) {
-            setProfile(fetchedProfile);
-        } else {
-           toast({ variant: 'destructive', title: "Error", description: "Profile not found." });
-           router.push('/home'); // Redirect if profile doesn't exist
-           return;
-        }
-
-        if (currentUser && currentUser.id !== profileId) {
-            const followStatus = await getIsFollowing(currentUser.id, profileId);
-            setIsFollowing(followStatus);
-        }
-
-    } catch (error) {
-        console.error("Error fetching user profile data:", error);
-        toast({ variant: 'destructive', title: "Error", description: "Could not fetch profile data." });
-    } finally {
-        setProfileLoading(false);
-        setFollowLoading(false);
+  const handleTabChange = (value: string) => {
+    if (value === 'likes' || value === 'media') {
+      setOpenedTabs(prev => prev.has(value) ? prev : new Set(prev).add(value));
     }
-  }, [profileId, toast, router, currentUser]);
-  
-  const fetchPosts = useCallback(async () => {
-      if (!profileId) return;
-      setPostsLoading(true);
-      try {
-          const posts = await getUserPosts(profileId);
-          setUserPosts(posts);
-      } catch (error) {
-          console.error("Error fetching user posts:", error);
-      } finally {
-          setPostsLoading(false);
-      }
-  }, [profileId]);
+  };
 
-
-  const handleTabChange = async (value: string) => {
-    if (value === 'likes' && !hasFetchedLikedPosts.current) {
-        hasFetchedLikedPosts.current = true;
-        setLikedPostsLoading(true);
-        try {
-            const fetchedLikedPosts = await getLikedPosts(profileId);
-            setLikedPosts(fetchedLikedPosts);
-        } catch (error) {
-            console.error("Error fetching liked posts:", error);
-            toast({ variant: 'destructive', title: "Error", description: "Could not fetch liked posts." });
-        } finally {
-            setLikedPostsLoading(false);
-        }
-    } else if (value === 'media' && !hasFetchedMediaPosts.current) {
-        hasFetchedMediaPosts.current = true;
-        setMediaPostsLoading(true);
-        try {
-            const fetchedMediaPosts = await getMediaPosts(profileId);
-            setMediaPosts(fetchedMediaPosts);
-        } catch (error) {
-            console.error("Error fetching media posts:", error);
-            toast({ variant: 'destructive', title: "Error", description: "Could not fetch media." });
-        } finally {
-            setMediaPostsLoading(false);
-        }
-    }
-  }
-
+  // A profile that resolved to nothing doesn't exist — bounce home.
   useEffect(() => {
-    if (!authLoading) {
-        fetchProfileData().then(() => {
-            // Fetch posts only after profile data has been loaded
-            fetchPosts();
-        });
+    if (!profileLoading && profileId && profile === null) {
+      toast({ variant: 'destructive', title: "Error", description: "Profile not found." });
+      router.push('/home');
     }
-  }, [authLoading, fetchProfileData, fetchPosts]);
+  }, [profileLoading, profile, profileId, toast, router]);
 
 
   if (authLoading || profileLoading || !currentUser) {

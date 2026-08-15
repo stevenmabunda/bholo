@@ -11,13 +11,23 @@ export function AppQueryProvider({ children }: { children: ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            // Data doesn't refetch just because a component remounted
-            // within this window - this is the whole point: repeat
-            // navigations render from cache instead of showing a
-            // skeleton every time. Individual queries override this
-            // where a shorter/longer window makes sense.
-            staleTime: 30_000,
+            // Generous by design. Every screen in this app previously
+            // refetched from scratch on mount, so each navigation cost
+            // a full round trip to the database region before anything
+            // rendered. Within this window a revisit renders straight
+            // from cache (instantly) and revalidates in the background,
+            // which is what makes navigation feel immediate rather than
+            // "loading…" every time. Individual queries shorten this
+            // where freshness genuinely matters (notifications,
+            // messages), and mutations/realtime invalidate explicitly
+            // rather than relying on time-based expiry.
+            staleTime: 5 * 60_000,
+            // Keep data around well beyond staleTime so returning to a
+            // screen later in the session still paints instantly while
+            // it refreshes behind the scenes.
+            gcTime: 30 * 60_000,
             retry: 1,
+            refetchOnWindowFocus: false,
           },
         },
       })

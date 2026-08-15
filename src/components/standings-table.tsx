@@ -1,32 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { getStandings } from '@/app/(app)/live/actions';
-import type { LeagueStanding } from '@/services/thesportsdb-service';
+import { queryKeys } from '@/lib/query-keys';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 
 export function StandingsTable() {
-    const [standings, setStandings] = useState<LeagueStanding[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchStandings = async () => {
-            setLoading(true);
-            try {
-                const data = await getStandings();
-                setStandings(data);
-            } catch (error) {
-                console.error("Failed to fetch standings:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchStandings();
-    }, []);
+    const { data: standings = [], isLoading: loading } = useQuery({
+        queryKey: queryKeys.standings(),
+        queryFn: () => getStandings(),
+        // League tables barely move within a session, and the service
+        // layer already caches upstream.
+        staleTime: 10 * 60_000,
+    });
 
     return (
         <Card className="bg-black">

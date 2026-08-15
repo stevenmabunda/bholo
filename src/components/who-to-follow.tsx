@@ -5,9 +5,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { FollowButton } from "./follow-button";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { getUsersToFollow, getIsFollowing, type ProfileData } from "@/app/(app)/profile/actions";
+import { queryKeys } from "@/lib/query-keys";
+import { getUsersToFollow, getIsFollowing } from "@/app/(app)/profile/actions";
 import { Skeleton } from "./ui/skeleton";
 
 
@@ -28,45 +30,34 @@ function UserSkeleton() {
 
 export function WhoToFollow() {
   const { user } = useAuth();
-  const [usersToFollow, setUsersToFollow] = useState<ProfileData[]>([]);
-  const [followedUserIds, setFollowedUserIds] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+  const [overrides, setOverrides] = useState<Map<string, boolean>>(new Map());
 
-  useEffect(() => {
-    if (user) {
-        setLoading(true);
-        getUsersToFollow(user.id)
-            .then(async (users) => {
-                setUsersToFollow(users);
-                if (users.length > 0) {
-                    const followChecks = users.map(u => getIsFollowing(user.id, u.uid));
-                    const followStatuses = await Promise.all(followChecks);
-                    const newFollowedUserIds = new Set<string>();
-                    users.forEach((u, index) => {
-                        if (followStatuses[index]) {
-                            newFollowedUserIds.add(u.uid);
-                        }
-                    });
-                    setFollowedUserIds(newFollowedUserIds);
-                }
-            })
-            .catch(err => console.error("Failed to fetch users to follow", err))
-            .finally(() => setLoading(false));
-    } else {
-        setLoading(false);
-    }
-  }, [user]);
+  const { data, isLoading } = useQuery({
+    queryKey: queryKeys.whoToFollow(user?.id ?? 'anon'),
+    enabled: !!user,
+    queryFn: async () => {
+      const users = await getUsersToFollow(user!.id);
+      let followed: string[] = [];
+      if (users.length > 0) {
+        const followStatuses = await Promise.all(users.map(u => getIsFollowing(user!.id, u.uid)));
+        followed = users.filter((_, i) => followStatuses[i]).map(u => u.uid);
+      }
+      return { users, followed };
+    },
+  });
+
+  const usersToFollow = data?.users ?? [];
+  const loading = !!user && isLoading;
+
+  // Local overrides layer on top of the cached follow state so toggling
+  // reflects immediately without refetching the whole suggestion list.
+  const followedUserIds = new Set(
+    [...(data?.followed ?? []).filter(id => overrides.get(id) !== false),
+     ...[...overrides.entries()].filter(([, v]) => v).map(([id]) => id)]
+  );
 
   const handleFollowToggle = (profileId: string, isFollowing: boolean) => {
-      setFollowedUserIds(prev => {
-          const newSet = new Set(prev);
-          if (isFollowing) {
-              newSet.add(profileId);
-          } else {
-              newSet.delete(profileId);
-          }
-          return newSet;
-      })
+      setOverrides(prev => new Map(prev).set(profileId, isFollowing));
   }
 
   if (!user) {

@@ -1,8 +1,9 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { getTodaysFixtures } from '@/app/(app)/home/actions';
+import { queryKeys } from '@/lib/query-keys';
 import type { MatchType } from '@/lib/data';
 import Image from 'next/image';
 import { Skeleton } from './ui/skeleton';
@@ -29,32 +30,17 @@ function MatchSkeleton() {
 
 
 export function FixturesWidget({ isPage = false, matches: propMatches, loading: propLoading, emptyMessage = "No live matches right now." }: { isPage?: boolean, matches?: MatchType[], loading?: boolean, emptyMessage?: string }) {
-    const [internalMatches, setInternalMatches] = useState<MatchType[]>([]);
-    const [internalLoading, setInternalLoading] = useState(true);
+    // Only fetches when matches aren't supplied by the parent.
+    const { data: internalMatches = [], isLoading: internalLoading } = useQuery({
+        queryKey: queryKeys.fixtures(),
+        queryFn: () => getTodaysFixtures(),
+        enabled: propMatches === undefined,
+        staleTime: 60_000,
+        refetchInterval: 60_000,
+    });
 
     const matches = propMatches !== undefined ? propMatches : internalMatches;
     const loading = propLoading !== undefined ? propLoading : internalLoading;
-
-    useEffect(() => {
-        // Only fetch if matches are not being passed as props
-        if (propMatches === undefined) {
-            const fetchMatches = async () => {
-                setInternalLoading(true);
-                try {
-                    const fixtures = await getTodaysFixtures();
-                    setInternalMatches(fixtures);
-                } catch (error) {
-                    console.error("Failed to fetch fixtures:", error);
-                } finally {
-                    setInternalLoading(false);
-                }
-            };
-
-            fetchMatches();
-            const intervalId = setInterval(fetchMatches, 60000); // Refresh every minute
-            return () => clearInterval(intervalId);
-        }
-    }, [propMatches]);
 
     const content = (
         <div className="flex flex-col gap-4">

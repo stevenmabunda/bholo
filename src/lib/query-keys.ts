@@ -7,6 +7,24 @@ export const queryKeys = {
   bookmarks: (userId: string) => ['bookmarks', userId] as const,
   notifications: (userId: string) => ['notifications', userId] as const,
   conversations: (userId: string) => ['conversations', userId] as const,
+  conversation: (id: string) => ['conversations', 'detail', id] as const,
   search: (query: string) => ['search', query] as const,
   interactions: (userId: string) => ['interactions', userId] as const,
+
+  // Profiles
+  profile: (id: string) => ['profile', id] as const,
+  profilePosts: (id: string, tab: string) => ['profile', id, 'posts', tab] as const,
+  followList: (id: string, type: string) => ['profile', id, 'follows', type] as const,
+
+  // Discovery / explore
+  trendingKeywords: () => ['trending', 'keywords'] as const,
+  trendingTopics: () => ['trending', 'topics'] as const,
+  explorePosts: () => ['explore', 'posts'] as const,
+  creators: () => ['creators'] as const,
+  whoToFollow: (userId: string) => ['who-to-follow', userId] as const,
+  videoPosts: () => ['posts', 'video'] as const,
+
+  // Sports data (external API, already cached server-side)
+  fixtures: () => ['sports', 'fixtures'] as const,
+  standings: () => ['sports', 'standings'] as const,
 };

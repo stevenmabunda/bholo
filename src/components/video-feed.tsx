@@ -1,9 +1,11 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import useEmblaCarousel from 'embla-carousel-react';
 import { getVideoPosts } from '@/app/(app)/home/actions';
+import { queryKeys } from '@/lib/query-keys';
 import type { PostType } from '@/lib/data';
 import { Loader2, Play, Pause, Volume2, VolumeX, MessageCircle, Heart, Share2, Music, Copy } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
@@ -276,8 +278,6 @@ function VideoPlayer({ post, isActive, isMuted, onMuteToggle }: { post: PostType
 }
 
 export function VideoFeed() {
-  const [posts, setPosts] = useState<PostType[]>([]);
-  const [loading, setLoading] = useState(true);
   const searchParams = useSearchParams();
   const startPostId = searchParams.get('postId');
 
@@ -288,30 +288,25 @@ export function VideoFeed() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
 
-  useEffect(() => {
-    const fetchPosts = async () => {
-      setLoading(true);
-      try {
-        const videoPosts = await getVideoPosts();
-        
-        if (startPostId) {
-            const startIndex = videoPosts.findIndex(p => p.id === startPostId);
-            if (startIndex > -1) {
-                // Move the starting post to the beginning of the array
-                const startPost = videoPosts.splice(startIndex, 1)[0];
-                videoPosts.unshift(startPost);
-            }
-        }
-        setPosts(videoPosts);
+  // Cached independently of which post you entered on, so re-opening
+  // the video feed doesn't refetch the whole list.
+  const { data: videoPosts = [], isLoading: loading } = useQuery({
+    queryKey: queryKeys.videoPosts(),
+    queryFn: () => getVideoPosts(),
+  });
 
-      } catch (error) {
-        console.error("Failed to fetch video posts:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPosts();
-  }, [startPostId]);
+  // Ordering is a view concern, derived from the cached list rather
+  // than baked into it (the previous version mutated the fetched array
+  // in place, so the requested post only led on a fresh fetch).
+  const posts = useMemo(() => {
+    if (!startPostId) return videoPosts;
+    const startIndex = videoPosts.findIndex(p => p.id === startPostId);
+    if (startIndex < 0) return videoPosts;
+    const reordered = [...videoPosts];
+    const [startPost] = reordered.splice(startIndex, 1);
+    reordered.unshift(startPost);
+    return reordered;
+  }, [videoPosts, startPostId]);
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;

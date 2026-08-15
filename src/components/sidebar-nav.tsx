@@ -34,6 +34,7 @@ import Image from 'next/image';
 import { supabase } from '@/lib/supabase/client';
 import { SidebarBadge } from './ui/sidebar-badge';
 import { useUnreadNotificationCount } from '@/hooks/use-unread-notifications';
+import { usePrefetchRouteData } from '@/hooks/use-prefetch-route-data';
 import { YoutubeLivePanel } from './youtube-live-panel';
 
 const navItems = [
@@ -55,6 +56,7 @@ export function SidebarNav() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const unreadNotifications = useUnreadNotificationCount();
+  const prefetchRouteData = usePrefetchRouteData();
 
   const handlePost = async (data: { text: string; media: Media[], poll?: PostType['poll'], location?: string | null }) => {
     try {
@@ -97,7 +99,12 @@ export function SidebarNav() {
                   isActive={pathname.startsWith(item.href) && (item.href !== '/profile' || pathname === '/profile' || pathname.startsWith('/profile/'))}
                   className="text-lg h-14"
                 >
-                  <Link href={item.href === '/profile' && user ? `/profile/${user.id}` : item.href} className="flex items-center justify-between w-full">
+                  <Link
+                    href={item.href === '/profile' && user ? `/profile/${user.id}` : item.href}
+                    className="flex items-center justify-between w-full"
+                    onPointerEnter={() => prefetchRouteData(item.href === '/profile' && user ? `/profile/${user.id}` : item.href)}
+                    onTouchStart={() => prefetchRouteData(item.href === '/profile' && user ? `/profile/${user.id}` : item.href)}
+                  >
                     <div className="flex items-center gap-2">
                         <item.icon className="h-7 w-7" />
                         <span className={pathname.startsWith(item.href) ? 'font-bold' : 'font-normal'}>{item.label}</span>
