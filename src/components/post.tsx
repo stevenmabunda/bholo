@@ -727,10 +727,10 @@ export function Post(props: PostProps) {
                 </div>
             </div>
            {isAuthor ? (
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 flex">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 -my-1 text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 -my-1.5 text-muted-foreground" onClick={(e) => e.stopPropagation()}>
                                 <MoreHorizontal className="h-5 w-5" />
                                 <span className="sr-only">More options</span>
                             </Button>
@@ -748,7 +748,7 @@ export function Post(props: PostProps) {
                     </DropdownMenu>
                 </div>
            ) : user && isStandalone && !isReplyView ? (
-                <div className="flex-shrink-0 -mr-2">
+                <div className="flex-shrink-0 -mr-2 flex">
                      <FollowButton
                         profileId={authorId}
                         isFollowing={isFollowing}
@@ -757,10 +757,10 @@ export function Post(props: PostProps) {
                     />
                 </div>
            ) : (
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 flex">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 -my-1 text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 -my-1.5 text-muted-foreground" onClick={(e) => e.stopPropagation()}>
                                 <MoreHorizontal className="h-5 w-5" />
                                 <span className="sr-only">More options</span>
                             </Button>
@@ -1004,31 +1004,38 @@ export function Post(props: PostProps) {
 
                     <div className="flex-1 flex flex-col min-h-0 md:h-full relative">
                         {/* Mobile Header for Image Viewer */}
-                         <div className="md:hidden absolute top-0 left-0 right-0 z-20 p-2 pt-4 flex items-center justify-between bg-gradient-to-b from-black/80 via-black/40 to-transparent pb-8">
-                             <DialogClose asChild>
-                                <Button variant="ghost" size="icon" className="h-9 w-9 text-white rounded-full bg-black/50 hover:bg-black/70">
-                                    <ChevronLeft />
-                                </Button>
-                            </DialogClose>
-                            <div className="flex items-center gap-3 text-white">
-                                <Avatar className="h-9 w-9">
+                         {/* Two rows: the back control sits on its own line at
+                             the top, with the author beneath it. Previously all
+                             three sat on one line, which squeezed the name
+                             between the back and follow buttons. */}
+                         <div className="md:hidden absolute top-0 left-0 right-0 z-20 px-2 pt-4 pb-8 flex flex-col gap-2 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
+                            <div className="flex items-center justify-between">
+                                <DialogClose asChild>
+                                    <Button variant="ghost" size="icon" className="h-9 w-9 text-white rounded-full bg-black/50 hover:bg-black/70">
+                                        <ChevronLeft />
+                                    </Button>
+                                </DialogClose>
+
+                                {!isAuthor && user && (
+                                    <FollowButton
+                                        profileId={authorId}
+                                        isFollowing={isFollowing}
+                                        isLoading={followLoading}
+                                        onToggleFollow={setIsFollowing}
+                                    />
+                                )}
+                            </div>
+
+                            <div className="flex items-center gap-3 text-white min-w-0">
+                                <Avatar className="h-9 w-9 flex-shrink-0">
                                     <AvatarImage src={authorAvatar} alt={authorName} />
                                     <AvatarFallback>{authorName.charAt(0)}</AvatarFallback>
                                 </Avatar>
-                                <div>
-                                    <p className="font-bold text-sm">{authorName}</p>
-                                    <p className="text-xs text-neutral-300">@{authorHandle}</p>
+                                <div className="min-w-0">
+                                    <p className="font-bold text-sm truncate">{authorName}</p>
+                                    <p className="text-xs text-neutral-300 truncate">@{authorHandle}</p>
                                 </div>
                             </div>
-                            
-                            {!isAuthor && user ? (
-                                <FollowButton
-                                    profileId={authorId}
-                                    isFollowing={isFollowing}
-                                    isLoading={followLoading}
-                                    onToggleFollow={setIsFollowing}
-                                />
-                            ) : <div className="w-24"/> /* Placeholder for alignment */}
                         </div>
 
 
