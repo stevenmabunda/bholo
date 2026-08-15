@@ -173,7 +173,7 @@ export default function SearchPage() {
                                     <FollowButton
                                       profileId={p.uid}
                                       isFollowing={followedUserIds.has(p.uid)}
-                                      onToggleFollow={handleFollowToggle}
+                                      onToggleFollow={(isFollowing) => handleFollowToggle(p.uid, isFollowing)}
                                     />
                                 </div>
                                 <p className="mt-2 text-sm">{p.bio}</p>
@@ -200,7 +200,7 @@ export default function SearchPage() {
                                      <FollowButton
                                       profileId={p.uid}
                                       isFollowing={followedUserIds.has(p.uid)}
-                                      onToggleFollow={handleFollowToggle}
+                                      onToggleFollow={(isFollowing) => handleFollowToggle(p.uid, isFollowing)}
                                     />
                                 </div>
                                 <p className="mt-2 text-sm ml-16">{p.bio}</p>
