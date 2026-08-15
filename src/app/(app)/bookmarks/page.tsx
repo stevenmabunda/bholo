@@ -1,50 +1,32 @@
-'use client';
-
-import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/hooks/use-auth';
-import { getBookmarkedPosts } from './actions';
-import { Post } from '@/components/post';
-import { PostSkeleton } from '@/components/post-skeleton';
+import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
+import { createClient } from '@/lib/supabase/server';
+import { makeServerQueryClient } from '@/lib/query-client-server';
 import { queryKeys } from '@/lib/query-keys';
+import { getBookmarkedPosts } from './actions';
+import { BookmarksView } from './bookmarks-view';
 
-export default function BookmarksPage() {
-    const { user } = useAuth();
+// Server component: the data is fetched here, during the request, and
+// shipped inside the HTML. Previously the browser had to mount the page
+// and only then start a round trip to the database region before it
+// could show anything — so first paint was always a skeleton followed
+// by a wait. Now the list is already there on arrival, and the client
+// cache picks it up rather than refetching.
+export default async function BookmarksPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-    const { data: bookmarkedPosts = [], isLoading } = useQuery({
-        queryKey: queryKeys.bookmarks(user?.id ?? 'anon'),
-        queryFn: () => getBookmarkedPosts(user!.id),
-        enabled: !!user,
+  const queryClient = makeServerQueryClient();
+
+  if (user) {
+    await queryClient.prefetchQuery({
+      queryKey: queryKeys.bookmarks(user.id),
+      queryFn: () => getBookmarkedPosts(user.id),
     });
-
-    // Skeletons only on a genuine first load — a revisit renders from
-    // cache while any refetch happens silently in the background.
-    const loading = !!user && isLoading;
+  }
 
   return (
-      <div className="flex h-full min-h-screen flex-col">
-          <header className="sticky top-0 z-10 border-b bg-background/80 p-4 backdrop-blur-sm">
-              <h1 className="text-xl font-bold">Bookmarks</h1>
-          </header>
-          <main className="flex-1">
-              {loading ? (
-                  <div className="divide-y divide-border">
-                    <PostSkeleton />
-                    <PostSkeleton />
-                    <PostSkeleton />
-                  </div>
-              ) : bookmarkedPosts.length > 0 ? (
-                  <div className="divide-y divide-border">
-                      {bookmarkedPosts.map((post) => (
-                          <Post key={post.id} {...post} />
-                      ))}
-                  </div>
-              ) : (
-                <div className="p-8 text-center text-muted-foreground">
-                    <h2 className="text-xl font-bold">No bookmarks yet</h2>
-                    <p>When you bookmark posts, they'll appear here.</p>
-                </div>
-              )}
-          </main>
-      </div>
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <BookmarksView />
+    </HydrationBoundary>
   );
 }
