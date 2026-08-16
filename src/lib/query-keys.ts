@@ -6,6 +6,7 @@ export const queryKeys = {
   post: (id: string) => ['posts', 'detail', id] as const,
   bookmarks: (userId: string) => ['bookmarks', userId] as const,
   notifications: (userId: string) => ['notifications', userId] as const,
+  unreadNotificationCount: (userId: string) => ['notifications', userId, 'unread-count'] as const,
   conversations: (userId: string) => ['conversations', userId] as const,
   conversation: (id: string) => ['conversations', 'detail', id] as const,
   search: (query: string) => ['search', query] as const,

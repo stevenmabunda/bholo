@@ -252,10 +252,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
       queryClient.invalidateQueries({ queryKey: queryKeys.bookmarks(user.id) });
     };
 
+    // Everything that watches the signed-in user's own rows rides on this one
+    // channel. useProfile and useUnreadNotificationCount used to open their
+    // own per call site, so a feed render left a handful of duplicate
+    // subscriptions open for data the cache already had.
     const channel = supabase
       .channel(`user-interactions-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookmarks', filter: `user_id=eq.${user.id}` }, invalidate)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'likes', filter: `user_id=eq.${user.id}` }, invalidate)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
+        (payload) => queryClient.setQueryData(queryKeys.profile(user.id), payload.new)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        () => queryClient.invalidateQueries({ queryKey: queryKeys.unreadNotificationCount(user.id) })
+      )
       .subscribe();
 
     return () => {

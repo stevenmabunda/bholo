@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
 import { supabase } from '@/lib/supabase/client';
+import { queryKeys } from '@/lib/query-keys';
 
 export type Profile = {
   id: string;
@@ -21,48 +22,28 @@ export type Profile = {
 
 /** The signed-in user's own profile row — the source of truth for their
  * display name/handle/avatar now that this data lives in Postgres, not
- * on the auth user object. */
+ * on the auth user object.
+ *
+ * Backed by the query cache because this is called from the sidebar, the
+ * home header, the composer and every comment box at once. As a bare
+ * useEffect it issued one identical request per call site — a dozen on a
+ * single feed render — and opened a realtime channel for each. The one
+ * subscription that keeps this fresh now lives in PostProvider. */
 export function useProfile() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user) {
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
+  const { data, isLoading } = useQuery({
+    queryKey: queryKeys.profile(user?.id ?? 'anonymous'),
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user!.id)
+        .single();
+      return (data as Profile | null) ?? null;
+    },
+    enabled: !!user,
+  });
 
-    let cancelled = false;
-    setLoading(true);
-
-    supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-      .then(({ data }) => {
-        if (!cancelled) {
-          setProfile(data as Profile | null);
-          setLoading(false);
-        }
-      });
-
-    const channel = supabase
-      .channel(`profile-${user.id}-${Math.random().toString(36).slice(2)}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
-        (payload) => setProfile(payload.new as Profile)
-      )
-      .subscribe();
-
-    return () => {
-      cancelled = true;
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
-
-  return { profile, loading };
+  return { profile: user ? data ?? null : null, loading: !!user && isLoading };
 }
