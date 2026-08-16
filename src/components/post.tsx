@@ -64,6 +64,7 @@ import { ProfileHoverCard } from "./profile-hover-card";
 import { AskAiDialog } from "./ask-ai-dialog";
 import { useTabContext } from "@/contexts/tab-context";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { siteUrl } from "@/lib/site";
 
 
 type PostProps = PostType & {
@@ -132,15 +133,15 @@ function CommentEngagement({ parentPostId, commentId, initialLikes, onReplyClick
     );
 }
 
-// Helper components for social icons
-const TwitterIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22 4s-.7 2.1-2 3.4c1.6 1.4 2.8 3.2 3 5.2-1.4 1.1-3.5 2.2-6 2.2-2.3 0-4.6-1.1-6.8-2.2C5.3 14.3 4.1 12.3 3 10c1.8 1.4 3.9 2.4 6.3 2.5.1 0 .2 0 .3 0 2.3 0 4.2-1.1 5.7-2.2-.1-.1-.2-.2-.2-.3-.1-.3-.2-.5-.3-.8-.3-.9-.6-1.8-1-2.7-.4-.9-.9-1.8-1.4-2.6-1.1-1.4-2.6-2.3-4.2-2.3-1.4 0-2.8.7-3.9 1.8" /></svg>
+// Helper components for social icons (current brand marks, kept monochrome via currentColor to match the app's icon style)
+const XIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}><path d="M14.234 10.162 22.977 0h-2.072l-7.591 8.824L7.251 0H.258l9.168 13.343L.258 24H2.33l8.016-9.318L16.749 24h6.993zm-2.837 3.299-.929-1.329L3.076 1.56h3.182l5.965 8.532.929 1.329 7.754 11.09h-3.182z" /></svg>
 );
 const FacebookIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}><path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z" /></svg>
 );
 const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" /></svg>
 );
 
 function ReplyDialog({ post, onReply, open, onOpenChange }: { post: PostType, onReply: (data: { text: string; media: any[] }) => Promise<boolean | null>, open: boolean, onOpenChange: (open: boolean) => void }) {
@@ -415,6 +416,11 @@ export function Post(props: PostProps) {
   }, [emblaApi, imageViewerStartIndex, isImageViewerOpen]);
 
   useEffect(() => {
+    // Posts uploaded since poster capture landed already carry a still, so
+    // there's no need to download the video and decode a frame in every
+    // viewer's browser just to show one.
+    if (isVideo && media[0].posterUrl) return;
+
     if (isVideo && media[0].url && !media[0].url.startsWith('blob:')) {
       const video = document.createElement('video');
       video.crossOrigin = "anonymous";
@@ -643,12 +649,16 @@ export function Post(props: PostProps) {
   };
   
   const getShareUrl = (platform: 'twitter' | 'facebook' | 'whatsapp') => {
-    const postUrl = encodeURIComponent(`${window.location.origin}/post/${id}`);
+    // These hrefs are built during render, which also runs on the server —
+    // reaching for window here threw and took the whole post page's SSR with
+    // it. On the server the configured site URL is the right origin anyway.
+    const origin = typeof window !== 'undefined' ? window.location.origin : siteUrl;
+    const postUrl = encodeURIComponent(`${origin}/post/${id}`);
     const text = encodeURIComponent(content);
 
     switch (platform) {
       case 'twitter':
-        return `https://twitter.com/intent/tweet?url=${postUrl}&text=${text}`;
+        return `https://x.com/intent/post?url=${postUrl}&text=${text}`;
       case 'facebook':
         return `https://www.facebook.com/sharer/sharer.php?u=${postUrl}`;
       case 'whatsapp':
@@ -864,7 +874,7 @@ export function Post(props: PostProps) {
                   <video
                     ref={videoRef}
                     src={media[0].url}
-                    poster={videoThumbnail || ''}
+                    poster={media[0].posterUrl || videoThumbnail || ''}
                     className="w-full h-full object-contain max-h-[80vh] bg-black"
                     playsInline
                     loop
@@ -986,9 +996,9 @@ export function Post(props: PostProps) {
                             <div className="grid grid-cols-4 gap-4 py-4">
                                 <a href={getShareUrl('twitter')} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-2 text-center group">
                                     <div className="h-14 w-14 rounded-full bg-secondary flex items-center justify-center group-hover:bg-accent">
-                                        <TwitterIcon className="h-7 w-7" />
+                                        <XIcon className="h-7 w-7" />
                                     </div>
-                                    <span className="text-xs">Twitter</span>
+                                    <span className="text-xs">X</span>
                                 </a>
                                 <a href={getShareUrl('facebook')} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-2 text-center group">
                                     <div className="h-14 w-14 rounded-full bg-secondary flex items-center justify-center group-hover:bg-accent">
@@ -1178,9 +1188,9 @@ export function Post(props: PostProps) {
                                             <div className="grid grid-cols-4 gap-4 py-4">
                                                 <a href={getShareUrl('twitter')} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-2 text-center group">
                                                     <div className="h-14 w-14 rounded-full bg-secondary flex items-center justify-center group-hover:bg-accent">
-                                                        <TwitterIcon className="h-7 w-7" />
+                                                        <XIcon className="h-7 w-7" />
                                                     </div>
-                                                    <span className="text-xs">Twitter</span>
+                                                    <span className="text-xs">X</span>
                                                 </a>
                                                 <a href={getShareUrl('facebook')} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-2 text-center group">
                                                     <div className="h-14 w-14 rounded-full bg-secondary flex items-center justify-center group-hover:bg-accent">

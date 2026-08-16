@@ -18,6 +18,10 @@ export type PostType = {
     width?: number;
     height?: number;
     hint?: string;
+    /** Still frame grabbed at upload, used as the video's poster and as the
+     *  link-preview thumbnail — a video URL is not something a crawler can
+     *  render. Absent on videos posted before this existed. */
+    posterUrl?: string;
   }>;
   poll?: {
     choices: { text: string; votes: number }[];

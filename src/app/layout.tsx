@@ -9,12 +9,16 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { TabProvider } from '@/contexts/tab-context';
 import { AppQueryProvider } from '@/lib/query-provider';
 import { createClient } from '@/lib/supabase/server';
+import { siteUrl } from '@/lib/site';
 import Script from 'next/script';
 
 const siteDescription =
   'BHOLO is South Africa\'s home for football banter — where Chiefs, Pirates, Sundowns and Betway Premiership fans clash, roast and hype every matchday. Post your hot takes, react with GIFs, track live PSL fixtures and standings, and join the conversation South African football deserves.';
 
 export const metadata: Metadata = {
+  // Without this, relative image and canonical paths never resolve to absolute
+  // URLs, and every shared link degrades to plain text with no card.
+  metadataBase: new URL(siteUrl),
   title: {
     default: 'BHOLO — South African Football Banter',
     template: '%s | BHOLO',

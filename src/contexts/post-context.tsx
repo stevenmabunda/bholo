@@ -78,6 +78,71 @@ const getImageDimensions = (file: File): Promise<{ width: number; height: number
   });
 };
 
+/**
+ * Grabs a still frame from a video so it has something to show as a poster and,
+ * more importantly, so a shared link has a thumbnail — WhatsApp, Facebook and X
+ * cannot render an mp4, so a video post without one previews as bare text.
+ *
+ * Never rejects: a codec the browser can't decode should cost the post its
+ * thumbnail, not the upload. Callers get null and carry on.
+ */
+const captureVideoPoster = (file: File): Promise<Blob | null> => {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    const objectUrl = URL.createObjectURL(file);
+    let settled = false;
+
+    const finish = (blob: Blob | null) => {
+      if (settled) return;
+      settled = true;
+      URL.revokeObjectURL(objectUrl);
+      video.removeAttribute('src');
+      resolve(blob);
+    };
+
+    // A stuck decode must not hold the upload open indefinitely.
+    const timeout = setTimeout(() => finish(null), 10000);
+
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'metadata';
+
+    video.onloadeddata = () => {
+      // The very first frame is often black while the encoder settles, so take
+      // one slightly in — but never past the end of a very short clip.
+      video.currentTime = Math.min(0.5, (video.duration || 1) / 2);
+    };
+
+    video.onseeked = () => {
+      try {
+        // Cap the long edge: a 4K frame makes a multi-megabyte JPEG, and
+        // crawlers skip images that are slow or too large to fetch.
+        const maxEdge = 1280;
+        const scale = Math.min(1, maxEdge / Math.max(video.videoWidth, video.videoHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(video.videoWidth * scale);
+        canvas.height = Math.round(video.videoHeight * scale);
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx || !canvas.width || !canvas.height) return finish(null);
+
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => { clearTimeout(timeout); finish(blob); },
+          'image/jpeg',
+          0.8
+        );
+      } catch {
+        clearTimeout(timeout);
+        finish(null);
+      }
+    };
+
+    video.onerror = () => { clearTimeout(timeout); finish(null); };
+    video.src = objectUrl;
+  });
+};
+
 function mapRow(row: any): PostType {
   const createdAt = row.created_at ? new Date(row.created_at) : undefined;
   return {
@@ -268,6 +333,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
             const { width, height } = await getImageDimensions(m.file);
             return { ...baseMediaData, width, height };
         }
+
+        if (m.type === 'video') {
+            const poster = await captureVideoPoster(m.file);
+            if (!poster) return baseMediaData;
+
+            const posterPath = `${user.id}/${fileName}-poster.jpg`;
+            const { error: posterError } = await supabase.storage
+                .from('post-media')
+                .upload(posterPath, poster, { contentType: 'image/jpeg' });
+            // A missing poster is a worse thumbnail, not a failed post.
+            if (posterError) return baseMediaData;
+
+            const { data: { publicUrl: posterUrl } } = supabase.storage
+                .from('post-media')
+                .getPublicUrl(posterPath);
+            return { ...baseMediaData, posterUrl };
+        }
+
         return baseMediaData;
     });
 
