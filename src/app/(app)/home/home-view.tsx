@@ -15,7 +15,7 @@ import { NewPostsNotification } from '@/components/new-posts-notification';
 import { useAuth } from '@/hooks/use-auth';
 import { useProfile } from '@/hooks/use-profile';
 import { Button } from '@/components/ui/button';
-import { Loader2, Bell, Mail } from 'lucide-react';
+import { Loader2, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import Image from "next/image";
@@ -188,9 +188,12 @@ export function HomeView() {
             isHeaderHidden && 'hide-header'
         )}>
             <div className="md:hidden">
-                <div className="flex h-14 items-center justify-between px-4">
+                {/* Equal 1fr side columns keep the logo on the true centre of
+                    the bar, rather than wherever justify-between happens to
+                    leave it once the avatar and the bell differ in width. */}
+                <div className="grid h-14 grid-cols-[1fr_auto_1fr] items-center px-4">
                      <SidebarTrigger asChild>
-                        <button className="h-8 w-8 rounded-full overflow-hidden">
+                        <button className="h-8 w-8 justify-self-start rounded-full overflow-hidden">
                             <Avatar className="h-full w-full">
                                 <AvatarImage src={profile?.photo_url || undefined} data-ai-hint="user avatar" />
                                 <AvatarFallback>{profile?.display_name?.charAt(0) || 'U'}</AvatarFallback>
@@ -200,7 +203,7 @@ export function HomeView() {
                      <Link href="/home" aria-label="Home" className="flex items-center justify-center h-10">
                          <Image src="/bholo_logo.png" alt="BHOLO Logo" width="100" height="40" className="h-auto w-auto max-h-full" />
                     </Link>
-                     <div className="flex items-center gap-1">
+                     <div className="flex items-center justify-self-end">
                         <Link href="/notifications" passHref>
                             <Button variant="ghost" size="icon" className="h-8 w-8 relative">
                                 <Bell className="h-5 w-5" />
@@ -210,12 +213,6 @@ export function HomeView() {
                                     </span>
                                 )}
                                 <span className="sr-only">Notifications</span>
-                            </Button>
-                        </Link>
-                        <Link href="/messages" passHref>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <Mail className="h-5 w-5" />
-                                <span className="sr-only">Messages</span>
                             </Button>
                         </Link>
                     </div>
