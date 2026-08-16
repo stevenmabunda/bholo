@@ -3,7 +3,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { MessageCircle, Repeat, Heart, Share2, MoreHorizontal, Edit, Trash2, Bookmark, Copy, X, ChevronLeft, ChevronRight, Check, Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { MessageCircle, Repeat, Heart, Share2, MoreHorizontal, Edit, Trash2, Bookmark, Copy, X, ChevronLeft, ChevronRight, Check, Play, Pause, Volume2, VolumeX, Sparkles } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
@@ -61,6 +61,7 @@ import { Skeleton } from "./ui/skeleton";
 import useEmblaCarousel from 'embla-carousel-react';
 import { LoginOrSignupDialog } from "./login-or-signup-dialog";
 import { ProfileHoverCard } from "./profile-hover-card";
+import { AskAiDialog } from "./ask-ai-dialog";
 import { useTabContext } from "@/contexts/tab-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -359,6 +360,7 @@ export function Post(props: PostProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isAskAiOpen, setIsAskAiOpen] = useState(false);
   const [isShareSheetOpen, setShareSheetOpen] = useState(false);
   const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false);
 
@@ -759,6 +761,10 @@ export function Post(props: PostProps) {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem onSelect={() => setIsAskAiOpen(true)}>
+                                <Sparkles className="mr-2 h-4 w-4" />
+                                <span>Ask BHOLO AI</span>
+                            </DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => setIsEditing(true)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 <span>Edit</span>
@@ -789,6 +795,10 @@ export function Post(props: PostProps) {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem onSelect={() => setIsAskAiOpen(true)}>
+                                <Sparkles className="mr-2 h-4 w-4" />
+                                <span>Ask BHOLO AI</span>
+                            </DropdownMenuItem>
                             <DropdownMenuItem>
                                 Not interested in this post
                             </DropdownMenuItem>
@@ -1195,6 +1205,12 @@ export function Post(props: PostProps) {
                 </DialogContent>
             </Dialog>
             <LoginOrSignupDialog isOpen={isLoginDialogOpen} onOpenChange={setIsLoginDialogOpen} />
+            <AskAiDialog
+                open={isAskAiOpen}
+                onOpenChange={setIsAskAiOpen}
+                postContent={content}
+                postAuthor={authorHandle}
+            />
       </div>
   );
 }
