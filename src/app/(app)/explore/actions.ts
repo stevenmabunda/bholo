@@ -7,30 +7,35 @@ import {
 } from '@/ai/flows/generate-trending-topics';
 import { createClient } from '@/lib/supabase/server';
 
-async function getRecentTopics(): Promise<string[]> {
+/**
+ * The most-mentioned topics of the last 72 hours, counted by Postgres.
+ *
+ * This used to select every topic row in the window and tally them in JS.
+ * PostgREST caps a response at 1000 rows, and the query passed no limit and no
+ * ordering — so once the window held more than 1000 rows the action silently
+ * received only the first 1000, which without an ORDER BY is effectively the
+ * oldest. The counts froze at that moment: rows kept being written for every
+ * new post and not one of them was ever counted again.
+ */
+async function popularTopics(limit: number): Promise<{ topic: string; count: number }[]> {
   const supabase = await createClient();
   const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await supabase
-    .from('topics')
-    .select('topic')
-    .gte('created_at', seventyTwoHoursAgo);
+
+  const { data, error } = await supabase.rpc('trending_topics', {
+    since: seventyTwoHoursAgo,
+    min_count: 2,
+    max_topics: limit,
+  });
+
   if (error) {
-    console.error("Error fetching topics:", error);
+    console.error('Error fetching trending topics:', error);
     return [];
   }
-  return (data ?? []).map(row => row.topic as string);
-}
 
-function popularTopicsFrom(recentTopics: string[]): { topic: string; count: number }[] {
-  const topicCounts = recentTopics.reduce((acc, topic) => {
-    acc[topic] = (acc[topic] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
-  return Object.entries(topicCounts)
-    .filter(([, count]) => count >= 2)
-    .sort(([, a], [, b]) => b - a)
-    .map(([topic, count]) => ({ topic, count }));
+  return (data ?? []).map((row: { topic: string; post_count: number }) => ({
+    topic: row.topic,
+    count: Number(row.post_count),
+  }));
 }
 
 export async function getTrendingTopics(
@@ -39,10 +44,7 @@ export async function getTrendingTopics(
 ): Promise<GenerateTrendingTopicsOutput> {
   const numberOfTopicsToGenerate = input.numberOfTopics || 5;
 
-  const recentTopics = await getRecentTopics();
-  if (recentTopics.length === 0) return { topics: [] };
-
-  const popular = popularTopicsFrom(recentTopics).slice(0, numberOfTopicsToGenerate);
+  const popular = await popularTopics(numberOfTopicsToGenerate);
   if (popular.length === 0) return { topics: [] };
 
   const maxRetries = 3;
@@ -76,11 +78,9 @@ export async function getTrendingKeywords(
 ): Promise<TrendingKeyword[]> {
   const numberOfTopicsToFetch = input.numberOfTopics || 5;
 
-  const recentTopics = await getRecentTopics();
-  if (recentTopics.length === 0) return [];
+  const popular = await popularTopics(numberOfTopicsToFetch);
 
-  return popularTopicsFrom(recentTopics)
-    .slice(0, numberOfTopicsToFetch)
+  return popular
     .map(({ topic, count }) => ({
       topic: topic.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
       category: 'Football · Trending',

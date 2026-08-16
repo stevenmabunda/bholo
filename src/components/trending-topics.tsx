@@ -13,11 +13,11 @@ export function TrendingTopics() {
   const { data: topics = [], isLoading: loading } = useQuery({
     queryKey: queryKeys.trendingKeywords(),
     queryFn: () => getTrendingKeywords({ numberOfTopics: 5 }),
-    // Trending shifts slowly; the previous version refetched hourly on
-    // an interval, so an hour of cache matches that intent while making
-    // every navigation render it instantly from cache.
-    staleTime: 60 * 60_000,
-    refetchInterval: 60 * 60_000,
+    // Five minutes, not an hour. Counts move with every post on a match
+    // day, and an hour of cache made a working panel look frozen — the
+    // same symptom as the counting bug this was sitting on top of.
+    staleTime: 5 * 60_000,
+    refetchInterval: 5 * 60_000,
   });
 
   return (
