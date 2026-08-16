@@ -14,8 +14,7 @@
  * folder, and the owner-write policy would reject writing into someone else's.
  * service_role bypasses RLS, so this cannot run from the browser.
  *
- *   npm i            # if you haven't
- *   brew install ffmpeg
+ *   npm i            # brings in ffmpeg-static, so there is nothing to install
  *   # add SUPABASE_SERVICE_ROLE_KEY=... to .env.local
  *   node scripts/backfill-video-posters.mjs --dry-run
  *   node scripts/backfill-video-posters.mjs
@@ -25,6 +24,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import ffmpegStatic from 'ffmpeg-static';
 import { execFile } from 'node:child_process';
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -57,11 +57,15 @@ if (!SERVICE_KEY) {
   );
 }
 
+// ffmpeg-static ships a prebuilt binary with the project, so this needs no
+// system install. Fall back to one on PATH if the package is ever dropped.
+const FFMPEG = ffmpegStatic ?? 'ffmpeg';
+
 async function requireFfmpeg() {
   try {
-    await execFileAsync('ffmpeg', ['-version']);
+    await execFileAsync(FFMPEG, ['-version']);
   } catch {
-    fail('ffmpeg is not installed. Install it with:  brew install ffmpeg');
+    fail('No usable ffmpeg. Run `npm i` to restore ffmpeg-static.');
   }
 }
 
@@ -87,7 +91,7 @@ function storagePathFromPublicUrl(url) {
  */
 async function extractFrame(videoPath, outPath) {
   const run = (seek) =>
-    execFileAsync('ffmpeg', [
+    execFileAsync(FFMPEG, [
       '-y',
       '-ss', String(seek),
       '-i', videoPath,
