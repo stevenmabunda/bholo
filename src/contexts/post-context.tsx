@@ -19,7 +19,7 @@ type PostContextType = {
   newForYouPosts: PostType[];
   loadingForYou: boolean;
   showNewForYouPosts: () => void;
-  addPost: (data: { text: string; media: Media[], poll?: PostType['poll'], location?: string | null }) => Promise<PostType | null>;
+  addPost: (data: { text: string; media: Media[], poll?: PostType['poll'], location?: string | null, scheduledFor?: string | null }) => Promise<PostType | null>;
   editPost: (postId: string, data: { text:string }) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
   addVote: (postId: string, choiceIndex: number) => Promise<void>;
@@ -224,7 +224,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, [user, queryClient]);
 
 
-  const addPost = async ({ text, media, poll, location }: { text: string; media: Media[]; poll?: PostType['poll'], location?: string | null }): Promise<PostType | null> => {
+  const addPost = async ({ text, media, poll, location, scheduledFor }: { text: string; media: Media[]; poll?: PostType['poll'], location?: string | null, scheduledFor?: string | null }): Promise<PostType | null> => {
     if (!user || !profile) {
         throw new Error("Cannot add post: user not logged in.");
     }
@@ -238,6 +238,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         media: [],
         ...(poll && { poll }),
         ...(location && { location }),
+        ...(scheduledFor && { scheduled_for: scheduledFor }),
     };
 
     const { data: inserted, error } = await supabase.from('posts').insert(insertRow).select().single();
@@ -246,7 +247,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
 
     const optimisticPost = mapRow({ ...inserted, media: media.map(m => ({ url: m.previewUrl, type: m.type, hint: 'user uploaded content' })) });
-    updateFeed(prev => [optimisticPost, ...prev]);
+    // A scheduled post isn't live yet, so it must not be dropped into the
+    // feed optimistically — it would show at the top until the next refetch.
+    if (!scheduledFor) {
+      updateFeed(prev => [optimisticPost, ...prev]);
+    }
 
     const uploadPromises = media.map(async (m) => {
         if (m.type === 'gif' || m.type === 'sticker') {

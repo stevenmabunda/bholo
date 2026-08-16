@@ -3,7 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Image as ImageIcon, X, Smile, MapPin, Loader2, Trash2, Clapperboard } from "lucide-react";
+import { Image as ImageIcon, X, Smile, MapPin, Loader2, Trash2, Clapperboard, CalendarClock } from "lucide-react";
 import React, { useState, useRef, useContext } from "react";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
@@ -69,7 +69,14 @@ function StickerPicker({ onStickerClick }: { onStickerClick: (sticker: any, e: R
 };
 
 
-export function CreatePost({ onPost }: { onPost: (data: { text: string; media: Media[], poll?: PostType['poll'], location?: string | null }) => Promise<any> }) {
+// Local datetime string for <input type="datetime-local">, which has no
+// timezone — it must be the user's wall clock, not a UTC ISO string.
+function toLocalInputValue(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function CreatePost({ onPost }: { onPost: (data: { text: string; media: Media[], poll?: PostType['poll'], location?: string | null, scheduledFor?: string | null }) => Promise<any> }) {
   const { user } = useAuth();
   const { profile } = useProfile();
   const [text, setText] = useState("");
@@ -84,6 +91,7 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
   const [showPoll, setShowPoll] = useState(false);
   const [pollChoices, setPollChoices] = useState<string[]>(['', '']);
   const [location, setLocation] = useState<string | null>(null);
+  const [scheduledFor, setScheduledFor] = useState<string>('');
 
   
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,16 +155,35 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
     }
     
 
+    if (scheduledFor && new Date(scheduledFor).getTime() <= Date.now()) {
+        toast({ variant: 'destructive', description: "Pick a time in the future to schedule this post." });
+        setPosting(false);
+        return;
+    }
+
     try {
-        await onPost({ text, media, poll: pollData, location });
-        
+        await onPost({
+            text,
+            media,
+            poll: pollData,
+            location,
+            // datetime-local has no timezone; convert from the user's wall
+            // clock to an absolute instant before it hits the database.
+            scheduledFor: scheduledFor ? new Date(scheduledFor).toISOString() : null,
+        });
+
         media.forEach(m => URL.revokeObjectURL(m.previewUrl));
+
+        if (scheduledFor) {
+            toast({ description: `Scheduled for ${new Date(scheduledFor).toLocaleString()}.` });
+        }
 
         setText("");
         setMedia([]);
         setShowPoll(false);
         setPollChoices(['', '']);
         setLocation(null);
+        setScheduledFor('');
         if (imageInputRef.current) imageInputRef.current.value = "";
     } catch (error) {
         console.error("Failed to create post:", error);
@@ -461,10 +488,32 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
               >
                 <MapPin className={cn("h-5 w-5", location ? "text-primary fill-primary/20" : "text-primary")} />
               </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" title="Schedule post" disabled={posting}>
+                        <CalendarClock className={cn("h-5 w-5", scheduledFor ? "text-primary fill-primary/20" : "text-primary")} />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-3 border-none bg-background/95 backdrop-blur-sm shadow-lg">
+                    <p className="text-sm font-semibold mb-2">Schedule post</p>
+                    <Input
+                        type="datetime-local"
+                        value={scheduledFor}
+                        min={toLocalInputValue(new Date(Date.now() + 60_000))}
+                        onChange={(e) => setScheduledFor(e.target.value)}
+                        className="w-[230px]"
+                    />
+                    {scheduledFor && (
+                        <Button variant="ghost" size="sm" className="mt-2 text-destructive hover:text-destructive px-0" onClick={() => setScheduledFor('')}>
+                            Clear schedule
+                        </Button>
+                    )}
+                </PopoverContent>
+              </Popover>
             </div>
             <Button size="sm" className="rounded-full" disabled={!isPostable || posting} onClick={handlePost}>
                 {posting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {posting ? 'Posting...' : 'Kick-It!'}
+                {posting ? 'Posting...' : scheduledFor ? 'Schedule' : 'Kick-It!'}
             </Button>
           </div>
         </div>
