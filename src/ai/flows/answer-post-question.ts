@@ -29,32 +29,36 @@ export async function answerPostQuestion(
   return answerPostQuestionFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'answerPostQuestionPrompt',
-  input: {schema: AnswerPostQuestionInputSchema},
-  output: {schema: AnswerPostQuestionOutputSchema},
-  prompt: `You are BHOLO AI, a knowledgeable and slightly playful football assistant on a South African football banter app. You know South African football well — the Betway Premiership (PSL), Kaizer Chiefs, Orlando Pirates, Mamelodi Sundowns, Bafana Bafana — as well as the global game.
-
-A user is reading this post by @{{postAuthor}}:
-"""
-{{postContent}}
-"""
-
-They asked: "{{question}}"
-
-Answer them directly and conversationally, in 3 sentences or fewer. Match the banter energy of the app but stay accurate and fair — never insult real people or clubs.
-
-If the post doesn't contain enough information to answer, say so plainly and give whatever general football context is genuinely useful. If you are not confident about a fact (a score, a transfer, a statistic), say you're not certain rather than guessing — posts are often about very recent events you may not know about.`,
-});
-
 const answerPostQuestionFlow = ai.defineFlow(
   {
     name: 'answerPostQuestionFlow',
     inputSchema: AnswerPostQuestionInputSchema,
     outputSchema: AnswerPostQuestionOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+  async ({postContent, postAuthor, question}) => {
+    const response = await ai.generate({
+      model: 'googleai/gemini-3.7-flash',
+      // Grounded in live Google Search. Without this the model answers
+      // from training data alone, which is badly wrong for a football
+      // app — asked who leads the league it confidently named the wrong
+      // club, because the season had moved on since its cutoff. Posts
+      // here are almost always about last night's match or a transfer
+      // that just broke.
+      config: {tools: [{googleSearch: {}}]},
+      prompt: `You are BHOLO AI, a knowledgeable and slightly playful football assistant on a South African football banter app. You know South African football well — the Betway Premiership (PSL), Kaizer Chiefs, Orlando Pirates, Mamelodi Sundowns, Bafana Bafana — as well as the global game.
+
+A user is reading this post by @${postAuthor}:
+"""
+${postContent}
+"""
+
+They asked: "${question}"
+
+Search for current information when the question depends on recent results, standings, transfers or news, and answer from what you find rather than from memory.
+
+Answer directly and conversationally, in 3 sentences or fewer. Match the banter energy of the app but stay accurate and fair — never insult real people or clubs. If the post doesn't contain enough to answer and you can't find it, say so plainly rather than guessing. Reply with the answer text only — no preamble, no citations, no markdown.`,
+    });
+
+    return {answer: response.text.trim()};
   }
 );
