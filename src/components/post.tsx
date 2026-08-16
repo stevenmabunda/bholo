@@ -518,7 +518,15 @@ export function Post(props: PostProps) {
   }
 
 
+  // Only the standalone post and the open image viewer actually render a
+  // follow button. Fetching this unconditionally meant one server round trip
+  // per card in the feed for a value nothing displayed — twenty posts, twenty
+  // requests, all discarded.
+  const needsFollowState = isStandalone || isImageViewerOpen;
+
   useEffect(() => {
+    if (!needsFollowState) return;
+
     if (user && user.id !== authorId) {
         setFollowLoading(true);
         getIsFollowing(user.id, authorId).then(status => {
@@ -528,7 +536,7 @@ export function Post(props: PostProps) {
     } else {
         setFollowLoading(false);
     }
-  }, [user, authorId]);
+  }, [user, authorId, needsFollowState]);
   
   const needsTruncation = !isStandalone && !isExpanded && content.length > 280;
   const displayText = needsTruncation ? `${content.substring(0, 280)}` : content;
