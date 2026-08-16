@@ -73,7 +73,8 @@ export async function getUserPosts(userId: string): Promise<PostType[]> {
       .from('posts')
       .select('*')
       .eq('author_id', userId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(100);
 
     if (error) return [];
     return (data ?? []).map(mapPostRow);
@@ -129,7 +130,8 @@ export async function getLikedPosts(userId: string): Promise<PostType[]> {
       .select('created_at, posts(*)')
       .eq('user_id', userId)
       .not('post_id', 'is', null)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(100);
 
     if (error) throw error;
 
@@ -192,9 +194,13 @@ async function getFollowList(
 ): Promise<ProfileData[]> {
   const supabase = await createClient();
 
+  // A popular account passes 1000 followers eventually; without an order and
+  // a bound, PostgREST would cap this at an arbitrary 1000 of them.
   const { data, error } = type === 'followers'
-    ? await supabase.from('follows').select('profiles!follows_follower_id_fkey(*)').eq('followed_id', profileId)
-    : await supabase.from('follows').select('profiles!follows_followed_id_fkey(*)').eq('follower_id', profileId);
+    ? await supabase.from('follows').select('profiles!follows_follower_id_fkey(*)')
+        .eq('followed_id', profileId).order('created_at', { ascending: false }).limit(200)
+    : await supabase.from('follows').select('profiles!follows_followed_id_fkey(*)')
+        .eq('follower_id', profileId).order('created_at', { ascending: false }).limit(200);
 
   if (error || !data) return [];
 

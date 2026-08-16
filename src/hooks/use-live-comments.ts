@@ -58,6 +58,8 @@ export function useLiveComments(postId: string | null | undefined) {
       .select('*')
       .eq('post_id', postId)
       .order('created_at', { ascending: false })
+      // A post that actually takes off can pass a thousand replies.
+      .limit(200)
       .then(({ data }) => {
         if (!cancelled) {
           setComments((data ?? []).map(mapRow));

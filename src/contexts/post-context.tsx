@@ -233,8 +233,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
     queryFn: async () => {
       if (!user) return { bookmarked: [] as string[], liked: [] as string[] };
       const [{ data: bookmarks }, { data: likes }] = await Promise.all([
-        supabase.from('bookmarks').select('post_id').eq('user_id', user.id),
-        supabase.from('likes').select('post_id').eq('user_id', user.id).not('post_id', 'is', null),
+        // Explicit and newest-first, so the bound is a defined "most recent
+        // 1000" rather than an arbitrary slice from PostgREST's cap. A user
+        // past that would stop seeing their oldest likes reflected in the
+        // feed; the real fix then is looking up state for the posts on
+        // screen instead of the whole history.
+        supabase.from('bookmarks').select('post_id').eq('user_id', user.id)
+          .order('created_at', { ascending: false }).limit(1000),
+        supabase.from('likes').select('post_id').eq('user_id', user.id)
+          .not('post_id', 'is', null).order('created_at', { ascending: false }).limit(1000),
       ]);
       return {
         bookmarked: (bookmarks ?? []).map((b) => b.post_id as string),

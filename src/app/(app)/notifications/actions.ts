@@ -24,7 +24,11 @@ export async function getNotifications(userId: string): Promise<NotificationType
     .from('notifications')
     .select('*, from_user:profiles!notifications_from_user_id_fkey(display_name, photo_url)')
     .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    // Notifications are never pruned, so this grows for the life of an
+    // account. Newest-first means an explicit bound drops the oldest rather
+    // than PostgREST's silent cap hiding recent activity.
+    .limit(100);
 
   if (error) {
     console.error("Error fetching notifications:", error);

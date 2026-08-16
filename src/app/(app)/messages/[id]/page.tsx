@@ -14,6 +14,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatTimestamp } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
+/** How much of a thread's tail to load. Older messages would need a
+ *  "load earlier" control; the point here is that the bound is chosen
+ *  rather than inherited from PostgREST's silent 1000-row cap. */
+const MESSAGE_PAGE_SIZE = 200;
+
 export default function ChatPage() {
     const { user } = useAuth();
     const router = useRouter();
@@ -49,12 +54,18 @@ export default function ChatPage() {
         };
 
         const fetchMessages = async () => {
+            // Newest-first with a bound, then flipped for display. Fetching the
+            // whole thread ascending meant that past PostgREST's 1000-row cap a
+            // long conversation would return its *oldest* 1000 messages and
+            // silently drop everything recent — the thread would look like it
+            // had stopped months ago.
             const { data } = await supabase
                 .from('conversation_messages')
                 .select('*')
                 .eq('conversation_id', conversationId)
-                .order('created_at', { ascending: true });
-            setMessages((data ?? []).map(row => ({
+                .order('created_at', { ascending: false })
+                .limit(MESSAGE_PAGE_SIZE);
+            setMessages((data ?? []).reverse().map(row => ({
                 id: row.id,
                 senderId: row.sender_id,
                 text: row.content,
