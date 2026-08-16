@@ -241,7 +241,11 @@ function VideoPlayer({ post, isActive, isMuted, onMuteToggle }: { post: PostType
           <Play className="h-16 w-16 text-white/50" fill="currentColor" />
         </div>
       )}
-      <div className="absolute bottom-[80px] left-3 text-white z-10 w-3/4">
+      {/* The mobile bottom nav is fixed, 4rem tall plus the safe-area inset,
+          and sits at z-40 — so a flat 80px offset put this behind it on any
+          phone with a home indicator rather than merely close to the edge.
+          Clear the nav, the inset, and a 2rem gap. */}
+      <div className="absolute bottom-[calc(6rem+env(safe-area-inset-bottom))] left-3 text-white z-10 w-3/4">
         <Link href={`/profile/${post.authorId}`} className="flex items-center gap-2 w-fit">
           <Avatar className="h-8 w-8 border border-white/40">
             <AvatarImage src={post.authorAvatar} alt={post.authorName} />
@@ -255,7 +259,10 @@ function VideoPlayer({ post, isActive, isMuted, onMuteToggle }: { post: PostType
             <span>Original Audio - {post.authorName}</span>
         </div>
       </div>
-      <div className="absolute right-2 bottom-24 sm:bottom-1/2 sm:translate-y-1/2 flex flex-col items-center gap-6 text-white z-10">
+      {/* Vertically centred at every size. It used to sit low on mobile
+          (bottom-24) and only centre from sm up, which put it down beside the
+          caption instead of within thumb reach. */}
+      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col items-center gap-6 text-white z-10">
         <button onClick={handleActionClick(handleLike)} className="flex flex-col items-center">
             <Heart className={cn("h-8 w-8", isLiked && "fill-current text-red-500")} />
             <span className="text-xs font-bold">{likeCount}</span>
