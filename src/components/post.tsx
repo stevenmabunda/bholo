@@ -761,10 +761,6 @@ export function Post(props: PostProps) {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenuItem onSelect={() => setIsAskAiOpen(true)}>
-                                <Sparkles className="mr-2 h-4 w-4" />
-                                <span>Ask BHOLO AI</span>
-                            </DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => setIsEditing(true)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 <span>Edit</span>
@@ -778,9 +774,9 @@ export function Post(props: PostProps) {
                 </div>
            ) : user && isStandalone && !isReplyView ? (
                 // Standalone view of someone else's post. This used to show
-                // only the follow button, which meant the ... menu — and so
-                // Ask BHOLO AI, report, etc. — was unreachable on the one
-                // screen where you're actually reading a post closely.
+                // only the follow button, leaving no ... menu at all — so
+                // report was unreachable on the one screen where you're
+                // actually reading a post closely.
                 <div className="flex-shrink-0 -mr-2 flex items-center gap-1">
                      <FollowButton
                         profileId={authorId}
@@ -796,10 +792,6 @@ export function Post(props: PostProps) {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenuItem onSelect={() => setIsAskAiOpen(true)}>
-                                <Sparkles className="mr-2 h-4 w-4" />
-                                <span>Ask BHOLO AI</span>
-                            </DropdownMenuItem>
                             <DropdownMenuItem>
                                 Report post
                             </DropdownMenuItem>
@@ -816,10 +808,6 @@ export function Post(props: PostProps) {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenuItem onSelect={() => setIsAskAiOpen(true)}>
-                                <Sparkles className="mr-2 h-4 w-4" />
-                                <span>Ask BHOLO AI</span>
-                            </DropdownMenuItem>
                             <DropdownMenuItem>
                                 Not interested in this post
                             </DropdownMenuItem>
@@ -975,6 +963,15 @@ export function Post(props: PostProps) {
                     </Button>
                     <Button variant="ghost" size="icon" className={cn("hover:text-primary", isBookmarked && "text-primary")} onClick={handleActionClick(handleBookmark)}>
                         <Bookmark className={cn("h-5 w-5", isBookmarked && 'fill-current')} />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Ask BHOLO AI about this post"
+                        className="hover:text-primary"
+                        onClick={(e) => { e.stopPropagation(); setIsAskAiOpen(true); }}
+                    >
+                        <Sparkles className="h-5 w-5" />
                     </Button>
                      <Sheet open={isShareSheetOpen} onOpenChange={setShareSheetOpen}>
                         <SheetTrigger asChild>
