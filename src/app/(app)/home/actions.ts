@@ -112,18 +112,27 @@ export async function getRecentPosts(options: { limit?: number; lastPostId?: str
   }
 }
 
-export async function getVideoPosts(options: { lastPostId?: string } = {}): Promise<PostType[]> {
+export async function getVideoPosts(options: { limit?: number; lastPostId?: string } = {}): Promise<PostType[]> {
   const supabase = await createClient();
 
   try {
     const twoWeeksAgo = new Date();
     twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
 
+    // Postgres does the filtering. This used to select every post from the
+    // last fortnight and sift for videos in JS, so the whole window crossed
+    // the wire to return a handful of rows — and with no limit, that cost
+    // grew with the feed rather than staying flat.
     let query = supabase
       .from('posts')
       .select('*')
       .gte('created_at', twoWeeksAgo.toISOString())
-      .order('created_at', { ascending: false });
+      // Must be a JSON *string*. Handed an array, postgrest-js builds a
+      // Postgres array literal instead, the filter becomes
+      // `media=cs.{[object Object]}`, and it silently matches nothing.
+      .contains('media', JSON.stringify([{ type: 'video' }]))
+      .order('created_at', { ascending: false })
+      .limit(options.limit || 20);
 
     if (options.lastPostId) {
       const { data: lastPost } = await supabase.from('posts').select('created_at').eq('id', options.lastPostId).single();
@@ -135,9 +144,7 @@ export async function getVideoPosts(options: { lastPostId?: string } = {}): Prom
     const { data, error } = await query;
     if (error) throw error;
 
-    return (data ?? [])
-      .map(mapRow)
-      .filter(post => post.media && post.media.some(m => m.type === 'video'));
+    return (data ?? []).map(mapRow);
   } catch (error) {
     console.error("Error fetching video posts:", error);
     return [];
