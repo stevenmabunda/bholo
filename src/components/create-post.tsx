@@ -3,7 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Image as ImageIcon, X, Film, ListOrdered, Smile, MapPin, Loader2, Trash2, Clapperboard, Sticker } from "lucide-react";
+import { Image as ImageIcon, X, Smile, MapPin, Loader2, Trash2, Clapperboard } from "lucide-react";
 import React, { useState, useRef, useContext } from "react";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
@@ -25,8 +25,25 @@ export type Media = {
   height?: number;
 };
 
-const EMOJIS = [
-    '😀', '😂', '😍', '🤔', '😭', '🙏', '❤️', '🔥', '👍', '⚽️', '🥅', '🏆', '🎉', '👏', '🚀', '💯'
+const EMOJI_GROUPS = [
+  {
+    label: 'Football',
+    emojis: ['⚽️', '🥅', '🏆', '🥇', '🎽', '🧤', '🟨', '🟥', '🚩', '📣', '🏟️', '🎯', '🔔', '⏱️', '🤾', '🏃'],
+  },
+  {
+    label: 'Reactions',
+    emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '🙂', '😉', '😊', '😍', '🥰', '😘', '😜', '🤪',
+             '🤩', '🥳', '😎', '🤓', '🤔', '🤨', '😐', '😴', '😮', '😱', '😭', '😤', '😡', '🤬', '🥶', '🤝'],
+  },
+  {
+    label: 'Banter',
+    emojis: ['🔥', '💯', '👏', '🙌', '👍', '👎', '🙏', '💪', '🤡', '🐐', '👀', '🫡', '🤷', '🤦', '💀', '☠️',
+             '🧢', '🗣️', '📢', '⚡️', '💥', '✨', '🎉', '🎊', '🚀', '📈', '📉', '🥱', '🫠', '😬', '🙈', '🍿'],
+  },
+  {
+    label: 'Hearts & symbols',
+    emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💔', '❣️', '✅', '❌', '⭐️', '🌟', '‼️', '❓'],
+  },
 ];
 
 function GiphyPicker({ onGifClick }: { onGifClick: (gif: any, e: React.SyntheticEvent<HTMLElement, Event>) => void }) {
@@ -59,10 +76,9 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
   const [media, setMedia] = useState<Media[]>([]);
   const [posting, setPosting] = useState(false);
   const [isGifPopoverOpen, setIsGifPopoverOpen] = useState(false);
-  const [isStickerPopoverOpen, setIsStickerPopoverOpen] = useState(false);
+  const [giphyTab, setGiphyTab] = useState<'gifs' | 'stickers'>('gifs');
   
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const [showPoll, setShowPoll] = useState(false);
@@ -111,7 +127,6 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
         return newMedia;
     });
     if (imageInputRef.current) imageInputRef.current.value = "";
-    if (videoInputRef.current) videoInputRef.current.value = "";
   }
 
   const handlePost = async () => {
@@ -143,7 +158,6 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
         setPollChoices(['', '']);
         setLocation(null);
         if (imageInputRef.current) imageInputRef.current.value = "";
-        if (videoInputRef.current) videoInputRef.current.value = "";
     } catch (error) {
         console.error("Failed to create post:", error);
         toast({ variant: 'destructive', description: "Failed to create post. Please try again." });
@@ -245,7 +259,7 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
       height: parseInt(sticker.images.original.height)
     }]);
     setShowPoll(false);
-    setIsStickerPopoverOpen(false);
+    setIsGifPopoverOpen(false);
   };
 
   const isPostable = text.trim().length > 0 || media.length > 0 || (showPoll && pollChoices.some(c => c.trim()));
@@ -353,74 +367,100 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
           </div>
           <div className="flex items-center justify-between pt-3 flex-shrink-0">
             <div className="flex items-center -ml-2">
+              {/* One input for both images and video — handleFileChange
+                  already branches on the file's MIME type, so two separate
+                  buttons were only ever extra UI. */}
               <input
                 type="file"
-                accept="image/*"
+                accept="image/*,video/*"
                 ref={imageInputRef}
                 onChange={handleFileChange}
                 className="hidden"
                 multiple
                 disabled={posting}
               />
-               <input
-                type="file"
-                accept="video/*"
-                ref={videoInputRef}
-                onChange={handleFileChange}
-                className="hidden"
-                disabled={posting}
-              />
-              <Button variant="ghost" size="icon" onClick={() => imageInputRef.current?.click()} disabled={!!hasContent || posting}>
+              <Button variant="ghost" size="icon" title="Add photos or video" onClick={() => imageInputRef.current?.click()} disabled={!!hasContent || posting}>
                 <ImageIcon className="h-5 w-5 text-primary" />
-              </Button>
-               <Button variant="ghost" size="icon" onClick={() => videoInputRef.current?.click()} disabled={!!hasContent || posting}>
-                <Film className="h-5 w-5 text-primary" />
               </Button>
               <Popover>
                 <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" disabled={posting}>
+                    <Button variant="ghost" size="icon" title="Emoji" disabled={posting}>
                         <Smile className="h-5 w-5 text-primary" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-2 border-none bg-background/80 backdrop-blur-sm shadow-lg">
-                    <div className="grid grid-cols-8 gap-1">
-                        {EMOJIS.map((emoji) => (
-                            <Button
-                                key={emoji}
-                                variant="ghost"
-                                className="text-xl rounded-full p-2 hover:bg-accent"
-                                onClick={() => handleEmojiClick(emoji)}
-                            >
-                                {emoji}
-                            </Button>
+                <PopoverContent className="w-[320px] p-2 border-none bg-background/95 backdrop-blur-sm shadow-lg">
+                    <div className="max-h-64 overflow-y-auto pr-1">
+                        {EMOJI_GROUPS.map((group) => (
+                            <div key={group.label} className="mb-2">
+                                <p className="px-1 pb-1 text-xs font-semibold text-muted-foreground">{group.label}</p>
+                                <div className="grid grid-cols-8 gap-0.5">
+                                    {group.emojis.map((emoji) => (
+                                        <button
+                                            key={emoji}
+                                            type="button"
+                                            className="text-xl rounded-md p-1 hover:bg-accent"
+                                            onClick={() => handleEmojiClick(emoji)}
+                                        >
+                                            {emoji}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         ))}
                     </div>
                 </PopoverContent>
               </Popover>
+              {/* GIFs and stickers share one button; they're the same
+                  Giphy search with a different asset type. */}
               <Popover open={isGifPopoverOpen} onOpenChange={setIsGifPopoverOpen}>
                 <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" disabled={!!hasContent || posting}>
+                    <Button variant="ghost" size="icon" title="GIFs and stickers" disabled={!!hasContent || posting}>
                         <Clapperboard className="h-5 w-5 text-primary" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-2 border-none bg-background/80 backdrop-blur-sm shadow-lg">
-                    <SearchContextManager apiKey={process.env.NEXT_PUBLIC_GIPHY_API_KEY || ''}>
-                        <GiphyPicker onGifClick={onGifClick} />
-                    </SearchContextManager>
+                <PopoverContent className="w-auto p-2 border-none bg-background/95 backdrop-blur-sm shadow-lg">
+                    <div className="mb-2 flex gap-1">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={giphyTab === 'gifs' ? 'default' : 'ghost'}
+                            className="rounded-full h-7 px-3 text-xs"
+                            onClick={() => setGiphyTab('gifs')}
+                        >
+                            GIFs
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={giphyTab === 'stickers' ? 'default' : 'ghost'}
+                            className="rounded-full h-7 px-3 text-xs"
+                            onClick={() => setGiphyTab('stickers')}
+                        >
+                            Stickers
+                        </Button>
+                    </div>
+                    {giphyTab === 'gifs' ? (
+                        <SearchContextManager key="gifs" apiKey={process.env.NEXT_PUBLIC_GIPHY_API_KEY || ''}>
+                            <GiphyPicker onGifClick={onGifClick} />
+                        </SearchContextManager>
+                    ) : (
+                        <SearchContextManager key="stickers" apiKey={process.env.NEXT_PUBLIC_GIPHY_API_KEY || ''} options={{ type: 'stickers' }}>
+                            <StickerPicker onStickerClick={onStickerClick} />
+                        </SearchContextManager>
+                    )}
                 </PopoverContent>
               </Popover>
-              <Popover open={isStickerPopoverOpen} onOpenChange={setIsStickerPopoverOpen}>
-                <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" disabled={!!hasContent || posting}>
-                        <Sticker className="h-5 w-5 text-primary" />
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-2 border-none bg-background/80 backdrop-blur-sm shadow-lg">
-                    <SearchContextManager apiKey={process.env.NEXT_PUBLIC_GIPHY_API_KEY || ''} options={{ type: 'stickers' }}>
-                        <StickerPicker onStickerClick={onStickerClick} />
-                    </SearchContextManager>
-                </PopoverContent>
-              </Popover>
+              {/* Location was fully implemented (handler, state, DB column,
+                  chip) but had no button to trigger it. */}
+              <Button
+                variant="ghost"
+                size="icon"
+                title={location ? 'Remove location' : 'Tag location'}
+                onClick={handleLocationClick}
+                disabled={posting}
+              >
+                <MapPin className={cn("h-5 w-5", location ? "text-primary fill-primary/20" : "text-primary")} />
+              </Button>
             </div>
             <Button size="sm" className="rounded-full" disabled={!isPostable || posting} onClick={handlePost}>
                 {posting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
