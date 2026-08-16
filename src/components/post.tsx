@@ -777,13 +777,34 @@ export function Post(props: PostProps) {
                     </DropdownMenu>
                 </div>
            ) : user && isStandalone && !isReplyView ? (
-                <div className="flex-shrink-0 -mr-2 flex">
+                // Standalone view of someone else's post. This used to show
+                // only the follow button, which meant the ... menu — and so
+                // Ask BHOLO AI, report, etc. — was unreachable on the one
+                // screen where you're actually reading a post closely.
+                <div className="flex-shrink-0 -mr-2 flex items-center gap-1">
                      <FollowButton
                         profileId={authorId}
                         isFollowing={isFollowing}
                         isLoading={followLoading}
                         onToggleFollow={setIsFollowing}
                     />
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                                <MoreHorizontal className="h-5 w-5" />
+                                <span className="sr-only">More options</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem onSelect={() => setIsAskAiOpen(true)}>
+                                <Sparkles className="mr-2 h-4 w-4" />
+                                <span>Ask BHOLO AI</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                                Report post
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
            ) : (
                 <div className="flex-shrink-0 flex">
