@@ -88,7 +88,7 @@ export function HomeView() {
     setLoadingMoreForYou(true);
     const lastPost = forYouPosts[forYouPosts.length - 1];
     try {
-        const morePosts = await fetchForYouPosts({ limit: 20, lastPostId: lastPost?.id });
+        const morePosts = await fetchForYouPosts({ limit: 20, before: lastPost?.createdAt });
         if (morePosts.length === 0) {
             setHasMoreForYou(false);
         }

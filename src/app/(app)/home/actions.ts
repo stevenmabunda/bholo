@@ -85,7 +85,7 @@ export async function getFollowingPosts(userId: string): Promise<PostType[]> {
   }
 }
 
-export async function getRecentPosts(options: { limit?: number; lastPostId?: string } = {}): Promise<PostType[]> {
+export async function getRecentPosts(options: { limit?: number; before?: string } = {}): Promise<PostType[]> {
   const supabase = await createClient();
 
   try {
@@ -95,11 +95,11 @@ export async function getRecentPosts(options: { limit?: number; lastPostId?: str
       .order('created_at', { ascending: false })
       .limit(options.limit || 20);
 
-    if (options.lastPostId) {
-      const { data: lastPost } = await supabase.from('posts').select('created_at').eq('id', options.lastPostId).single();
-      if (lastPost) {
-        query = query.lt('created_at', lastPost.created_at);
-      }
+    // The caller already holds the last post it rendered, timestamp included,
+    // so the cursor comes in directly. Taking an id instead meant looking that
+    // timestamp back up first — a serial round trip before every page.
+    if (options.before) {
+      query = query.lt('created_at', options.before);
     }
 
     const { data, error } = await query;
@@ -112,7 +112,7 @@ export async function getRecentPosts(options: { limit?: number; lastPostId?: str
   }
 }
 
-export async function getVideoPosts(options: { limit?: number; lastPostId?: string } = {}): Promise<PostType[]> {
+export async function getVideoPosts(options: { limit?: number; before?: string } = {}): Promise<PostType[]> {
   const supabase = await createClient();
 
   try {
@@ -134,11 +134,8 @@ export async function getVideoPosts(options: { limit?: number; lastPostId?: stri
       .order('created_at', { ascending: false })
       .limit(options.limit || 20);
 
-    if (options.lastPostId) {
-      const { data: lastPost } = await supabase.from('posts').select('created_at').eq('id', options.lastPostId).single();
-      if (lastPost) {
-        query = query.lt('created_at', lastPost.created_at);
-      }
+    if (options.before) {
+      query = query.lt('created_at', options.before);
     }
 
     const { data, error } = await query;

@@ -189,6 +189,7 @@ export function ProfileView() {
           src={profile.bannerUrl}
           alt="Profile banner"
           fill
+          sizes="(max-width: 767px) 100vw, 624px"
           className="object-cover"
           style={{ objectPosition: `center ${profile.bannerPosition || 50}%` }}
           priority
@@ -307,6 +308,7 @@ export function ProfileView() {
                                         src={media.url}
                                         alt={`Media from post ${post.id}`}
                                         fill
+                                        sizes="(max-width: 767px) 33vw, 208px"
                                         className="object-cover"
                                         data-ai-hint={media.hint || 'user content'}
                                     />
@@ -520,9 +522,10 @@ function EditProfileDialog({ isOpen, onOpenChange, profile, onProfileUpdate }: {
                         >
                             <Image 
                                 src={bannerPreview} 
-                                alt="Banner preview" 
-                                fill 
-                                className="object-cover" 
+                                alt="Banner preview"
+                                fill
+                                sizes="(max-width: 640px) 100vw, 512px"
+                                className="object-cover"
                                 style={{ objectPosition: `center ${bannerPosition}%` }}
                                 draggable="false"
                              />

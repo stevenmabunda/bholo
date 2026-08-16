@@ -12,6 +12,9 @@ export function AuthLayout({ children }: { children: ReactNode }) {
             src="/welcome2.jpg"
             alt="BHOLO welcome banner"
             fill
+            // Only rendered from the lg breakpoint up, so it never needs a
+            // mobile candidate.
+            sizes="50vw"
             className="absolute inset-0 object-contain"
             priority
           />

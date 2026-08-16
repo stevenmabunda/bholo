@@ -48,6 +48,7 @@ export function PinnedContent() {
                   src={item.imageUrl}
                   alt={item.title}
                   fill
+                  sizes="(max-width: 767px) 60vw, 160px"
                   objectFit="cover"
                   data-ai-hint={item.hint}
                   className="transition-transform duration-300 group-hover:scale-105"

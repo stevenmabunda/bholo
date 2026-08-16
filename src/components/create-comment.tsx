@@ -3,7 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import React, { useState, useRef, useContext } from "react";
+import React, { useState, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
 import { Image as ImageIcon, Film, X, Loader2, Smile, Clapperboard, Sticker } from "lucide-react";
@@ -12,8 +12,17 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { LoginOrSignupDialog } from "./login-or-signup-dialog";
-import { Grid, SearchBar, SearchContext, SearchContextManager } from '@giphy/react-components';
-import { useResponsiveGridWidth } from "@/hooks/use-responsive-grid-width";
+import dynamic from 'next/dynamic';
+
+// Same lazily-loaded picker the composer uses — see giphy-panel.tsx.
+const GiphyPanel = dynamic(() => import('@/components/giphy-panel'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-40 w-[300px] max-w-full items-center justify-center text-sm text-muted-foreground">
+      Loading…
+    </div>
+  ),
+});
 
 
 export type ReplyMedia = {
@@ -29,27 +38,6 @@ const EMOJIS = [
     '😀', '😂', '😍', '🤔', '😭', '🙏', '❤️', '🔥', '👍', '⚽️', '🥅', '🏆', '🎉', '👏', '🚀', '💯'
 ];
 
-function GiphyPickerContents({ onGifClick }: { onGifClick: (gif: any, e: React.SyntheticEvent<HTMLElement, Event>) => void }) {
-  const { fetchGifs, searchKey } = useContext(SearchContext);
-  const width = useResponsiveGridWidth(300);
-  return (
-    <div className="flex flex-col">
-      <SearchBar />
-      <Grid key={searchKey} width={width} columns={3} fetchGifs={fetchGifs} onGifClick={onGifClick} noResultsMessage="No GIFs found." />
-    </div>
-  );
-}
-
-function StickerPickerContents({ onStickerClick }: { onStickerClick: (sticker: any, e: React.SyntheticEvent<HTMLElement, Event>) => void }) {
-    const { fetchGifs, searchKey } = useContext(SearchContext);
-    const width = useResponsiveGridWidth(300);
-    return (
-      <div className="flex flex-col">
-        <SearchBar />
-        <Grid key={searchKey} width={width} columns={3} fetchGifs={fetchGifs} onGifClick={onStickerClick} noResultsMessage="No stickers found." />
-      </div>
-    );
-};
 
 
 export function CreateComment({ onComment, isDialog = false }: { onComment: (data: { text: string; media: ReplyMedia[] }) => Promise<any>, isDialog?: boolean }) {
@@ -264,9 +252,7 @@ export function CreateComment({ onComment, isDialog = false }: { onComment: (dat
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-2 border-none bg-background/80 backdrop-blur-sm shadow-lg">
-                        <SearchContextManager apiKey={process.env.NEXT_PUBLIC_GIPHY_API_KEY || ''}>
-                            <GiphyPickerContents onGifClick={onGifClick} />
-                        </SearchContextManager>
+                        <GiphyPanel type="gifs" onSelect={onGifClick} maxWidth={300} />
                     </PopoverContent>
                 </Popover>
                 <Popover open={isStickerPopoverOpen} onOpenChange={(open) => open ? handleActionClick(() => setIsStickerPopoverOpen(true))() : setIsStickerPopoverOpen(false)}>
@@ -276,9 +262,7 @@ export function CreateComment({ onComment, isDialog = false }: { onComment: (dat
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-2 border-none bg-background/80 backdrop-blur-sm shadow-lg">
-                        <SearchContextManager apiKey={process.env.NEXT_PUBLIC_GIPHY_API_KEY || ''} options={{ type: 'stickers' }}>
-                            <StickerPickerContents onStickerClick={onStickerClick} />
-                        </SearchContextManager>
+                        <GiphyPanel type="stickers" onSelect={onStickerClick} maxWidth={300} />
                     </PopoverContent>
                 </Popover>
             </div>

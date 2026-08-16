@@ -84,6 +84,7 @@ export function DiscoverHeadlines() {
             src="https://placehold.co/600x300.png"
             alt={heroHeadline.topic}
             fill
+            sizes="(max-width: 767px) 100vw, 624px"
             objectFit="cover"
             className="group-hover:opacity-90 transition-opacity"
             data-ai-hint={heroHeadline.imageHint || 'stadium lights'}

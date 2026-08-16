@@ -80,6 +80,7 @@ export function DiscoverFeed() {
                 src={heroPost.media?.[0]?.url || 'https://placehold.co/600x300.png'}
                 alt={heroPost.content}
                 fill
+                sizes="(max-width: 767px) 100vw, 624px"
                 className="object-cover object-center group-hover:opacity-90 transition-opacity"
                 data-ai-hint={heroPost.media?.[0]?.hint || 'stadium lights'}
                 priority

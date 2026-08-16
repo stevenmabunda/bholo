@@ -13,6 +13,10 @@ import { formatTimestamp } from '@/lib/utils';
 import { queryKeys } from '@/lib/query-keys';
 import type { ReplyMedia } from '@/components/create-comment';
 import { getRecentPosts } from '@/app/(app)/home/actions';
+import { usePathname } from 'next/navigation';
+
+/** How many unseen posts to hold for the "new posts" banner. */
+const NEW_POSTS_BUFFER_LIMIT = 50;
 
 type PostContextType = {
   forYouPosts: PostType[];
@@ -30,7 +34,7 @@ type PostContextType = {
   bookmarkPost: (postId: string, isBookmarked: boolean) => Promise<void>;
   bookmarkedPostIds: Set<string>;
   likedPostIds: Set<string>;
-  fetchForYouPosts: (options?: { limit?: number; lastPostId?: string }) => Promise<PostType[]>;
+  fetchForYouPosts: (options?: { limit?: number; before?: string }) => Promise<PostType[]>;
 };
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -170,6 +174,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const { user } = useAuth();
   const { profile } = useProfile();
+  const onFeed = usePathname() === '/home';
 
   // The feed lives in the query cache, so navigating away and back
   // renders instantly from cache instead of refetching behind a
@@ -190,10 +195,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
   );
 
   const fetchForYouPosts = useCallback(
-    async (options: { limit?: number; lastPostId?: string } = {}) => {
+    async (options: { limit?: number; before?: string } = {}) => {
       try {
         const posts = await getRecentPosts(options);
-        if (options.lastPostId) {
+        if (options.before) {
           // Pagination: append into the cached feed.
           updateFeed((prev) => {
             const existingIds = new Set(prev.map((p) => p.id));
@@ -281,6 +286,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
   // same dedup logic the Firestore version used.
   useEffect(() => {
     if (!user) return;
+    // The banner this feeds only exists on the feed itself. Subscribing from
+    // everywhere meant every post inserted anywhere was pushed to every client
+    // while they sat in messages or on a profile, and buffered for a banner
+    // they could not see.
+    if (!onFeed) return;
 
     const channel = supabase
       .channel(`posts-feed-${Math.random().toString(36).slice(2)}`)
@@ -292,7 +302,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
         if (cached.some(p => p.id === post.id)) return;
         setNewForYouPosts(newPrev => {
           if (newPrev.some(p => p.id === post.id)) return newPrev;
-          return [post, ...newPrev];
+          // Only the three newest avatars are ever shown and no total is
+          // displayed, so an unbounded buffer just grew for as long as the tab
+          // stayed open.
+          return [post, ...newPrev].slice(0, NEW_POSTS_BUFFER_LIMIT);
         });
       })
       .subscribe();
@@ -300,7 +313,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, queryClient]);
+  }, [user, queryClient, onFeed]);
 
 
   const addPost = async ({ text, media, poll, location, scheduledFor }: { text: string; media: Media[]; poll?: PostType['poll'], location?: string | null, scheduledFor?: string | null }): Promise<PostType | null> => {

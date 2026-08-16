@@ -6,7 +6,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { MessageCircle, Repeat, Heart, Share2, MoreHorizontal, Edit, Trash2, Bookmark, Copy, X, ChevronLeft, ChevronRight, Check, Play, Pause, Volume2, VolumeX, Sparkles } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback, memo } from "react";
 import { cn, linkify, formatTimestamp, formatDetailedTimestamp } from "@/lib/utils";
 import { findFirstYoutubeVideoId } from "@/lib/youtube";
 import { YoutubeEmbed } from "@/components/youtube-embed";
@@ -323,7 +323,7 @@ function CommentSkeleton() {
 }
 
 
-export function Post(props: PostProps) {
+function PostComponent(props: PostProps) {
   const {
     id,
     authorId,
@@ -883,6 +883,10 @@ export function Post(props: PostProps) {
                     ref={videoRef}
                     src={media[0].url}
                     poster={media[0].posterUrl || videoThumbnail || ''}
+                    // The poster is what the feed actually shows until someone
+                    // presses play, so there is no reason for every video on
+                    // screen to start pulling its own metadata on render.
+                    preload="none"
                     className="w-full h-full object-contain max-h-[80vh] bg-black"
                     playsInline
                     loop
@@ -1250,3 +1254,11 @@ export function Post(props: PostProps) {
       </div>
   );
 }
+
+/**
+ * The feed renders fifty of these, and the post objects it maps over are
+ * stable between renders — so without memo, any context change (a like
+ * landing, the new-posts buffer ticking over) re-rendered every card in the
+ * list along with it.
+ */
+export const Post = memo(PostComponent);

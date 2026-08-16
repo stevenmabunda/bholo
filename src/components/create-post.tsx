@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Image as ImageIcon, X, Smile, MapPin, Loader2, Trash2, Clapperboard, CalendarClock } from "lucide-react";
-import React, { useState, useRef, useContext } from "react";
+import React, { useState, useRef } from "react";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -13,8 +13,18 @@ import { useProfile } from "@/hooks/use-profile";
 import { Input } from "./ui/input";
 import type { PostType } from "@/lib/data";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Grid, SearchBar, SearchContext, SearchContextManager } from '@giphy/react-components';
-import { useResponsiveGridWidth } from "@/hooks/use-responsive-grid-width";
+import dynamic from 'next/dynamic';
+
+// Fetched the first time the picker opens rather than shipped to everyone on
+// first paint. ssr:false because it measures the DOM to size its grid.
+const GiphyPanel = dynamic(() => import('@/components/giphy-panel'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-40 w-[550px] max-w-full items-center justify-center text-sm text-muted-foreground">
+      Loading…
+    </div>
+  ),
+});
 
 export type Media = {
   file: File;
@@ -45,28 +55,6 @@ const EMOJI_GROUPS = [
     emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💔', '❣️', '✅', '❌', '⭐️', '🌟', '‼️', '❓'],
   },
 ];
-
-function GiphyPicker({ onGifClick }: { onGifClick: (gif: any, e: React.SyntheticEvent<HTMLElement, Event>) => void }) {
-  const { fetchGifs, searchKey } = useContext(SearchContext);
-  const width = useResponsiveGridWidth(550);
-  return (
-    <div className="flex flex-col">
-        <SearchBar />
-        <Grid key={searchKey} width={width} columns={3} fetchGifs={fetchGifs} onGifClick={onGifClick} noResultsMessage="No GIFs found." />
-    </div>
-  );
-}
-
-function StickerPicker({ onStickerClick }: { onStickerClick: (sticker: any, e: React.SyntheticEvent<HTMLElement, Event>) => void }) {
-    const { fetchGifs, searchKey } = useContext(SearchContext);
-    const width = useResponsiveGridWidth(550);
-    return (
-        <div className="flex flex-col">
-            <SearchBar />
-            <Grid key={searchKey} width={width} columns={3} fetchGifs={fetchGifs} onGifClick={onStickerClick} noResultsMessage="No stickers found." />
-        </div>
-    );
-};
 
 
 // Local datetime string for <input type="datetime-local">, which has no
@@ -466,15 +454,11 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
                             Stickers
                         </Button>
                     </div>
-                    {giphyTab === 'gifs' ? (
-                        <SearchContextManager key="gifs" apiKey={process.env.NEXT_PUBLIC_GIPHY_API_KEY || ''}>
-                            <GiphyPicker onGifClick={onGifClick} />
-                        </SearchContextManager>
-                    ) : (
-                        <SearchContextManager key="stickers" apiKey={process.env.NEXT_PUBLIC_GIPHY_API_KEY || ''} options={{ type: 'stickers' }}>
-                            <StickerPicker onStickerClick={onStickerClick} />
-                        </SearchContextManager>
-                    )}
+                    <GiphyPanel
+                        type={giphyTab === 'gifs' ? 'gifs' : 'stickers'}
+                        onSelect={giphyTab === 'gifs' ? onGifClick : onStickerClick}
+                        maxWidth={550}
+                    />
                 </PopoverContent>
               </Popover>
               {/* Location was fully implemented (handler, state, DB column,
