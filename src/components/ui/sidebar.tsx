@@ -8,6 +8,7 @@ import { PanelLeft } from "lucide-react"
 import { motion, PanInfo } from "framer-motion";
 
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useEdgeSwipe } from "@/hooks/use-edge-swipe"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -98,6 +99,15 @@ const SidebarProvider = React.forwardRef<
         : setOpen((open) => !open)
     }, [isMobile, setOpen, setOpenMobile])
 
+    // Swipe right from the left edge to pull the sidebar out. Only while it's
+    // closed, so it can't fight the drag-to-dismiss on the open drawer.
+    useEdgeSwipe({
+      // useIsMobile is undefined until it has measured, which must count as
+      // "not yet" rather than enabling the listener on desktop.
+      enabled: isMobile === true && !openMobile,
+      onTrigger: React.useCallback(() => setOpenMobile(true), [setOpenMobile]),
+    })
+
     // Adds a keyboard shortcut to toggle the sidebar.
     React.useEffect(() => {
       const handleKeyDown = (event: KeyboardEvent) => {
@@ -180,7 +190,13 @@ const Sidebar = React.forwardRef<
     const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
     
     const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-      if (info.offset.x < -50 && info.velocity.x < -200) {
+      // Either gesture closes it: a flick, or a deliberate drag past a third
+      // of the drawer. Requiring both — as this did — meant dragging the whole
+      // sidebar slowly off-screen and watching it snap back, because a careful
+      // drag never reaches the velocity threshold.
+      const flicked = info.velocity.x < -300;
+      const draggedFarEnough = info.offset.x < -80;
+      if (flicked || draggedFarEnough) {
         setOpenMobile(false);
       }
     };
