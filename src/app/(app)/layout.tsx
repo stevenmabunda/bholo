@@ -6,7 +6,6 @@ import { useAuth } from '@/hooks/use-auth';
 import { SidebarNav } from '@/components/sidebar-nav';
 import { RightSidebar } from '@/components/right-sidebar';
 import { MobileBottomNav } from '@/components/mobile-bottom-nav';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useEffect } from 'react';
 
 export default function AppLayout({ children }: { children: ReactNode }) {
@@ -24,35 +23,35 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }
   
   return (
+    // One tree, shaped by breakpoint. It used to be two — a desktop block and
+    // a mobile block, each containing {children} — which mounted the entire
+    // page twice and hid one with CSS. Every query, effect and subscription in
+    // the app ran in duplicate, and a hidden copy still does all the work.
     <>
-      {/* Desktop Layout */}
-      <div className="hidden md:flex justify-center h-screen overflow-hidden">
-        <div className="flex max-w-7xl mx-auto w-full relative">
-          <header className="w-[275px] shrink-0 h-screen">
-              <SidebarNav />
+      <div className="flex justify-center md:h-screen md:overflow-hidden">
+        <div className="relative mx-auto flex w-full max-w-7xl">
+          <header className="hidden md:block w-[275px] shrink-0 h-screen">
+            <SidebarNav />
           </header>
 
-          <main className="w-full max-w-[624px] border-x">
-             <ScrollArea className="h-screen" id="desktop-scroll-area">
-                {children}
-             </ScrollArea>
+          {/* The scroller on desktop; on a phone the page itself scrolls and
+              this is just the column. getFeedScroller() resolves whichever it
+              is for anything saving a scroll position. */}
+          <main
+            id="desktop-scroll-area"
+            className="w-full pb-[calc(4rem+env(safe-area-inset-bottom))] md:max-w-[624px] md:border-x md:h-screen md:overflow-y-auto md:pb-0"
+          >
+            {children}
           </main>
 
-          <aside className="hidden xl:block w-[350px] shrink-0 h-screen">
-            <ScrollArea className="h-full">
-                <RightSidebar />
-            </ScrollArea>
+          <aside className="hidden xl:block w-[350px] shrink-0 h-screen overflow-y-auto">
+            <RightSidebar />
           </aside>
         </div>
       </div>
-      
-      {/* Mobile Layout */}
-      <div className="md:hidden w-full">
-            <main className="w-full pb-[calc(4rem+env(safe-area-inset-bottom))]">
-              {children}
-            </main>
-          <MobileBottomNav />
-      </div>
+
+      {/* Already md:hidden internally. */}
+      <MobileBottomNav />
     </>
   );
 }

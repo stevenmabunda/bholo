@@ -5,6 +5,7 @@ import { useEffect, useState, useMemo, useCallback, useRef, Fragment } from 'rea
 import { Post } from '@/components/post';
 import { PromotedPost } from '@/components/promoted-post';
 import { getFeedAds, type ServableAd } from '@/lib/ads';
+import { getFeedScroller } from '@/lib/scroll-container';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePosts } from '@/contexts/post-context';
 import { PostSkeleton } from '@/components/post-skeleton';
@@ -93,7 +94,7 @@ export function HomeView() {
     if (!loadingForYou && forYouPosts.length > 0) {
       try {
         const desktopScrollY = sessionStorage.getItem('desktopScrollY');
-        const desktopScrollArea = document.querySelector('#desktop-scroll-area > div');
+        const desktopScrollArea = getFeedScroller();
         if (desktopScrollY && desktopScrollArea) {
           desktopScrollArea.scrollTo(0, parseInt(desktopScrollY, 10));
           sessionStorage.removeItem('desktopScrollY');

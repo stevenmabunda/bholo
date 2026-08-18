@@ -66,6 +66,7 @@ import { useTabContext } from "@/contexts/tab-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { siteUrl } from "@/lib/site";
 import { feedAspect, PORTRAIT_THRESHOLD } from "@/lib/media-aspect";
+import { getFeedScroller } from "@/lib/scroll-container";
 
 
 type PostProps = PostType & {
@@ -583,7 +584,7 @@ function PostComponent(props: PostProps) {
   
   const saveScrollPosition = () => {
       try {
-        const desktopScrollArea = document.querySelector('#desktop-scroll-area > div');
+        const desktopScrollArea = getFeedScroller();
         if (desktopScrollArea) {
           sessionStorage.setItem('desktopScrollY', String(desktopScrollArea.scrollTop));
         } else {
