@@ -24,6 +24,12 @@ import { Button } from './ui/button';
 import { Post } from './post';
 import { useToast } from '@/hooks/use-toast';
 import { siteUrl } from '@/lib/site';
+import { getAds, type ServableAd } from '@/lib/ads';
+import { VideoFeedAd } from './video-feed-ad';
+
+/** An ad every sixth slide. Full-screen units wear out faster than a feed
+ *  slot, so this is spaced wider than the ten-post gap in the timeline. */
+const VIDEO_AD_EVERY = 6;
 
 // Helper components for social icons (current brand marks, kept monochrome via currentColor to match the app's icon style)
 const XIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -360,6 +366,33 @@ export function VideoFeed() {
     return reordered;
   }, [videoPosts, startPostId, shuffleSeed]);
 
+  const [ads, setAds] = useState<ServableAd[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    getAds('video', 3)
+      .then((servable) => { if (!cancelled) setAds(servable); })
+      .catch((error) => console.error('Could not load video ads:', error));
+    return () => { cancelled = true; };
+  }, []);
+
+  // Slides are the clips with ad slides spliced in, so embla paging, the
+  // active-index tracking and the mute state all keep working unchanged.
+  const slides = useMemo(() => {
+    type Slide =
+      | { kind: 'post'; key: string; post: PostType }
+      | { kind: 'ad'; key: string; ad: ServableAd };
+    const out: Slide[] = [];
+    posts.forEach((post, index) => {
+      out.push({ kind: 'post', key: post.id, post });
+      const nth = index + 1;
+      if (ads.length && nth % VIDEO_AD_EVERY === 0) {
+        const ad = ads[(nth / VIDEO_AD_EVERY - 1) % ads.length];
+        out.push({ kind: 'ad', key: `ad-${ad.creativeId}-${nth}`, ad });
+      }
+    });
+    return out;
+  }, [posts, ads]);
+
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
     setActiveIndex(emblaApi.selectedScrollSnap());
@@ -378,14 +411,18 @@ export function VideoFeed() {
   return (
     <div className="h-screen w-screen bg-black embla" ref={emblaRef}>
       <div className="embla__container">
-        {posts.map((post, index) => (
-          <div key={post.id} className="embla__slide">
-            <VideoPlayer 
-                post={post} 
-                isActive={index === activeIndex} 
-                isMuted={isMuted}
-                onMuteToggle={() => setIsMuted(prev => !prev)}
-            />
+        {slides.map((slide, index) => (
+          <div key={slide.key} className="embla__slide">
+            {slide.kind === 'ad' ? (
+              <VideoFeedAd ad={slide.ad} isActive={index === activeIndex} />
+            ) : (
+              <VideoPlayer
+                  post={slide.post}
+                  isActive={index === activeIndex}
+                  isMuted={isMuted}
+                  onMuteToggle={() => setIsMuted(prev => !prev)}
+              />
+            )}
           </div>
         ))}
       </div>

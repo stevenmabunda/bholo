@@ -71,14 +71,30 @@ export function CreativeManager({
 
     // Measure first, so the shape is known before it is ever served and the
     // person uploading hears about a problem now rather than in a week.
+    // Video reports its size through videoWidth once metadata has loaded, an
+    // image through naturalWidth — same question, two different properties.
+    const isVideo = file.type.startsWith('video/');
+    const objectUrl = URL.createObjectURL(file);
     const dimensions = await new Promise<{ w: number; h: number } | null>((resolve) => {
-      const img = new window.Image();
-      img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
-      img.onerror = () => resolve(null);
-      img.src = URL.createObjectURL(file);
+      if (isVideo) {
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.onloadedmetadata = () => resolve({ w: video.videoWidth, h: video.videoHeight });
+        video.onerror = () => resolve(null);
+        video.src = objectUrl;
+      } else {
+        const img = new window.Image();
+        img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = () => resolve(null);
+        img.src = objectUrl;
+      }
     });
+    URL.revokeObjectURL(objectUrl);
 
-    if (dimensions) setSpec(checkCreative(dimensions.w, dimensions.h));
+    // The still-image aspect rules do not apply to a video meant for the
+    // full-screen feed, which is supposed to be tall.
+    if (dimensions && !isVideo) setSpec(checkCreative(dimensions.w, dimensions.h));
+    else setSpec(null);
     // Same bucket and owner-folder convention as post media, so the existing
     // storage policy covers it without a new one.
     const path = `${user.id}/ads/${Date.now()}-${file.name}`;
@@ -318,7 +334,7 @@ export function CreativeManager({
             <p className="mb-1.5 text-sm text-muted-foreground">Image</p>
             <input
               type="file"
-              accept="image/*"
+              accept="image/*,video/*"
               className="text-sm"
               onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0])}
             />

@@ -66,3 +66,9 @@ export function renderAspect(width?: number | null, height?: number | null): num
   if (!width || !height) return 1; // Unknown: assume square, the safe default.
   return Math.min(MAX_ASPECT, Math.max(MIN_ASPECT, width / height));
 }
+
+/** Whether a creative's media URL points at a video rather than a still. */
+export function isVideoMedia(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url);
+}

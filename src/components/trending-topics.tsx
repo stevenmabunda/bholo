@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getTrendingKeywords } from '@/app/(app)/explore/actions';
 import { queryKeys } from '@/lib/query-keys';
 import { Skeleton } from '@/components/ui/skeleton';
+import { TrendAd } from '@/components/trend-ad';
 import { Button } from './ui/button';
 import { MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
@@ -49,6 +50,10 @@ export function TrendingTopics() {
                   </div>
                 </Link>
               ))}
+              {/* Below the real trends, never interleaved with them. Sitting
+                  between two genuine entries would borrow their credibility. */}
+              <TrendAd />
+
               <div className="pt-2">
                 <Button variant="link" className="p-0 text-primary text-sm">Show more</Button>
               </div>
