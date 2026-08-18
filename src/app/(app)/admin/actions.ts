@@ -104,7 +104,7 @@ export async function createAdvertiser(input: {
 
   if (insertError || !data) {
     console.error('Could not create advertiser:', insertError);
-    return { error: 'Could not save that advertiser.' };
+    return { error: `Could not save that advertiser — ${insertError?.message ?? 'no row returned'}` };
   }
 
   revalidatePath('/admin/advertisers');
@@ -262,7 +262,7 @@ export async function createCampaign(input: {
 
   if (insertError || !data) {
     console.error('Could not create campaign:', insertError);
-    return { error: 'Could not save that campaign.' };
+    return { error: `Could not save that campaign — ${insertError?.message ?? 'no row returned'}` };
   }
 
   revalidatePath(`/admin/advertisers/${input.advertiserId}`);
@@ -442,8 +442,11 @@ export async function createCreative(input: {
     .single();
 
   if (insertError || !data) {
+    // Naming the database's own complaint rather than swallowing it: a missing
+    // column from an unapplied migration read as "cannot add that creative",
+    // which is indistinguishable from a validation problem.
     console.error('Could not create creative:', insertError);
-    return { error: 'Could not save that creative.' };
+    return { error: `Could not save that creative — ${insertError?.message ?? 'no row returned'}` };
   }
 
   revalidatePath(`/admin/campaigns/${input.campaignId}`);

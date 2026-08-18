@@ -31,10 +31,20 @@ import { SignupPrompt } from '@/components/signup-prompt';
 import VideoFeedPage from '../video/page';
 
 
-/** Which rendered feed positions carry a paid slot. Far enough down that the
- *  first thing anyone sees is a real post, then spaced so the feed does not
- *  start to read like a billboard. */
-const AD_SLOTS = [3, 13];
+/** The first paid slot sits after the fourth post, so the first thing anyone
+ *  sees is real content, and one recurs every tenth post after that. Fixed
+ *  positions meant a long scroll showed two ads and then nothing, however far
+ *  someone went. */
+const AD_FIRST_SLOT = 3;
+const AD_EVERY = 10;
+
+/** Which ad, if any, follows the post at this index. Returns the slot number,
+ *  counting from zero, so callers can rotate through the ads they hold. */
+function adSlotAt(index: number): number | null {
+  if (index < AD_FIRST_SLOT) return null;
+  const offset = index - AD_FIRST_SLOT;
+  return offset % AD_EVERY === 0 ? offset / AD_EVERY : null;
+}
 
 export function HomeView() {
   const { 
@@ -57,7 +67,7 @@ export function HomeView() {
   // rather than cached with the feed.
   useEffect(() => {
     let cancelled = false;
-    getFeedAds(AD_SLOTS.length)
+    getFeedAds(3)
       .then((servable) => { if (!cancelled) setAds(servable); })
       .catch((error) => console.error('Could not load ads:', error));
     return () => { cancelled = true; };
@@ -272,8 +282,10 @@ export function HomeView() {
                     // Ads sit in slots in the rendered feed, never as rows in
                     // posts — otherwise they leak into search, profiles and
                     // trending, and start counting as somebody's content.
-                    const adIndex = AD_SLOTS.indexOf(index);
-                    const ad = adIndex >= 0 ? ads[adIndex] : undefined;
+                    const slot = adSlotAt(index);
+                    // Rotate through whatever is servable, so two advertisers
+                    // alternate rather than one taking every slot.
+                    const ad = slot !== null && ads.length ? ads[slot % ads.length] : undefined;
                     return (
                       <Fragment key={post.id}>
                         <Post {...post} />

@@ -22,13 +22,29 @@ import { renderAspect } from '@/lib/ad-specs';
 const VISIBLE_RATIO = 0.5;
 const VISIBLE_MS = 1000;
 
+/**
+ * Creatives already counted while this page has been open.
+ *
+ * Two things would otherwise inflate the number, both of them invisible until
+ * an advertiser audits it. Tapping "new posts" prepends to the feed, which
+ * shifts every row down — the ad re-anchors to a different post, React
+ * remounts it under the new key, and the timer runs again. And now that a slot
+ * recurs every tenth post, one creative can be on screen several times in a
+ * single scroll.
+ *
+ * Counting a creative once per page session errs towards undercounting, which
+ * is the right direction to be wrong in when someone is paying against the
+ * figure. Repeats across sessions are what the campaign's frequency cap is for.
+ */
+const countedThisSession = new Set<string>();
+
 export function PromotedPost({ ad }: { ad: ServableAd }) {
   const { user } = useAuth();
   const ref = useRef<HTMLElement>(null);
   const [counted, setCounted] = useState(false);
 
   useEffect(() => {
-    if (counted) return;
+    if (counted || countedThisSession.has(ad.creativeId)) return;
     const node = ref.current;
     if (!node) return;
 
@@ -43,6 +59,10 @@ export function PromotedPost({ ad }: { ad: ServableAd }) {
             // away mid-second leaves the timer running, and counting that would
             // bill for an ad on a page nobody had in front of them.
             if (document.visibilityState !== 'visible') return;
+            // Claimed before the write, so two copies of the same creative
+            // becoming visible together cannot both get through.
+            if (countedThisSession.has(ad.creativeId)) return;
+            countedThisSession.add(ad.creativeId);
             setCounted(true);
             void logEvent('impression');
             observer.disconnect();
