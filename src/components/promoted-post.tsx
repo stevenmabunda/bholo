@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
 import type { ServableAd } from '@/lib/ads';
+import { renderAspect } from '@/lib/ad-specs';
 
 /**
  * A paid slot in the feed.
@@ -95,7 +96,14 @@ export function PromotedPost({ ad }: { ad: ServableAd }) {
       {ad.body && <p className="mt-1 text-sm text-muted-foreground">{ad.body}</p>}
 
       {ad.mediaUrl && (
-        <div className="relative mt-3 aspect-[16/9] w-full overflow-hidden rounded-2xl border">
+        // The slot takes its shape from the artwork rather than forcing one.
+        // A hardcoded 16:9 box cropped a third off the first square creative
+        // that ran through it. Reserving the right height also stops the feed
+        // jumping under the reader while the image loads.
+        <div
+          className="relative mt-3 w-full overflow-hidden rounded-2xl border"
+          style={{ aspectRatio: String(renderAspect(ad.mediaWidth, ad.mediaHeight)) }}
+        >
           <Image
             src={ad.mediaUrl}
             alt={ad.headline || ad.advertiserName}

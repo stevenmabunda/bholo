@@ -313,6 +313,8 @@ export type Creative = {
   campaignId: string;
   placement: 'feed' | 'sidebar' | 'trend' | 'video';
   mediaUrl: string | null;
+  mediaWidth: number | null;
+  mediaHeight: number | null;
   headline: string | null;
   body: string | null;
   ctaLabel: string | null;
@@ -385,6 +387,8 @@ export async function listCreatives(campaignId: string): Promise<Creative[]> {
     campaignId: row.campaign_id,
     placement: row.placement,
     mediaUrl: row.media_url,
+    mediaWidth: row.media_width,
+    mediaHeight: row.media_height,
     headline: row.headline,
     body: row.body,
     ctaLabel: row.cta_label,
@@ -402,6 +406,8 @@ export async function createCreative(input: {
   campaignId: string;
   placement: Creative['placement'];
   mediaUrl?: string;
+  mediaWidth?: number | null;
+  mediaHeight?: number | null;
   headline?: string;
   body?: string;
   ctaLabel?: string;
@@ -424,6 +430,8 @@ export async function createCreative(input: {
       campaign_id: input.campaignId,
       placement: input.placement,
       media_url: input.mediaUrl?.trim() || null,
+      media_width: input.mediaWidth ?? null,
+      media_height: input.mediaHeight ?? null,
       headline: input.headline?.trim() || null,
       body: input.body?.trim() || null,
       cta_label: input.ctaLabel?.trim() || null,

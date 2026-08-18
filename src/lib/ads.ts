@@ -19,6 +19,8 @@ export type ServableAd = {
   headline: string | null;
   body: string | null;
   mediaUrl: string | null;
+  mediaWidth: number | null;
+  mediaHeight: number | null;
   ctaLabel: string | null;
   destinationUrl: string | null;
 };
@@ -40,6 +42,8 @@ export async function getFeedAds(limit = 2): Promise<ServableAd[]> {
     headline: row.headline,
     body: row.body,
     mediaUrl: row.media_url,
+    mediaWidth: row.media_width,
+    mediaHeight: row.media_height,
     ctaLabel: row.cta_label,
     destinationUrl: row.destination_url,
   }));

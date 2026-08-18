@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { Loader2, Plus, Check, X, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
+import { AD_FORMATS, checkCreative, type SpecCheck } from '@/lib/ad-specs';
 import {
   createCreative,
   reviewCreative,
@@ -57,11 +58,25 @@ export function CreativeManager({
     ctaLabel: '',
     destinationUrl: '',
     targetClubs: [] as string[],
+    mediaWidth: null as number | null,
+    mediaHeight: null as number | null,
   });
+  const [spec, setSpec] = useState<SpecCheck | null>(null);
 
   const handleUpload = async (file: File) => {
     if (!user) return;
     setUploading(true);
+
+    // Measure first, so the shape is known before it is ever served and the
+    // person uploading hears about a problem now rather than in a week.
+    const dimensions = await new Promise<{ w: number; h: number } | null>((resolve) => {
+      const img = new window.Image();
+      img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+      img.onerror = () => resolve(null);
+      img.src = URL.createObjectURL(file);
+    });
+
+    if (dimensions) setSpec(checkCreative(dimensions.w, dimensions.h));
     // Same bucket and owner-folder convention as post media, so the existing
     // storage policy covers it without a new one.
     const path = `${user.id}/ads/${Date.now()}-${file.name}`;
@@ -72,7 +87,12 @@ export function CreativeManager({
       return;
     }
     const { data } = supabase.storage.from('post-media').getPublicUrl(path);
-    setForm((f) => ({ ...f, mediaUrl: data.publicUrl }));
+    setForm((f) => ({
+      ...f,
+      mediaUrl: data.publicUrl,
+      mediaWidth: dimensions?.w ?? null,
+      mediaHeight: dimensions?.h ?? null,
+    }));
     setUploading(false);
   };
 
@@ -92,6 +112,8 @@ export function CreativeManager({
         campaignId: campaign.id,
         placement: form.placement,
         mediaUrl: form.mediaUrl || null,
+        mediaWidth: form.mediaWidth,
+        mediaHeight: form.mediaHeight,
         headline: form.headline || null,
         body: form.body || null,
         ctaLabel: form.ctaLabel || null,
@@ -105,7 +127,8 @@ export function CreativeManager({
       },
       ...prev,
     ]);
-    setForm({ placement: 'feed', mediaUrl: '', headline: '', body: '', ctaLabel: '', destinationUrl: '', targetClubs: [] });
+    setForm({ placement: 'feed', mediaUrl: '', headline: '', body: '', ctaLabel: '', destinationUrl: '', targetClubs: [], mediaWidth: null, mediaHeight: null });
+    setSpec(null);
     setShowForm(false);
     toast({ description: 'Creative added. It needs approval before it can serve.' });
   };
@@ -245,9 +268,20 @@ export function CreativeManager({
               className="text-sm"
               onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0])}
             />
-            {uploading && <p className="mt-1 text-xs text-muted-foreground">Uploading…</p>}
-            {form.mediaUrl && !uploading && (
-              <p className="mt-1 text-xs text-green-500">Image attached.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {AD_FORMATS.map((f) => `${f.ratio} (${f.pixels})`).join(' · ')}
+            </p>
+            {uploading && <p className="mt-1 text-xs text-muted-foreground">Measuring and uploading…</p>}
+            {spec && !uploading && (
+              <div className="mt-1 text-xs">
+                <p className={spec.ok ? 'text-green-500' : 'text-yellow-500'}>
+                  {form.mediaWidth}×{form.mediaHeight} — {spec.closest}
+                  {spec.ok ? ' · within spec' : ''}
+                </p>
+                {spec.problems.map((problem) => (
+                  <p key={problem} className="text-yellow-500">{problem}</p>
+                ))}
+              </div>
             )}
           </div>
 
