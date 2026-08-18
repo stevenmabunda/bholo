@@ -38,8 +38,17 @@ async function requireAdmin() {
 export async function checkIsAdmin(): Promise<boolean> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return false;
-  const { data } = await supabase.rpc('is_admin');
+  if (!user) {
+    console.warn('[admin] no session on the server');
+    return false;
+  }
+  const { data, error } = await supabase.rpc('is_admin');
+  if (error) {
+    // Swallowing this turned a broken grant into a bare 404, which looks
+    // identical to "you are not an admin" and is far harder to chase.
+    console.error('[admin] is_admin() failed for', user.id, error);
+    return false;
+  }
   return data === true;
 }
 
