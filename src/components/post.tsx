@@ -423,6 +423,16 @@ function PostComponent(props: PostProps) {
     }
   }, [emblaApi, imageViewerStartIndex, isImageViewerOpen]);
 
+  // Which image the viewer is on, for the dots.
+  const [viewerIndex, setViewerIndex] = useState(0);
+  useEffect(() => {
+    if (!emblaApi) return;
+    const sync = () => setViewerIndex(emblaApi.selectedScrollSnap());
+    sync();
+    emblaApi.on('select', sync);
+    return () => { emblaApi.off('select', sync); };
+  }, [emblaApi, isImageViewerOpen]);
+
   useEffect(() => {
     // Posts uploaded since poster capture landed already carry a still, so
     // there's no need to download the video and decode a frame in every
@@ -1196,6 +1206,27 @@ function PostComponent(props: PostProps) {
                                     <Button variant="ghost" size="icon" className="hidden md:inline-flex absolute right-2 md:right-4 top-1/2 -translate-y-1/2 text-white h-10 w-10 bg-black/30 hover:bg-black/50 hover:text-white rounded-full opacity-50 group-hover/viewer:opacity-100 transition-opacity" onClick={scrollNext}>
                                         <ChevronRight className="h-6 w-6"/>
                                     </Button>
+
+                                    {/* Says there is more than one picture, and
+                                        which one you are on — the only thing
+                                        the removed arrows were still doing on a
+                                        phone. Not buttons: at this size they
+                                        would be a smaller tap target than the
+                                        swipe they replace. */}
+                                    <div
+                                        className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-black/40 px-2.5 py-1.5 backdrop-blur-sm"
+                                        aria-hidden
+                                    >
+                                        {media?.filter(m => m.type === 'image').map((_, index) => (
+                                            <span
+                                                key={index}
+                                                className={cn(
+                                                    'h-1.5 w-1.5 rounded-full transition-colors',
+                                                    index === viewerIndex ? 'bg-white' : 'bg-white/40'
+                                                )}
+                                            />
+                                        ))}
+                                    </div>
                                 </>
                             )}
                         </div>
