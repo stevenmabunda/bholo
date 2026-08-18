@@ -38,6 +38,10 @@ export function PromotedPost({ ad }: { ad: ServableAd }) {
         if (entry.isIntersecting && entry.intersectionRatio >= VISIBLE_RATIO) {
           // Only once it has stayed there. Scrolling straight past is not a view.
           timer = setTimeout(() => {
+            // And the tab still has to be the one they are looking at. Switching
+            // away mid-second leaves the timer running, and counting that would
+            // bill for an ad on a page nobody had in front of them.
+            if (document.visibilityState !== 'visible') return;
             setCounted(true);
             void logEvent('impression');
             observer.disconnect();
