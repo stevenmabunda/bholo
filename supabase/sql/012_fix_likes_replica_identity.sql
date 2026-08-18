@@ -1,0 +1,26 @@
+-- BHOLO: make posts deletable again.
+--
+-- Deleting a post has been failing with:
+--
+--   cannot delete from table "likes" because it does not have a
+--   replica identity and publishes deletes
+--
+-- 005 added public.likes to the supabase_realtime publication, which
+-- publishes DELETEs. Postgres will not delete from a published table unless it
+-- can identify the deleted row to replicas — and likes is the only table in
+-- that publication with no primary key. It has two unique constraints, but
+-- neither can serve as a replica identity because post_id and comment_id are
+-- nullable by design (a like belongs to a post XOR a comment).
+--
+-- The effect: every delete on likes fails, and deleting a post cascades into
+-- likes. So a post could only be deleted while nobody had liked it — which is
+-- to say, almost never. 007 fixed a genuine RLS problem in the same area and
+-- this survived underneath it, because the error surfaces as the same generic
+-- "Failed to delete post" toast.
+--
+-- REPLICA IDENTITY FULL uses the whole row as the identity, which is what
+-- Supabase recommends for a table with no suitable unique key. It makes the
+-- WAL entry for each delete slightly larger; on a table this size that is not
+-- a consideration.
+
+alter table public.likes replica identity full;

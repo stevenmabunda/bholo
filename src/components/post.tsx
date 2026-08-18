@@ -645,7 +645,12 @@ function PostComponent(props: PostProps) {
         router.push('/home');
       }
     } catch (error) {
-      toast({ variant: 'destructive', description: "Failed to delete post." });
+      // The generic message hid a database-level failure for a long time: every
+      // delete was blocked by a replica-identity problem on `likes`, and the
+      // toast said only "Failed to delete post." Surface what actually broke.
+      const reason = error instanceof Error ? error.message : String(error);
+      console.error('Delete post failed:', error);
+      toast({ variant: 'destructive', description: `Couldn't delete that post — ${reason}` });
     }
   };
   

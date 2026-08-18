@@ -33,7 +33,7 @@ export function useProfile() {
   const { user } = useAuth();
 
   const { data, isLoading } = useQuery({
-    queryKey: queryKeys.profile(user?.id ?? 'anonymous'),
+    queryKey: queryKeys.myProfile(user?.id ?? 'anonymous'),
     queryFn: async () => {
       const { data } = await supabase
         .from('profiles')

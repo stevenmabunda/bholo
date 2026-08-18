@@ -275,7 +275,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
-        (payload) => queryClient.setQueryData(queryKeys.profile(user.id), payload.new)
+        // payload.new is the raw row, which is the shape myProfile holds.
+        // It must not be written into queryKeys.profile — that key belongs to
+        // the profile page's camelCase display shape.
+        (payload) => {
+          queryClient.setQueryData(queryKeys.myProfile(user.id), payload.new);
+          queryClient.invalidateQueries({ queryKey: queryKeys.profile(user.id) });
+        }
       )
       .on(
         'postgres_changes',
@@ -330,7 +336,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
     const insertRow: any = {
         author_id: user.id,
-        author_name: profile.display_name || 'Anonymous User',
+        // Falls back to the handle, never to a placeholder. "Anonymous User" is
+        // the column default, so using it here made a misread profile look like
+        // a legitimately anonymous account rather than a bug.
+        author_name: profile.display_name || profile.handle,
         author_handle: profile.handle,
         author_avatar: profile.photo_url,
         content: text,
@@ -476,7 +485,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.from('comments').insert({
             post_id: postId,
             author_id: user.id,
-            author_name: profile.display_name || 'Anonymous User',
+            // Falls back to the handle, never to a placeholder. "Anonymous User" is
+        // the column default, so using it here made a misread profile look like
+        // a legitimately anonymous account rather than a bug.
+        author_name: profile.display_name || profile.handle,
             author_handle: profile.handle,
             author_avatar: profile.photo_url,
             content: text,

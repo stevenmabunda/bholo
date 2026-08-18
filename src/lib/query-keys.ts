@@ -13,7 +13,16 @@ export const queryKeys = {
   interactions: (userId: string) => ['interactions', userId] as const,
 
   // Profiles
+  //
+  // Two different shapes describe a profile: the raw snake_case row the
+  // signed-in user's own hooks read, and the camelCase ProfileData the profile
+  // page builds for display. They must not share a key — when they did, opening
+  // or even hovering a profile overwrote the row with the display shape, and
+  // every field that is spelled differently (display_name, photo_url) silently
+  // became undefined. Posts were then written as "Anonymous User".
   profile: (id: string) => ['profile', id] as const,
+  /** The signed-in user's own profile row, snake_case, as stored. */
+  myProfile: (id: string) => ['profile', id, 'self'] as const,
   profilePosts: (id: string, tab: string) => ['profile', id, 'posts', tab] as const,
   followList: (id: string, type: string) => ['profile', id, 'follows', type] as const,
 
