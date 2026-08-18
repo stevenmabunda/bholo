@@ -65,6 +65,7 @@ import { AskAiDialog } from "./ask-ai-dialog";
 import { useTabContext } from "@/contexts/tab-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { siteUrl } from "@/lib/site";
+import { feedAspect } from "@/lib/media-aspect";
 
 
 type PostProps = PostType & {
@@ -880,8 +881,16 @@ function PostComponent(props: PostProps) {
 
         {poll && <Poll poll={poll} postId={id} />}
 
+        {/* 80vh let one video fill almost the whole screen, so a portrait clip
+            stopped being an item in a list and became a page. Clamped to 2:3 —
+            the allowance X gives vertical video in a timeline — with the full
+            frame still available in the immersive feed. */}
         {mediaExists && (
-          <div className={cn("mt-3 rounded-2xl overflow-hidden border", isVideo && 'relative w-full bg-black flex items-center justify-center max-h-[80vh] cursor-pointer group/video')} onClick={handlePostClick}>
+          <div
+            className={cn("mt-3 rounded-2xl overflow-hidden border", isVideo && 'relative w-full bg-black flex items-center justify-center cursor-pointer group/video')}
+            style={isVideo ? { aspectRatio: String(feedAspect(media[0].width, media[0].height, 'video') ?? 16 / 9) } : undefined}
+            onClick={handlePostClick}
+          >
             {isVideo && media[0].url ? (
                 <div className="relative w-full h-full">
                   <video
@@ -892,7 +901,7 @@ function PostComponent(props: PostProps) {
                     // presses play, so there is no reason for every video on
                     // screen to start pulling its own metadata on render.
                     preload="none"
-                    className="w-full h-full object-contain max-h-[80vh] bg-black"
+                    className="w-full h-full object-contain bg-black"
                     playsInline
                     loop
                   />
@@ -925,8 +934,18 @@ function PostComponent(props: PostProps) {
                   )}
               </div>
             ) : singleImage && media[0].url ? (
+              // Clamped by aspect rather than a pixel height, so the slot is
+              // the same shape on every screen. A very tall photo is cropped
+              // to 4:5 here and shown whole in the viewer on tap — the old
+              // max-h-[500px] with object-contain letterboxed it into black
+              // bars instead, which looked broken rather than deliberate.
               <div
-                  className="relative w-full max-h-[500px] bg-black cursor-pointer"
+                  className="relative w-full bg-black cursor-pointer overflow-hidden"
+                  style={
+                    feedAspect(media[0].width, media[0].height) !== null
+                      ? { aspectRatio: String(feedAspect(media[0].width, media[0].height)) }
+                      : { maxHeight: 500 }
+                  }
                   onClick={(e) => { if (isStandalone) { openImageViewer(e, 0); } else { e.stopPropagation(); handlePostClick(); } }}
               >
                   <Image
@@ -934,7 +953,14 @@ function PostComponent(props: PostProps) {
                       alt={media[0].hint || `Post image 1`}
                       width={media[0].width || 500}
                       height={media[0].height || 500}
-                      className="w-full h-auto max-h-[500px] object-contain"
+                      className={cn(
+                        'w-full',
+                        // Known shape: fill the clamped box. Unknown: never
+                        // crop, since we cannot tell what would be lost.
+                        feedAspect(media[0].width, media[0].height) !== null
+                          ? 'h-full object-cover'
+                          : 'h-auto max-h-[500px] object-contain'
+                      )}
                       data-ai-hint={media[0].hint}
                   />
               </div>

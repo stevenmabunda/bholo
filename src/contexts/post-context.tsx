@@ -90,7 +90,7 @@ const getImageDimensions = (file: File): Promise<{ width: number; height: number
  * Never rejects: a codec the browser can't decode should cost the post its
  * thumbnail, not the upload. Callers get null and carry on.
  */
-const captureVideoPoster = (file: File): Promise<Blob | null> => {
+const captureVideoPoster = (file: File): Promise<{ blob: Blob | null; width: number; height: number }> => {
   return new Promise((resolve) => {
     const video = document.createElement('video');
     const objectUrl = URL.createObjectURL(file);
@@ -99,9 +99,13 @@ const captureVideoPoster = (file: File): Promise<Blob | null> => {
     const finish = (blob: Blob | null) => {
       if (settled) return;
       settled = true;
+      // The intrinsic size comes free with the decode, and the feed needs it to
+      // reserve the right shape instead of assuming 16:9 for every clip.
+      const width = video.videoWidth || 0;
+      const height = video.videoHeight || 0;
       URL.revokeObjectURL(objectUrl);
       video.removeAttribute('src');
-      resolve(blob);
+      resolve({ blob, width, height });
     };
 
     // A stuck decode must not hold the upload open indefinitely.
@@ -378,20 +382,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
         }
 
         if (m.type === 'video') {
-            const poster = await captureVideoPoster(m.file);
-            if (!poster) return baseMediaData;
+            const { blob: poster, width, height } = await captureVideoPoster(m.file);
+            const dimensions = width && height ? { width, height } : {};
+            if (!poster) return { ...baseMediaData, ...dimensions };
 
             const posterPath = `${user.id}/${fileName}-poster.jpg`;
             const { error: posterError } = await supabase.storage
                 .from('post-media')
                 .upload(posterPath, poster, { contentType: 'image/jpeg' });
             // A missing poster is a worse thumbnail, not a failed post.
-            if (posterError) return baseMediaData;
+            if (posterError) return { ...baseMediaData, ...dimensions };
 
             const { data: { publicUrl: posterUrl } } = supabase.storage
                 .from('post-media')
                 .getPublicUrl(posterPath);
-            return { ...baseMediaData, posterUrl };
+            return { ...baseMediaData, ...dimensions, posterUrl };
         }
 
         return baseMediaData;
