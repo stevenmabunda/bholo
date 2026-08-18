@@ -1183,12 +1183,17 @@ function PostComponent(props: PostProps) {
                                     ))}
                                 </div>
                             </div>
+                            {/* Desktop only. On a phone the carousel already
+                                swipes, so these sat on top of the picture
+                                competing with the thing you opened it to look
+                                at. A mouse has no swipe, so they stay where
+                                there is no other way through. */}
                             {imageCount > 1 && (
                                 <>
-                                    <Button variant="ghost" size="icon" className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 text-white h-10 w-10 bg-black/30 hover:bg-black/50 hover:text-white rounded-full opacity-50 group-hover/viewer:opacity-100 transition-opacity" onClick={scrollPrev}>
+                                    <Button variant="ghost" size="icon" className="hidden md:inline-flex absolute left-2 md:left-4 top-1/2 -translate-y-1/2 text-white h-10 w-10 bg-black/30 hover:bg-black/50 hover:text-white rounded-full opacity-50 group-hover/viewer:opacity-100 transition-opacity" onClick={scrollPrev}>
                                         <ChevronLeft className="h-6 w-6"/>
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 text-white h-10 w-10 bg-black/30 hover:bg-black/50 hover:text-white rounded-full opacity-50 group-hover/viewer:opacity-100 transition-opacity" onClick={scrollNext}>
+                                    <Button variant="ghost" size="icon" className="hidden md:inline-flex absolute right-2 md:right-4 top-1/2 -translate-y-1/2 text-white h-10 w-10 bg-black/30 hover:bg-black/50 hover:text-white rounded-full opacity-50 group-hover/viewer:opacity-100 transition-opacity" onClick={scrollNext}>
                                         <ChevronRight className="h-6 w-6"/>
                                     </Button>
                                 </>
