@@ -28,17 +28,26 @@ function PanelContents({
   const { fetchGifs, searchKey } = useContext(SearchContext);
   const width = useResponsiveGridWidth(maxWidth);
 
+  // Giphy's <Grid> is a masonry with no height of its own — it grows with
+  // however many results come back. Unconstrained, the popover ended up taller
+  // than a phone screen, and the search bar at the top got pushed out of view,
+  // which is the one control the picker exists for. Cap the panel and scroll
+  // the results underneath a pinned search bar.
   return (
-    <div className="flex flex-col">
-      <SearchBar />
-      <Grid
-        key={searchKey}
-        width={width}
-        columns={3}
-        fetchGifs={fetchGifs}
-        onGifClick={onSelect}
-        noResultsMessage={emptyMessage}
-      />
+    <div className="flex max-h-[60vh] flex-col">
+      <div className="shrink-0">
+        <SearchBar />
+      </div>
+      <div className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <Grid
+          key={searchKey}
+          width={width}
+          columns={3}
+          fetchGifs={fetchGifs}
+          onGifClick={onSelect}
+          noResultsMessage={emptyMessage}
+        />
+      </div>
     </div>
   );
 }
