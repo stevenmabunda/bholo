@@ -31,11 +31,11 @@ import { SignupPrompt } from '@/components/signup-prompt';
 import VideoFeedPage from '../video/page';
 
 
-/** The first paid slot sits after the fourth post, so the first thing anyone
- *  sees is real content, and one recurs every tenth post after that. Fixed
- *  positions meant a long scroll showed two ads and then nothing, however far
- *  someone went. */
-const AD_FIRST_SLOT = 3;
+/** The first paid slot sits after the tenth post, and one recurs every tenth
+ *  after that. Four posts in was too early: with a single advertiser live it
+ *  put an ad in view almost immediately, which reads as a much heavier ad load
+ *  than it is. */
+const AD_FIRST_SLOT = 9;
 const AD_EVERY = 10;
 
 /** Which ad, if any, follows the post at this index. Returns the slot number,
