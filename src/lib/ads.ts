@@ -25,14 +25,19 @@ export type ServableAd = {
   destinationUrl: string | null;
 };
 
-export async function getFeedAds(limit = 2): Promise<ServableAd[]> {
+export type AdPlacement = 'feed' | 'sidebar' | 'trend' | 'video';
+
+export async function getAds(placement: AdPlacement, limit = 2): Promise<ServableAd[]> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase.rpc('servable_feed_ads', { p_limit: limit });
+  const { data, error } = await supabase.rpc('servable_ads', {
+    p_placement: placement,
+    p_limit: limit,
+  });
 
   if (error) {
     // An ad slot failing should never take the feed with it.
-    console.error('Could not load ads:', error);
+    console.error(`Could not load ${placement} ads:`, error);
     return [];
   }
 
@@ -47,4 +52,9 @@ export async function getFeedAds(limit = 2): Promise<ServableAd[]> {
     ctaLabel: row.cta_label,
     destinationUrl: row.destination_url,
   }));
+}
+
+/** Feed slots, the busiest placement — kept as its own name for readability. */
+export async function getFeedAds(limit = 2): Promise<ServableAd[]> {
+  return getAds('feed', limit);
 }

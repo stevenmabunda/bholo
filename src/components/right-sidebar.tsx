@@ -1,6 +1,7 @@
 
 'use client';
 import { TrendingTopics } from "@/components/trending-topics";
+import { SidebarAd } from "@/components/sidebar-ad";
 import { WhoToFollow } from "./who-to-follow";
 import { Input } from "./ui/input";
 import { Search } from "lucide-react";
@@ -51,6 +52,10 @@ export function RightSidebar() {
           <TrendingTopics />
         </div>
       </section>
+
+      {/* Renders nothing when there is no sidebar creative, rather than an
+          empty bordered box labelled Sponsored. */}
+      <SidebarAd />
 
       <section className="rounded-2xl border border-border overflow-hidden">
         <div className="p-4">
