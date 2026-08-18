@@ -1,8 +1,10 @@
 
 'use client';
 
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef, Fragment } from 'react';
 import { Post } from '@/components/post';
+import { PromotedPost } from '@/components/promoted-post';
+import { getFeedAds, type ServableAd } from '@/lib/ads';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePosts } from '@/contexts/post-context';
 import { PostSkeleton } from '@/components/post-skeleton';
@@ -29,6 +31,11 @@ import { SignupPrompt } from '@/components/signup-prompt';
 import VideoFeedPage from '../video/page';
 
 
+/** Which rendered feed positions carry a paid slot. Far enough down that the
+ *  first thing anyone sees is a real post, then spaced so the feed does not
+ *  start to read like a billboard. */
+const AD_SLOTS = [3, 13];
+
 export function HomeView() {
   const { 
     forYouPosts,
@@ -43,6 +50,18 @@ export function HomeView() {
   const { activeTab, setActiveTab } = useTabContext();
   const { user } = useAuth();
   const { profile } = useProfile();
+
+  const [ads, setAds] = useState<ServableAd[]>([]);
+
+  // Targeting depends on the viewer's club, so this is fetched per person
+  // rather than cached with the feed.
+  useEffect(() => {
+    let cancelled = false;
+    getFeedAds(AD_SLOTS.length)
+      .then((servable) => { if (!cancelled) setAds(servable); })
+      .catch((error) => console.error('Could not load ads:', error));
+    return () => { cancelled = true; };
+  }, [user?.id, profile?.favourite_club]);
 
   const [showNotification, setShowNotification] = useState(false);
   const [hasScrolledFromTop, setHasScrolledFromTop] = useState(false);
@@ -248,9 +267,19 @@ export function HomeView() {
                   <PostSkeleton />
                 </>
               ) : postsToShow.length > 0 ? (
-                postsToShow.map((post) => {
+                postsToShow.map((post, index) => {
                     if (!post) return null;
-                    return <Post key={post.id} {...post} />
+                    // Ads sit in slots in the rendered feed, never as rows in
+                    // posts — otherwise they leak into search, profiles and
+                    // trending, and start counting as somebody's content.
+                    const adIndex = AD_SLOTS.indexOf(index);
+                    const ad = adIndex >= 0 ? ads[adIndex] : undefined;
+                    return (
+                      <Fragment key={post.id}>
+                        <Post {...post} />
+                        {ad && <PromotedPost ad={ad} />}
+                      </Fragment>
+                    );
                 })
               ) : (
                 <div className="p-8 text-center text-muted-foreground">
