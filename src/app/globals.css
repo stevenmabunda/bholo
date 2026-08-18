@@ -135,6 +135,7 @@
   }
 
 
+
   /* Hide scrollbar on mobile */
   @media (max-width: 767px) {
     body::-webkit-scrollbar {

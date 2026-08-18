@@ -39,12 +39,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               is for anything saving a scroll position. */}
           <main
             id="desktop-scroll-area"
-            className="w-full pb-[calc(4rem+env(safe-area-inset-bottom))] md:max-w-[624px] md:border-x md:h-screen md:overflow-y-auto md:pb-0"
+            className="no-scrollbar w-full pb-[calc(4rem+env(safe-area-inset-bottom))] md:max-w-[624px] md:border-x md:h-screen md:overflow-y-auto md:pb-0"
           >
             {children}
           </main>
 
-          <aside className="hidden xl:block w-[350px] shrink-0 h-screen overflow-y-auto">
+          <aside className="no-scrollbar hidden xl:block w-[350px] shrink-0 h-screen overflow-y-auto">
             <RightSidebar />
           </aside>
         </div>
