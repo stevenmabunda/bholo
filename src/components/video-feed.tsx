@@ -37,6 +37,29 @@ const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 
+/**
+ * Fisher-Yates, driven by a seed so the same mount always produces the same
+ * order. Math.random() called during render would reshuffle on every re-render
+ * and throw the viewer to a different clip mid-scroll.
+ */
+function shuffle<T>(items: T[], seed: number): T[] {
+  const out = [...items];
+  // Small deterministic PRNG — mulberry32. Only needs to look unordered.
+  let state = Math.floor(seed * 2 ** 32) || 1;
+  const next = () => {
+    state |= 0;
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(next() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 function CommentSkeleton() {
   return (
       <div className="flex space-x-3 md:space-x-4 p-3 md:p-4">
@@ -315,15 +338,27 @@ export function VideoFeed() {
   // Ordering is a view concern, derived from the cached list rather
   // than baked into it (the previous version mutated the fetched array
   // in place, so the requested post only led on a fresh fetch).
+  // Reshuffled each time the feed is opened, not each render — the seed is
+  // fixed for the life of this mount, so scrolling back up finds the same
+  // clips in the same order, while coming back later gets a different run.
+  const [shuffleSeed] = useState(() => Math.random());
+
   const posts = useMemo(() => {
-    if (!startPostId) return videoPosts;
-    const startIndex = videoPosts.findIndex(p => p.id === startPostId);
-    if (startIndex < 0) return videoPosts;
-    const reordered = [...videoPosts];
+    // Newest-first is the wrong order here. The immersive feed is for
+    // browsing rather than catching up, and in date order the same handful of
+    // recent clips lead every single time until someone posts.
+    const shuffled = shuffle(videoPosts, shuffleSeed);
+
+    if (!startPostId) return shuffled;
+    // Whichever clip was tapped still has to lead, or opening a video plays
+    // somebody else's.
+    const startIndex = shuffled.findIndex(p => p.id === startPostId);
+    if (startIndex < 0) return shuffled;
+    const reordered = [...shuffled];
     const [startPost] = reordered.splice(startIndex, 1);
     reordered.unshift(startPost);
     return reordered;
-  }, [videoPosts, startPostId]);
+  }, [videoPosts, startPostId, shuffleSeed]);
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
