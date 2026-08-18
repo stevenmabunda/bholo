@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
+import { isPublicPath } from '@/lib/public-paths';
 
 // Routes reachable without an authenticated session. Anything else
 // belongs to the (app) route group and redirects to /login here, at the
@@ -20,16 +21,6 @@ import { updateSession } from '@/lib/supabase/middleware';
 // /opengraph-image, /twitter-image and /manifest.webmanifest are
 // Next.js-generated root-level routes (not pages) that crawlers and
 // browsers fetch directly - same reasoning applies.
-const PUBLIC_PATHS = [
-  '/login', '/signup', '/forgot-password', '/auth/callback',
-  '/terms', '/privacy', '/help', '/feedback',
-  '/post',
-  '/opengraph-image', '/twitter-image', '/manifest.webmanifest',
-];
-
-function isPublicPath(pathname: string) {
-  return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
-}
 
 export async function middleware(request: NextRequest) {
   const { response, user } = await updateSession(request);
