@@ -15,6 +15,14 @@ import type { ReplyMedia } from '@/components/create-comment';
 import { getRecentPosts } from '@/app/(app)/home/actions';
 import { usePathname } from 'next/navigation';
 
+/**
+ * A post is created in two steps — the row is inserted, then updated once its
+ * media finishes uploading — so a row arriving over realtime may not have its
+ * media yet. These bound how hard we chase it.
+ */
+const MEDIA_RECONCILE_ATTEMPTS = 3;
+const MEDIA_RECONCILE_DELAY_MS = 1500;
+
 /** How many unseen posts to hold for the "new posts" banner. */
 const NEW_POSTS_BUFFER_LIMIT = 50;
 
@@ -220,12 +228,59 @@ export function PostProvider({ children }: { children: ReactNode }) {
     [queryClient, updateFeed]
   );
 
+  /**
+   * Re-read media for posts that reached us before their upload finished.
+   *
+   * addPost inserts with media: [] and updates the row once the files are in
+   * storage, but the banner listens for INSERT — so every buffered row is the
+   * pre-upload version. Splicing those in showed a photo post as text only,
+   * and nothing short of a reload fixed it, because nothing else ever re-read
+   * the row.
+   *
+   * Subscribing to UPDATE would be the tidier fix and is the wrong one: the
+   * likes trigger updates posts on every like, so it would push a row to every
+   * client on the feed each time anyone anywhere liked anything.
+   *
+   * Retries because a large video can still be uploading when the banner is
+   * clicked. Each pass drops the ids that have resolved; text posts simply
+   * never resolve and cost three small reads.
+   */
+  const reconcileMedia = useCallback(async (ids: string[], attempt = 0): Promise<void> => {
+    if (ids.length === 0) return;
+
+    const { data, error } = await supabase.from('posts').select('id, media').in('id', ids);
+    if (error || !data) return;
+
+    const resolved = new Map(
+      data.filter((row: any) => Array.isArray(row.media) && row.media.length > 0)
+          .map((row: any) => [row.id as string, row.media])
+    );
+
+    if (resolved.size > 0) {
+      // Media only. The cached post carries optimistic like and bookmark state
+      // that the database does not know about yet, and replacing the row
+      // wholesale would flick those back.
+      updateFeed((prev) => prev.map((p) => (resolved.has(p.id) ? { ...p, media: resolved.get(p.id) } : p)));
+    }
+
+    const stillEmpty = ids.filter((id) => !resolved.has(id));
+    if (stillEmpty.length > 0 && attempt + 1 < MEDIA_RECONCILE_ATTEMPTS) {
+      setTimeout(() => { void reconcileMedia(stillEmpty, attempt + 1); }, MEDIA_RECONCILE_DELAY_MS * (attempt + 1));
+    }
+  }, [updateFeed]);
+
   const showNewForYouPosts = () => {
     updateFeed((prev) => {
       const existingIds = new Set(prev.map((p) => p.id));
       const uniqueNewPosts = newForYouPosts.filter((p) => !existingIds.has(p.id));
       return [...uniqueNewPosts, ...prev];
     });
+
+    const missingMedia = newForYouPosts
+      .filter((p) => !Array.isArray(p.media) || p.media.length === 0)
+      .map((p) => p.id);
+    void reconcileMedia(missingMedia);
+
     setNewForYouPosts([]);
   };
 
