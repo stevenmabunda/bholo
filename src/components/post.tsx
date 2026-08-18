@@ -65,7 +65,7 @@ import { AskAiDialog } from "./ask-ai-dialog";
 import { useTabContext } from "@/contexts/tab-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { siteUrl } from "@/lib/site";
-import { feedAspect } from "@/lib/media-aspect";
+import { feedAspect, PORTRAIT_THRESHOLD } from "@/lib/media-aspect";
 
 
 type PostProps = PostType & {
@@ -400,6 +400,10 @@ function PostComponent(props: PostProps) {
 
   const mediaExists = media && media.length > 0;
   const isVideo = mediaExists && media[0].type === 'video';
+  // 16:9 only when the real shape is genuinely unknown — every video uploaded
+  // or backfilled since carries its own dimensions.
+  const videoAspect = (isVideo && feedAspect(media[0].width, media[0].height, 'video')) || 16 / 9;
+  const isPortraitVideo = isVideo && videoAspect < PORTRAIT_THRESHOLD;
   const youtubeVideoId = !mediaExists ? findFirstYoutubeVideoId(content) : null;
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -881,14 +885,21 @@ function PostComponent(props: PostProps) {
 
         {poll && <Poll poll={poll} postId={id} />}
 
-        {/* 80vh let one video fill almost the whole screen, so a portrait clip
-            stopped being an item in a list and became a page. Clamped to 2:3 —
-            the allowance X gives vertical video in a timeline — with the full
-            frame still available in the immersive feed. */}
+        {/* A vertical video keeps its real shape. It used to sit letterboxed
+            inside a 16:9 box with black bars down both sides, because an
+            unknown size fell back to landscape. Height is controlled by
+            capping it on desktop — which makes the clip narrower and leaves it
+            against the left of the column, the way X does it — while a phone
+            gets it full width and properly vertical, since the screen is
+            already that shape. */}
         {mediaExists && (
           <div
-            className={cn("mt-3 rounded-2xl overflow-hidden border", isVideo && 'relative w-full bg-black flex items-center justify-center cursor-pointer group/video')}
-            style={isVideo ? { aspectRatio: String(feedAspect(media[0].width, media[0].height, 'video') ?? 16 / 9) } : undefined}
+            className={cn(
+              "mt-3 rounded-2xl overflow-hidden border",
+              isVideo && 'relative bg-black flex items-center justify-center cursor-pointer group/video',
+              isVideo && (isPortraitVideo ? 'w-full md:h-[560px] md:w-auto md:max-w-full' : 'w-full')
+            )}
+            style={isVideo ? { aspectRatio: String(videoAspect) } : undefined}
             onClick={handlePostClick}
           >
             {isVideo && media[0].url ? (

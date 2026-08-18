@@ -19,11 +19,22 @@ export const MAX_ASPECT = 1.91;
 export const MIN_ASPECT_IMAGE = 0.8;
 
 /**
- * Video is allowed to be taller — 2:3. Phone video is shot at 9:16 and clamping
- * it to 4:5 throws away too much of the frame, so it gets the same allowance X
- * gives a vertical video in the timeline.
+ * Video keeps its real shape all the way down to 9:16.
+ *
+ * Cropping a photo is recoverable — you tap it and see the original. Cropping
+ * video is not: the feed is where it gets watched. Phone video is shot at 9:16,
+ * and a clip framed for that loses its subject when squeezed to 4:5.
+ *
+ * Height is controlled a different way instead, the way X does it: a portrait
+ * video is given a capped height on desktop, which makes it narrower and leaves
+ * it sitting against the left of the column rather than cropped or letterboxed.
+ * On a phone it runs full width and properly vertical, because that is the
+ * shape the screen already is.
  */
-export const MIN_ASPECT_VIDEO = 2 / 3;
+export const MIN_ASPECT_VIDEO = 9 / 16;
+
+/** Below this a video is portrait, and gets the capped-height treatment. */
+export const PORTRAIT_THRESHOLD = 1;
 
 /**
  * The aspect a feed slot should use, given what the file actually is.
