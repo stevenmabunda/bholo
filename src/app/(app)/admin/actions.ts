@@ -495,3 +495,110 @@ export async function deleteCreative(id: string): Promise<{ ok: true } | { error
   revalidatePath('/admin');
   return { ok: true };
 }
+
+// ---------------------------------------------------------------------------
+// Edits
+// ---------------------------------------------------------------------------
+
+export async function updateCampaign(
+  id: string,
+  input: {
+    name: string;
+    objective: Campaign['objective'];
+    startsAt: string;
+    endsAt: string;
+    rateRands: number;
+    rateModel: Campaign['rateModel'];
+    frequencyCapPerDay: number | null;
+  }
+): Promise<{ ok: true } | { error: string }> {
+  const { supabase, error } = await requireAdmin();
+  if (error) return { error };
+
+  const name = input.name?.trim();
+  if (!name) return { error: 'Give the campaign a name.' };
+  if (new Date(input.endsAt) <= new Date(input.startsAt)) {
+    return { error: 'The end date has to be after the start date.' };
+  }
+
+  const { error: updateError } = await supabase
+    .from('ad_campaigns')
+    .update({
+      name,
+      objective: input.objective,
+      starts_at: input.startsAt,
+      ends_at: input.endsAt,
+      rate_cents: Math.round((input.rateRands || 0) * 100),
+      rate_model: input.rateModel,
+      frequency_cap_per_day: input.frequencyCapPerDay,
+    })
+    .eq('id', id);
+
+  if (updateError) {
+    console.error('Could not update campaign:', updateError);
+    return { error: `Could not save that campaign — ${updateError.message}` };
+  }
+
+  revalidatePath('/admin');
+  return { ok: true };
+}
+
+/**
+ * Editing a creative sends it back for approval.
+ *
+ * Approval attaches to what was actually reviewed. Letting someone change the
+ * headline or the destination of a live, approved ad without re-review is how
+ * a checked creative quietly becomes an unchecked one — and with gambling
+ * copy that is the difference between a policy and a formality.
+ */
+export async function updateCreative(
+  id: string,
+  input: {
+    placement: Creative['placement'];
+    mediaUrl?: string | null;
+    mediaWidth?: number | null;
+    mediaHeight?: number | null;
+    headline?: string;
+    body?: string;
+    ctaLabel?: string;
+    destinationUrl?: string;
+    targetClubs?: string[];
+  }
+): Promise<{ ok: true; reviewReset: boolean } | { error: string }> {
+  const { supabase, error } = await requireAdmin();
+  if (error) return { error };
+
+  if (!input.headline?.trim() && !input.mediaUrl?.trim()) {
+    return { error: 'A creative needs a headline or an image.' };
+  }
+  if (input.destinationUrl && !/^https?:\/\//i.test(input.destinationUrl.trim())) {
+    return { error: 'The destination has to start with http:// or https://' };
+  }
+
+  const { error: updateError } = await supabase
+    .from('ad_creatives')
+    .update({
+      placement: input.placement,
+      media_url: input.mediaUrl?.trim() || null,
+      media_width: input.mediaWidth ?? null,
+      media_height: input.mediaHeight ?? null,
+      headline: input.headline?.trim() || null,
+      body: input.body?.trim() || null,
+      cta_label: input.ctaLabel?.trim() || null,
+      destination_url: input.destinationUrl?.trim() || null,
+      target_clubs: input.targetClubs?.length ? input.targetClubs : null,
+      review_status: 'pending',
+      review_note: null,
+      reviewed_by: null,
+      reviewed_at: null,
+    })
+    .eq('id', id);
+
+  if (updateError) {
+    console.error('Could not update creative:', updateError);
+    return { error: `Could not save that creative — ${updateError.message}` };
+  }
+
+  revalidatePath('/admin');
+  return { ok: true, reviewReset: true };
+}

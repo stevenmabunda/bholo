@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Loader2, Plus } from 'lucide-react';
-import { createCampaign, setCampaignStatus, type Campaign } from '../../actions';
+import { createCampaign, updateCampaign, setCampaignStatus, type Campaign } from '../../actions';
 
 const STATUS_STYLES: Record<Campaign['status'], string> = {
   draft: 'bg-muted text-muted-foreground',
@@ -38,6 +38,8 @@ export function CampaignManager({
 }) {
   const [campaigns, setCampaigns] = useState(initialCampaigns);
   const [showForm, setShowForm] = useState(false);
+  /** null while creating; the campaign id while editing one. */
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
@@ -54,6 +56,53 @@ export function CampaignManager({
     rateModel: 'flat' as Campaign['rateModel'],
     frequencyCap: '',
   });
+
+  const openEdit = (campaign: Campaign) => {
+    setForm({
+      name: campaign.name,
+      objective: campaign.objective,
+      startsAt: toLocalInput(new Date(campaign.startsAt)),
+      endsAt: toLocalInput(new Date(campaign.endsAt)),
+      rateRands: String(campaign.rateCents / 100),
+      rateModel: campaign.rateModel,
+      frequencyCap: campaign.frequencyCapPerDay ? String(campaign.frequencyCapPerDay) : '',
+    });
+    setEditingId(campaign.id);
+    setShowForm(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId) return;
+    setSaving(true);
+    const result = await updateCampaign(editingId, {
+      name: form.name,
+      objective: form.objective,
+      startsAt: new Date(form.startsAt).toISOString(),
+      endsAt: new Date(form.endsAt).toISOString(),
+      rateRands: Number(form.rateRands) || 0,
+      rateModel: form.rateModel,
+      frequencyCapPerDay: form.frequencyCap ? Number(form.frequencyCap) : null,
+    });
+    setSaving(false);
+
+    if ('error' in result) {
+      toast({ variant: 'destructive', description: result.error });
+      return;
+    }
+    setCampaigns((prev) => prev.map((c) => c.id === editingId ? {
+      ...c,
+      name: form.name.trim(),
+      objective: form.objective,
+      startsAt: new Date(form.startsAt).toISOString(),
+      endsAt: new Date(form.endsAt).toISOString(),
+      rateCents: Math.round((Number(form.rateRands) || 0) * 100),
+      rateModel: form.rateModel,
+      frequencyCapPerDay: form.frequencyCap ? Number(form.frequencyCap) : null,
+    } : c));
+    setShowForm(false);
+    setEditingId(null);
+    toast({ description: 'Campaign updated.' });
+  };
 
   const handleCreate = async () => {
     setSaving(true);
@@ -103,7 +152,7 @@ export function CampaignManager({
             {advertiser.contactEmail ? ` · ${advertiser.contactEmail}` : ''}
           </p>
         </div>
-        <Button size="sm" onClick={() => setShowForm((v) => !v)}>
+        <Button size="sm" onClick={() => { setEditingId(null); setShowForm((v) => !v); }}>
           <Plus className="mr-1 h-4 w-4" />
           New campaign
         </Button>
@@ -188,11 +237,11 @@ export function CampaignManager({
           </label>
 
           <div className="flex gap-2">
-            <Button onClick={handleCreate} disabled={saving || !form.name.trim()}>
+            <Button onClick={editingId ? handleSaveEdit : handleCreate} disabled={saving || !form.name.trim()}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create campaign
+              {editingId ? 'Save changes' : 'Create campaign'}
             </Button>
-            <Button variant="ghost" onClick={() => setShowForm(false)}>
+            <Button variant="ghost" onClick={() => { setShowForm(false); setEditingId(null); }}>
               Cancel
             </Button>
           </div>
@@ -236,15 +285,20 @@ export function CampaignManager({
                   {campaign.frequencyCapPerDay ? ` · capped at ${campaign.frequencyCapPerDay}/day` : ''}
                 </p>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  changeStatus(campaign.id, campaign.status === 'live' ? 'paused' : 'live')
-                }
-              >
-                {campaign.status === 'live' ? 'Pause' : 'Go live'}
-              </Button>
+              <div className="flex shrink-0 items-center gap-1">
+                <Button variant="ghost" size="sm" onClick={() => openEdit(campaign)}>
+                  Edit
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    changeStatus(campaign.id, campaign.status === 'live' ? 'paused' : 'live')
+                  }
+                >
+                  {campaign.status === 'live' ? 'Pause' : 'Go live'}
+                </Button>
+              </div>
             </div>
           ))
         )}

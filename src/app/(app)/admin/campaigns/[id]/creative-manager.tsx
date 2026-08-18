@@ -15,6 +15,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { AD_FORMATS, checkCreative, type SpecCheck } from '@/lib/ad-specs';
 import {
   createCreative,
+  updateCreative,
   reviewCreative,
   deleteCreative,
   type Creative,
@@ -45,6 +46,7 @@ export function CreativeManager({
 }) {
   const [creatives, setCreatives] = useState(initialCreatives);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
@@ -94,6 +96,58 @@ export function CreativeManager({
       mediaHeight: dimensions?.h ?? null,
     }));
     setUploading(false);
+  };
+
+  const openEdit = (creative: Creative) => {
+    setForm({
+      placement: creative.placement,
+      mediaUrl: creative.mediaUrl ?? '',
+      headline: creative.headline ?? '',
+      body: creative.body ?? '',
+      ctaLabel: creative.ctaLabel ?? '',
+      destinationUrl: creative.destinationUrl ?? '',
+      targetClubs: creative.targetClubs ?? [],
+      mediaWidth: creative.mediaWidth,
+      mediaHeight: creative.mediaHeight,
+    });
+    setSpec(
+      creative.mediaWidth && creative.mediaHeight
+        ? checkCreative(creative.mediaWidth, creative.mediaHeight)
+        : null
+    );
+    setEditingId(creative.id);
+    setShowForm(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId) return;
+    setSaving(true);
+    const result = await updateCreative(editingId, form);
+    setSaving(false);
+
+    if ('error' in result) {
+      toast({ variant: 'destructive', description: result.error });
+      return;
+    }
+
+    setCreatives((prev) => prev.map((c) => c.id === editingId ? {
+      ...c,
+      placement: form.placement,
+      mediaUrl: form.mediaUrl || null,
+      mediaWidth: form.mediaWidth,
+      mediaHeight: form.mediaHeight,
+      headline: form.headline || null,
+      body: form.body || null,
+      ctaLabel: form.ctaLabel || null,
+      destinationUrl: form.destinationUrl || null,
+      targetClubs: form.targetClubs.length ? form.targetClubs : null,
+      reviewStatus: 'pending' as const,
+      reviewNote: null,
+    } : c));
+    setShowForm(false);
+    setEditingId(null);
+    setSpec(null);
+    toast({ description: 'Creative updated — it needs approving again before it serves.' });
   };
 
   const handleCreate = async () => {
@@ -187,7 +241,7 @@ export function CreativeManager({
             {campaign.frequencyCapPerDay ? ` · ${campaign.frequencyCapPerDay} per person per day` : ' · uncapped'}
           </p>
         </div>
-        <Button size="sm" onClick={() => setShowForm((v) => !v)}>
+        <Button size="sm" onClick={() => { setEditingId(null); setShowForm((v) => !v); }}>
           <Plus className="mr-1 h-4 w-4" />
           Creative
         </Button>
@@ -286,13 +340,18 @@ export function CreativeManager({
           </div>
 
           <div className="flex gap-2">
-            <Button onClick={handleCreate} disabled={saving}>
+            <Button onClick={editingId ? handleSaveEdit : handleCreate} disabled={saving}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add creative
+              {editingId ? 'Save changes' : 'Add creative'}
             </Button>
-            <Button variant="ghost" onClick={() => setShowForm(false)}>
+            <Button variant="ghost" onClick={() => { setShowForm(false); setEditingId(null); }}>
               Cancel
             </Button>
+            {editingId && (
+              <p className="self-center text-xs text-yellow-500">
+                Saving sends this back for approval.
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -348,6 +407,9 @@ export function CreativeManager({
               </div>
 
               <div className="mt-3 flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => openEdit(creative)}>
+                  Edit
+                </Button>
                 {creative.reviewStatus !== 'approved' && (
                   <Button size="sm" variant="outline" onClick={() => decide(creative.id, 'approved')}>
                     <Check className="mr-1 h-3.5 w-3.5" />
