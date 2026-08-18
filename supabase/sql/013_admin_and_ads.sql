@@ -20,10 +20,11 @@ begin
   end if;
 end $$;
 
--- profiles_update_self lets a user update their own row, which would now let
--- anyone grant themselves the admin role. RLS cannot express "any column but
--- this one", so the privilege is removed at the column level instead. Role
--- changes are made by a service-role connection — the SQL editor — only.
+-- WARNING: this statement does not work. A column-level revoke is ineffective
+-- while the table-level UPDATE grant Supabase gives `authenticated` is still
+-- in place, so role remained writable by any signed-in user. Superseded by
+-- 014_fix_role_escalation.sql, which revokes the table grant and re-grants
+-- per column. Kept here only because it has already been applied.
 revoke update (role) on public.profiles from authenticated;
 
 -- SECURITY DEFINER so policies can call it without re-entering the RLS that is
