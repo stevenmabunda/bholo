@@ -14,6 +14,7 @@ import { Input } from "./ui/input";
 import type { PostType } from "@/lib/data";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { SchedulePicker } from "./schedule-picker";
+import { reverseGeocode } from "@/lib/geocode";
 import dynamic from 'next/dynamic';
 
 // Fetched the first time the picker opens rather than shipped to everyone on
@@ -73,6 +74,7 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
   const [showPoll, setShowPoll] = useState(false);
   const [pollChoices, setPollChoices] = useState<string[]>(['', '']);
   const [location, setLocation] = useState<string | null>(null);
+  const [locating, setLocating] = useState(false);
   const [scheduledFor, setScheduledFor] = useState<string>('');
 
   
@@ -209,14 +211,26 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
     }
 
     if (navigator.geolocation) {
+        setLocating(true);
         navigator.geolocation.getCurrentPosition(
-            (position) => {
+            async (position) => {
                 const { latitude, longitude } = position.coords;
-                const locationString = `Lat: ${latitude.toFixed(2)}, Lon: ${longitude.toFixed(2)}`;
-                setLocation(locationString);
-                toast({ description: "Location added!" });
+                // Coordinates are what the browser gives us, but "Lat: -26.20,
+                // Lon: 28.04" is not a place — resolve it to a name before it
+                // goes anywhere near a post.
+                const result = await reverseGeocode(latitude, longitude);
+                setLocating(false);
+
+                if ('error' in result) {
+                    toast({ variant: 'destructive', description: result.error });
+                    return;
+                }
+
+                setLocation(result.place);
+                toast({ description: `Location set to ${result.place}.` });
             },
             () => {
+                setLocating(false);
                 toast({
                     variant: "destructive",
                     description: "Could not get location. Please enable browser permissions.",
@@ -462,9 +476,13 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
                 size="icon"
                 title={location ? 'Remove location' : 'Tag location'}
                 onClick={handleLocationClick}
-                disabled={posting}
+                disabled={posting || locating}
               >
-                <MapPin className={cn("h-5 w-5", location ? "text-primary fill-primary/20" : "text-primary")} />
+                {locating ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                ) : (
+                  <MapPin className={cn("h-5 w-5", location ? "text-primary fill-primary/20" : "text-primary")} />
+                )}
               </Button>
               <Popover>
                 <PopoverTrigger asChild>
