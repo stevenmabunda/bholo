@@ -13,6 +13,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { Input } from "./ui/input";
 import type { PostType } from "@/lib/data";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { SchedulePicker } from "./schedule-picker";
 import dynamic from 'next/dynamic';
 
 // Fetched the first time the picker opens rather than shipped to everyone on
@@ -56,13 +57,6 @@ const EMOJI_GROUPS = [
   },
 ];
 
-
-// Local datetime string for <input type="datetime-local">, which has no
-// timezone — it must be the user's wall clock, not a UTC ISO string.
-function toLocalInputValue(d: Date) {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 export function CreatePost({ onPost }: { onPost: (data: { text: string; media: Media[], poll?: PostType['poll'], location?: string | null, scheduledFor?: string | null }) => Promise<any> }) {
   const { user } = useAuth();
@@ -478,20 +472,15 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
                         <CalendarClock className={cn("h-5 w-5", scheduledFor ? "text-primary fill-primary/20" : "text-primary")} />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-3 border-none bg-background/95 backdrop-blur-sm shadow-lg">
-                    <p className="text-sm font-semibold mb-2">Schedule post</p>
-                    <Input
-                        type="datetime-local"
-                        value={scheduledFor}
-                        min={toLocalInputValue(new Date(Date.now() + 60_000))}
-                        onChange={(e) => setScheduledFor(e.target.value)}
-                        className="w-[230px]"
-                    />
-                    {scheduledFor && (
-                        <Button variant="ghost" size="sm" className="mt-2 text-destructive hover:text-destructive px-0" onClick={() => setScheduledFor('')}>
-                            Clear schedule
-                        </Button>
-                    )}
+                {/* Radix measures the space it actually has and exposes it as
+                    this variable — a fixed vh cap doesn't know how far down the
+                    trigger sits, which left the clear button off the bottom. */}
+                <PopoverContent
+                    align="end"
+                    collisionPadding={12}
+                    className="w-auto max-h-[var(--radix-popover-content-available-height)] overflow-y-auto p-3 border-none bg-background/95 backdrop-blur-sm shadow-lg"
+                >
+                    <SchedulePicker value={scheduledFor} onChange={setScheduledFor} />
                 </PopoverContent>
               </Popover>
             </div>
