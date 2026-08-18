@@ -115,6 +115,12 @@ export function LoginForm() {
             )}
         </Button>
 
+        {/* Email signup still requires a confirmation mail that cannot be sent
+            yet — the Supabase built-in sender is development-only, so this path
+            hands back no session and waits on a mail that never arrives.
+            Verified against the live project. Kept visible deliberately while
+            in development; it starts working the moment custom SMTP is wired,
+            or immediately if email confirmation is switched off. */}
         <Button asChild variant="outline" className="w-full h-11 text-base">
           <Link href="/signup">Create an account with email</Link>
         </Button>
