@@ -18,6 +18,9 @@ export type Profile = {
   favourite_club: string | null;
   followers_count: number;
   following_count: number;
+  /** 'member' | 'admin'. Not settable from the app — the column is revoked
+   *  from authenticated users so nobody can promote themselves. */
+  role: string;
 };
 
 /** The signed-in user's own profile row — the source of truth for their
