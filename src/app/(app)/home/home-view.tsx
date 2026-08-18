@@ -81,6 +81,7 @@ export function HomeView() {
   
   const [isHeaderHidden, setIsHeaderHidden] = useState(false);
   const lastScrollY = useRef(0);
+  const feedTopRef = useRef<HTMLDivElement>(null);
   const unreadNotifications = useUnreadNotificationCount();
 
   useEffect(() => {
@@ -152,21 +153,27 @@ export function HomeView() {
         }
         lastScrollY.current = currentScrollY;
 
-        if (activeTab !== 'foryou') {
-            setShowNotification(false);
-            return;
-        }
-        const isScrolledPastThreshold = window.scrollY > 200;
-        if (isScrolledPastThreshold) {
-            setHasScrolledFromTop(true);
-        } else {
-            setHasScrolledFromTop(false);
-        }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [activeTab]);
+
+  // Container-agnostic "am I near the top". The previous check read
+  // window.scrollY, which is permanently zero on desktop because the feed
+  // scrolls inside a ScrollArea and the body does not move — so the new-posts
+  // banner could never appear there at all, and new posts simply piled up
+  // unseen.
+  useEffect(() => {
+    const node = feedTopRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setHasScrolledFromTop(!entry.isIntersecting),
+      { threshold: 0 }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (newForYouPosts.length > 0 && hasScrolledFromTop && activeTab === 'foryou') {
@@ -179,7 +186,9 @@ export function HomeView() {
 
   const handleShowNewPosts = () => {
     showNewForYouPosts();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // scrollIntoView walks up to whichever ancestor actually scrolls, so this
+    // works in the desktop ScrollArea and on a normally scrolling phone alike.
+    feedTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setShowNotification(false);
   }
   
@@ -264,6 +273,12 @@ export function HomeView() {
 
         <main className="flex-1 md:pt-0 pt-[112px]">
           <TabsContent value="foryou" className="h-full">
+            {/* Marks the top of the feed. Whether the page scrolls or the
+                desktop ScrollArea does, this element leaving the viewport is
+                what "scrolled away from the top" means — and scrolling it back
+                into view is how we return, without either needing to know
+                which container is actually moving. */}
+            <div ref={feedTopRef} aria-hidden className="h-px" />
             {user && (
               <div className="hidden md:block border-b">
                 <CreatePost onPost={handlePost} />
