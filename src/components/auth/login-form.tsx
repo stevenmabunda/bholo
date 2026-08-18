@@ -86,10 +86,45 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex flex-col gap-y-6">
-        <div className="hidden lg:block text-left">
-          <h1 className="text-xl font-bold">Sign into your BHOLO account</h1>
+    <div className="flex flex-col gap-y-5">
+        {/* The old heading was "Sign into your BHOLO account", which tells a
+            first-time visitor they are in the wrong place. This page is the
+            front door for everyone the middleware turns away, so most people
+            arriving here have never been here before. */}
+        <div className="text-left">
+          <h1 className="text-2xl font-bold">Join BHOLO</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            South Africa&apos;s home for football banter.
+          </p>
         </div>
+
+        {/* Google leads because it is what almost everyone actually uses, and
+            because one button covers both signing up and coming back — a new
+            visitor never has to work out which they are. */}
+        <Button className="w-full h-11 text-base" onClick={handleGoogleSignIn} disabled={loading || googleLoading}>
+            {googleLoading ? (
+                 <>
+                    <Loader2 className="mr-2 animate-spin" />
+                    Checking...
+                </>
+            ) : (
+                <>
+                    <GoogleIcon className="mr-2" />
+                    Continue with Google
+                </>
+            )}
+        </Button>
+
+        <Button asChild variant="outline" className="w-full h-11 text-base">
+          <Link href="/signup">Create an account with email</Link>
+        </Button>
+
+       <div className="flex items-center gap-4">
+            <div className="h-px bg-border flex-1" />
+            <span className="text-sm font-semibold text-muted-foreground">Already have an account?</span>
+            <div className="h-px bg-border flex-1" />
+       </div>
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <AuthFormError message={error} />
@@ -134,38 +169,14 @@ export function LoginForm() {
                     </span>
                 </Link>
             </div>
-            <Button type="submit" className="w-full mt-2 h-11 text-base" disabled={loading || googleLoading}>
+            {/* Secondary styling now: two primary buttons on one screen would
+                leave nothing looking like the obvious next step. */}
+            <Button type="submit" variant="secondary" className="w-full mt-2 h-11 text-base" disabled={loading || googleLoading}>
               {loading || googleLoading ? <Loader2 className="animate-spin" /> : 'Log In'}
             </Button>
           </fieldset>
         </form>
       </Form>
-       <div className="flex items-center gap-4">
-            <div className="h-px bg-border flex-1" />
-            <span className="text-sm font-semibold text-muted-foreground">OR</span>
-            <div className="h-px bg-border flex-1" />
-       </div>
-
-        <Button variant="outline" className="w-full h-11 text-base" onClick={handleGoogleSignIn} disabled={loading || googleLoading}>
-            {googleLoading ? (
-                 <>
-                    <Loader2 className="mr-2 animate-spin" />
-                    Checking...
-                </>
-            ) : (
-                <>
-                    <GoogleIcon className="mr-2" />
-                    Log in with Google
-                </>
-            )}
-        </Button>
-
-      <p className="text-center text-sm text-muted-foreground">
-        Don&apos;t have an account?{' '}
-        <Link href="/signup" className="font-semibold text-primary hover:underline">
-          Sign up
-        </Link>
-      </p>
     </div>
   );
 }
