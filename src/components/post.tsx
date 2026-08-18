@@ -76,7 +76,7 @@ type PostProps = PostType & {
 
 type CommentType = PostType;
 
-function CommentEngagement({ parentPostId, commentId, initialLikes, onReplyClick }: { parentPostId: string, commentId: string, initialLikes: number, onReplyClick: () => void }) {
+function CommentEngagement({ parentPostId, commentId, initialLikes, onReplyClick }: { parentPostId: string, commentId: string, initialLikes: number, onReplyClick: (event: React.MouseEvent) => void }) {
     const { user } = useAuth();
     const { likeComment } = usePosts();
     const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
@@ -111,7 +111,9 @@ function CommentEngagement({ parentPostId, commentId, initialLikes, onReplyClick
     const handleReply = (e: React.MouseEvent) => {
       e.stopPropagation();
       e.preventDefault();
-      onReplyClick();
+      // The parent's handler wants the event too — it stops propagation of its
+      // own before opening the reply dialog.
+      onReplyClick(e);
     }
 
 

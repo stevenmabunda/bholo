@@ -133,7 +133,9 @@ const SidebarProvider = React.forwardRef<
         state,
         open,
         setOpen,
-        isMobile,
+        // undefined until the media query has been measured; consumers treat
+        // "not yet known" the same as "not mobile".
+        isMobile: isMobile ?? false,
         openMobile,
         setOpenMobile,
         toggleSidebar,

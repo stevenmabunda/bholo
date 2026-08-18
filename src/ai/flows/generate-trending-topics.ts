@@ -78,10 +78,6 @@ const generateTrendingTopicsFlow = ai.defineFlow(
     name: 'generateTrendingTopicsFlow',
     inputSchema: GenerateTrendingTopicsInputSchema,
     outputSchema: GenerateTrendingTopicsOutputSchema,
-    retry: {
-      delay: '2s',
-      maxAttempts: 3,
-    },
   },
   async input => {
     // If there are no topics, return an empty array to avoid calling the model with no input.
