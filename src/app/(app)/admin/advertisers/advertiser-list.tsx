@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -129,7 +130,12 @@ export function AdvertiserList({ initialAdvertisers }: { initialAdvertisers: Adv
             <div key={advertiser.id} className="flex items-center justify-between gap-4 p-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="truncate font-semibold">{advertiser.name}</p>
+                  <Link
+                    href={`/admin/advertisers/${advertiser.id}`}
+                    className="truncate font-semibold hover:underline"
+                  >
+                    {advertiser.name}
+                  </Link>
                   <span
                     className={cn(
                       'rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide',
