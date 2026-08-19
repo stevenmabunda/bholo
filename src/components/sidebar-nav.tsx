@@ -121,11 +121,19 @@ export function SidebarNav() {
                 <DialogTrigger asChild>
                   <Button className="w-full h-14 text-lg rounded-full">Kick-It!</Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[625px]">
-                  <DialogHeader>
+                {/* Bounded and a flex column, so the composer inside can do
+                    what it is already built to do: scroll its own body and keep
+                    the Kick-It! button pinned. DialogContent on its own is an
+                    unbounded grid centred by translate, so a long post grew the
+                    dialog past the viewport and pushed the button off the
+                    bottom — with no way to reach it but deleting text. The two
+                    mobile sheets already pass their own height; this one never
+                    did. */}
+                <DialogContent className="sm:max-w-[625px] max-h-[85vh] flex flex-col">
+                  <DialogHeader className="shrink-0">
                     <DialogTitle>Create a new post</DialogTitle>
                   </DialogHeader>
-                  <div className='-mx-6'>
+                  <div className='-mx-6 flex-1 min-h-0'>
                       <CreatePost onPost={handlePost} />
                   </div>
                 </DialogContent>
