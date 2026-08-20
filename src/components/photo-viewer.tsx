@@ -17,6 +17,9 @@ import { usePosts } from '@/contexts/post-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { getIsFollowing } from '@/app/(app)/profile/actions';
+import { useLiveComments } from '@/hooks/use-live-comments';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { formatTimestamp } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -57,6 +60,20 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
   const [followLoading, setFollowLoading] = useState(true);
   const [isShareOpen, setShareOpen] = useState(false);
   const [isLoginOpen, setLoginOpen] = useState(false);
+  /**
+   * Whether the conversation is showing.
+   *
+   * Two states, not a free drag: the photo has the screen, or the photo pulls
+   * back and the replies sit under it. On desktop the side panel shows them
+   * always, so this only governs the phone.
+   */
+  const [showComments, setShowComments] = useState(false);
+
+  // Nothing is subscribed until someone asks to read the thread — most photos
+  // are looked at and left.
+  const isDesktop = useIsMobile() === false;
+  const wantsComments = showComments || isDesktop;
+  const { comments, loading: commentsLoading } = useLiveComments(wantsComments ? post.id : null);
 
   const isLiked = likedPostIds.has(post.id);
   const isBookmarked = bookmarkedPostIds.has(post.id);
@@ -132,10 +149,13 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
 
   const counts = (
     <>
-      <Link href={`/post/${post.id}`} className="flex items-center gap-1.5 py-1.5 text-[13px] transition-colors hover:text-primary">
+      <button
+        onClick={() => setShowComments(v => !v)}
+        className={cn('flex items-center gap-1.5 py-1.5 text-[13px] transition-colors', showComments ? 'text-primary' : 'hover:text-primary')}
+      >
         <MessageCircle className="h-[18px] w-[18px]" />
         {formatCount(post.comments)}
-      </Link>
+      </button>
       <button onClick={handleRepost} className={cn('flex items-center gap-1.5 py-1.5 text-[13px] transition-colors', isReposted ? 'text-green-500' : 'hover:text-green-500')}>
         <Repeat className="h-[18px] w-[18px]" />
         {formatCount(repostCount)}
@@ -194,7 +214,15 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
           <X className="h-5 w-5" />
         </Button>
 
-        <div className="group/viewer relative min-h-0 w-full flex-1">
+        <div
+          className={cn(
+            'group/viewer relative w-full',
+            // Pulled back rather than pushed off: the photo stays on screen at
+            // a third of the height so you can still see what is being talked
+            // about while you read the replies.
+            showComments ? 'h-[34vh] shrink-0 md:h-auto md:flex-1' : 'min-h-0 flex-1'
+          )}
+        >
           <div className="h-full w-full overflow-hidden" ref={emblaRef}>
             <div className="flex h-full">
               {images.map((image, i) => (
@@ -231,7 +259,40 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
           )}
         </div>
 
-        {/* Mobile chrome: counts, then the reply field. */}
+        {/* The conversation, revealed under the photo. The caption comes back
+            here — it belongs with the replies, not over the picture. */}
+        {showComments && (
+          <div className="min-h-0 flex-1 overflow-y-auto bg-black md:hidden">
+            <div className="border-b border-neutral-800 px-4 py-3">
+              <p className="whitespace-pre-wrap text-sm text-white">{linkify(post.content)}</p>
+            </div>
+
+            {commentsLoading ? (
+              <p className="p-6 text-center text-sm text-neutral-500">Loading replies…</p>
+            ) : comments.length === 0 ? (
+              <p className="p-6 text-center text-sm text-neutral-500">No replies yet.</p>
+            ) : (
+              comments.map(c => (
+                <article key={c.id} className="flex gap-3 border-b border-neutral-800 px-4 py-3">
+                  <Avatar className="h-9 w-9 shrink-0">
+                    <AvatarImage src={c.authorAvatar} alt={c.authorName} />
+                    <AvatarFallback>{c.authorName.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm">
+                      <span className="font-bold text-white">{c.authorName}</span>{' '}
+                      <span className="text-neutral-500">@{c.authorHandle} · {formatTimestamp(new Date(c.createdAt))}</span>
+                    </p>
+                    <p className="mt-0.5 whitespace-pre-wrap text-sm text-neutral-200">{linkify(c.content)}</p>
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Mobile chrome: counts, then the reply field. Pinned under whichever
+            of the two states is showing. */}
         <div className="shrink-0 bg-black md:hidden">
           <div className="flex items-center justify-between px-3 py-2 text-neutral-400">{counts}</div>
 
@@ -276,6 +337,30 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
             <Link href={`/post/${post.id}`} className="block rounded-full bg-secondary px-4 py-2 text-sm text-muted-foreground hover:bg-accent">
               Post your reply
             </Link>
+          </div>
+
+          <div className="border-t">
+            {commentsLoading ? (
+              <p className="p-6 text-center text-sm text-muted-foreground">Loading replies…</p>
+            ) : comments.length === 0 ? (
+              <p className="p-6 text-center text-sm text-muted-foreground">No replies yet.</p>
+            ) : (
+              comments.map(c => (
+                <article key={c.id} className="flex gap-3 border-b p-4">
+                  <Avatar className="h-9 w-9 shrink-0">
+                    <AvatarImage src={c.authorAvatar} alt={c.authorName} />
+                    <AvatarFallback>{c.authorName.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm">
+                      <span className="font-bold">{c.authorName}</span>{' '}
+                      <span className="text-muted-foreground">@{c.authorHandle} · {formatTimestamp(new Date(c.createdAt))}</span>
+                    </p>
+                    <p className="mt-0.5 whitespace-pre-wrap text-sm">{linkify(c.content)}</p>
+                  </div>
+                </article>
+              ))
+            )}
           </div>
         </ScrollArea>
       </aside>
