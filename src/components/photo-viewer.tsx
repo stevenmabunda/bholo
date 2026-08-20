@@ -23,6 +23,8 @@ import { formatTimestamp } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { CreateComment } from '@/components/create-comment';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { FollowButton } from '@/components/follow-button';
 import { LoginOrSignupDialog } from '@/components/login-or-signup-dialog';
@@ -47,19 +49,23 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
   const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { likePost, repostPost, bookmarkPost, likedPostIds, bookmarkedPostIds } = usePosts();
+  const { likePost, repostPost, bookmarkPost, addComment, likedPostIds, bookmarkedPostIds } = usePosts();
 
   const images = useMemo(() => (post.media ?? []).filter(m => m.type === 'image'), [post.media]);
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, startIndex });
   const [index, setIndex] = useState(startIndex);
 
   const [likeCount, setLikeCount] = useState(post.likes);
+  // The count comes from the server row, so a reply sent from here left it
+  // reading the old number until the page was fetched again.
+  const [commentCount, setCommentCount] = useState(post.comments);
   const [repostCount, setRepostCount] = useState(post.reposts);
   const [isReposted, setIsReposted] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(true);
   const [isShareOpen, setShareOpen] = useState(false);
   const [isLoginOpen, setLoginOpen] = useState(false);
+  const [isReplyOpen, setReplyOpen] = useState(false);
   /**
    * Whether the conversation is showing.
    *
@@ -134,6 +140,29 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
     toast({ description: !isBookmarked ? 'Post bookmarked.' : 'Bookmark removed.' });
   });
 
+  const openReply = () => {
+    if (!user) { setLoginOpen(true); return; }
+    setReplyOpen(true);
+  };
+
+  const submitReply = async (data: { text: string; media: any[] }) => {
+    try {
+      const ok = await addComment(post.id, data);
+      if (ok) {
+        setReplyOpen(false);
+        setCommentCount(prev => prev + 1);
+        // Straight into the thread, so the reply is visible rather than
+        // announced. It arrives over realtime on its own.
+        setShowComments(true);
+        return true;
+      }
+      return null;
+    } catch {
+      toast({ variant: 'destructive', description: 'Failed to send reply.' });
+      return null;
+    }
+  };
+
   const postUrl = `${siteUrl}/post/${post.id}`;
   const shareText = `Check out this post on BHOLO: "${post.content.slice(0, 80)}${post.content.length > 80 ? '…' : ''}"`;
   const shareUrls = {
@@ -154,7 +183,7 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
         className={cn('flex items-center gap-1.5 py-1.5 text-[13px] transition-colors', showComments ? 'text-primary' : 'hover:text-primary')}
       >
         <MessageCircle className="h-[18px] w-[18px]" />
-        {formatCount(post.comments)}
+        {formatCount(commentCount)}
       </button>
       <button onClick={handleRepost} className={cn('flex items-center gap-1.5 py-1.5 text-[13px] transition-colors', isReposted ? 'text-green-500' : 'hover:text-green-500')}>
         <Repeat className="h-[18px] w-[18px]" />
@@ -301,10 +330,10 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
               <AvatarImage src={user?.user_metadata?.avatar_url} alt="" />
               <AvatarFallback>{(user?.email ?? '?').charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
-            <Link href={`/post/${post.id}`} className="flex min-w-0 flex-1 items-center gap-0.5 rounded-full bg-neutral-900 py-1 pl-4 pr-1.5">
+            <button onClick={openReply} className="flex min-w-0 flex-1 items-center gap-0.5 rounded-full bg-neutral-900 py-1 pl-4 pr-1.5">
               <span className="min-w-0 flex-1 truncate py-1.5 text-left text-sm text-neutral-500">Post your reply</span>
               <span className="shrink-0 rounded-full p-1.5 text-neutral-400"><Maximize2 className="h-[18px] w-[18px]" /></span>
-            </Link>
+            </button>
           </div>
         </div>
       </div>
@@ -334,9 +363,9 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
           <div className="flex items-center justify-around border-t px-4 py-2 text-muted-foreground">{counts}</div>
 
           <div className="border-t p-4">
-            <Link href={`/post/${post.id}`} className="block rounded-full bg-secondary px-4 py-2 text-sm text-muted-foreground hover:bg-accent">
+            <button onClick={openReply} className="block w-full rounded-full bg-secondary px-4 py-2 text-left text-sm text-muted-foreground hover:bg-accent">
               Post your reply
-            </Link>
+            </button>
           </div>
 
           <div className="border-t">
@@ -388,6 +417,21 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
           </div>
         </SheetContent>
       </Sheet>
+
+      <Dialog open={isReplyOpen} onOpenChange={setReplyOpen}>
+        <DialogContent className="max-h-[85vh] gap-0 overflow-y-auto p-0">
+          <DialogHeader className="border-b p-4">
+            <DialogTitle className="sr-only">Reply to post</DialogTitle>
+            <DialogClose />
+          </DialogHeader>
+          <div className="px-4 pt-4">
+            <p className="text-sm text-muted-foreground">
+              Replying to <span className="text-primary">@{post.authorHandle}</span>
+            </p>
+          </div>
+          <CreateComment onComment={submitReply} isDialog />
+        </DialogContent>
+      </Dialog>
 
       <LoginOrSignupDialog isOpen={isLoginOpen} onOpenChange={setLoginOpen} />
     </div>
