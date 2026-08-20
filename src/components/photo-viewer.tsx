@@ -23,7 +23,6 @@ import { formatTimestamp } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { CreateComment } from '@/components/create-comment';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { FollowButton } from '@/components/follow-button';
@@ -312,7 +311,19 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
                       <span className="font-bold text-white">{c.authorName}</span>{' '}
                       <span className="text-neutral-500">@{c.authorHandle} · {formatTimestamp(new Date(c.createdAt))}</span>
                     </p>
-                    <p className="mt-0.5 whitespace-pre-wrap text-sm text-neutral-200">{linkify(c.content)}</p>
+                    {c.content && <p className="mt-0.5 whitespace-pre-wrap text-sm text-neutral-200">{linkify(c.content)}</p>}
+                    {c.media?.length > 0 && (
+                      <div className="mt-2 overflow-hidden rounded-xl border border-neutral-800">
+                        {c.media[0].type === 'video' ? (
+                          <video src={c.media[0].url ?? ''} className="max-h-64 w-auto" controls playsInline />
+                        ) : (
+                          // GIFs and stickers are remote Giphy URLs of unknown
+                          // size, so this is a plain img rather than next/image.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={c.media[0].url ?? ''} alt="" className="max-h-64 w-auto object-contain" />
+                        )}
+                      </div>
+                    )}
                   </div>
                 </article>
               ))
@@ -385,7 +396,19 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
                       <span className="font-bold">{c.authorName}</span>{' '}
                       <span className="text-muted-foreground">@{c.authorHandle} · {formatTimestamp(new Date(c.createdAt))}</span>
                     </p>
-                    <p className="mt-0.5 whitespace-pre-wrap text-sm">{linkify(c.content)}</p>
+                    {c.content && <p className="mt-0.5 whitespace-pre-wrap text-sm">{linkify(c.content)}</p>}
+                    {c.media?.length > 0 && (
+                      <div className="mt-2 overflow-hidden rounded-xl border ">
+                        {c.media[0].type === 'video' ? (
+                          <video src={c.media[0].url ?? ''} className="max-h-64 w-auto" controls playsInline />
+                        ) : (
+                          // GIFs and stickers are remote Giphy URLs of unknown
+                          // size, so this is a plain img rather than next/image.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={c.media[0].url ?? ''} alt="" className="max-h-64 w-auto object-contain" />
+                        )}
+                      </div>
+                    )}
                   </div>
                 </article>
               ))
@@ -418,20 +441,40 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
         </SheetContent>
       </Sheet>
 
-      <Dialog open={isReplyOpen} onOpenChange={setReplyOpen}>
-        <DialogContent className="max-h-[85vh] gap-0 overflow-y-auto p-0">
-          <DialogHeader className="border-b p-4">
-            <DialogTitle className="sr-only">Reply to post</DialogTitle>
-            <DialogClose />
-          </DialogHeader>
-          <div className="px-4 pt-4">
-            <p className="text-sm text-muted-foreground">
-              Replying to <span className="text-primary">@{post.authorHandle}</span>
-            </p>
+      {/* A plain overlay rather than a Dialog.
+
+          The composer carries GIF, sticker and emoji pickers, and every one of
+          them is a Popover that portals to document.body. Inside a modal
+          Dialog that portal lands outside the dialog's own subtree, so the
+          focus trap treats the picker as an outside click and shuts it the
+          instant it opens — which is why GIF search flashed and vanished here
+          but works on the post page, where the same composer is rendered
+          inline.
+
+          Absolutely positioned inside the viewer rather than fixed, so the
+          pickers — which portal to the body at the same z-index and later in
+          the document — still paint above it. */}
+      {isReplyOpen && (
+        <div
+          className="absolute inset-0 z-30 flex items-end justify-center bg-black/70 md:items-center"
+          onClick={() => setReplyOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-t-2xl bg-background md:rounded-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b px-4 py-3">
+              <p className="text-sm text-muted-foreground">
+                Replying to <span className="text-primary">@{post.authorHandle}</span>
+              </p>
+              <button onClick={() => setReplyOpen(false)} aria-label="Close" className="text-muted-foreground hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <CreateComment onComment={submitReply} isDialog />
           </div>
-          <CreateComment onComment={submitReply} isDialog />
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
       <LoginOrSignupDialog isOpen={isLoginOpen} onOpenChange={setLoginOpen} />
     </div>
