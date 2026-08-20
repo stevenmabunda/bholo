@@ -3,11 +3,11 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { MessageCircle, Repeat, Heart, Share2, MoreHorizontal, Edit, Trash2, Bookmark, Copy, X, ChevronLeft, ChevronRight, Check, Play, Pause, Volume2, VolumeX, Sparkles, BarChart3, Maximize2 } from "lucide-react";
+import { MessageCircle, Repeat, Heart, Share2, MoreHorizontal, Edit, Trash2, Bookmark, Copy, X, ChevronLeft, Check, Play, Pause, Volume2, VolumeX, Sparkles } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect, useCallback, memo } from "react";
-import { cn, linkify, formatTimestamp, formatDetailedTimestamp } from "@/lib/utils";
+import { cn, linkify, formatDetailedTimestamp } from "@/lib/utils";
 import { findFirstYoutubeVideoId } from "@/lib/youtube";
 import { YoutubeEmbed } from "@/components/youtube-embed";
 import { useQueryClient } from "@tanstack/react-query";
@@ -54,17 +54,15 @@ import { Textarea } from "./ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { FollowButton } from "./follow-button";
 import { getIsFollowing } from "@/app/(app)/profile/actions";
-import { ScrollArea } from "./ui/scroll-area";
 import { CreateComment } from "./create-comment";
-import { useLiveComments } from '@/hooks/use-live-comments';
 import { Skeleton } from "./ui/skeleton";
-import useEmblaCarousel from 'embla-carousel-react';
 import { LoginOrSignupDialog } from "./login-or-signup-dialog";
 import { ProfileHoverCard } from "./profile-hover-card";
 import { AskAiDialog } from "./ask-ai-dialog";
 import { useTabContext } from "@/contexts/tab-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { siteUrl } from "@/lib/site";
+import { XIcon, FacebookIcon, WhatsAppIcon } from "@/components/icons";
 import { feedAspect, PORTRAIT_THRESHOLD } from "@/lib/media-aspect";
 import { saveScrollPosition as savePosition } from "@/lib/scroll-position";
 
@@ -136,17 +134,6 @@ function CommentEngagement({ parentPostId, commentId, initialLikes, onReplyClick
         </div>
     );
 }
-
-// Helper components for social icons (current brand marks, kept monochrome via currentColor to match the app's icon style)
-const XIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}><path d="M14.234 10.162 22.977 0h-2.072l-7.591 8.824L7.251 0H.258l9.168 13.343L.258 24H2.33l8.016-9.318L16.749 24h6.993zm-2.837 3.299-.929-1.329L3.076 1.56h3.182l5.965 8.532.929 1.329 7.754 11.09h-3.182z" /></svg>
-);
-const FacebookIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}><path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z" /></svg>
-);
-const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" /></svg>
-);
 
 /** 3.9K, 400K — the way X writes counts once they stop fitting. */
 const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
@@ -321,17 +308,6 @@ function Comment({ comment, parentPostId, onReplyClick }: { comment: CommentType
   )
 }
 
-function CommentSkeleton() {
-  return (
-      <div className="flex space-x-3 md:space-x-4 p-3 md:p-4">
-          <Skeleton className="h-10 w-10 rounded-full" />
-          <div className="flex-1 space-y-2">
-              <Skeleton className="h-4 w-3/5" />
-              <Skeleton className="h-4 w-4/5" />
-          </div>
-      </div>
-  )
-}
 
 
 function PostComponent(props: PostProps) {
@@ -374,30 +350,9 @@ function PostComponent(props: PostProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isAskAiOpen, setIsAskAiOpen] = useState(false);
   const [isShareSheetOpen, setShareSheetOpen] = useState(false);
-  // The viewer needs its own, because the card's share sheet is still mounted
-  // behind it. Both were reading isShareSheetOpen, so sharing from the open
-  // viewer rendered two identical sheets on top of each other.
-  const [isViewerShareOpen, setViewerShareOpen] = useState(false);
   const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false);
 
-  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
-  const [imageViewerStartIndex, setImageViewerStartIndex] = useState(0);
 
-  // Only the desktop viewer shows the thread; on mobile this would be a live
-  // subscription feeding nothing on screen.
-  const { comments: liveComments, loading: loadingComments } = useLiveComments(isImageViewerOpen && !isMobile ? id : null);
-  const comments: CommentType[] = liveComments.map(c => ({
-    id: c.id,
-    authorId: c.authorId,
-    authorName: c.authorName,
-    authorHandle: c.authorHandle,
-    authorAvatar: c.authorAvatar,
-    content: c.content,
-    timestamp: formatTimestamp(new Date(c.createdAt)),
-    media: c.media.map(m => ({ ...m, url: m.url ?? '' })),
-    comments: 0, reposts: 0, likes: c.likes,
-  }));
-  
   const [isExpanded, setIsExpanded] = useState(false);
   
   const [isFollowing, setIsFollowing] = useState(false);
@@ -425,26 +380,6 @@ function PostComponent(props: PostProps) {
   const progressRef = useRef<HTMLDivElement>(null);
 
   const isAuthor = user && user.id === authorId;
-
-  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, startIndex: imageViewerStartIndex });
-  const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
-  const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
-  
-  useEffect(() => {
-    if (emblaApi) {
-        emblaApi.scrollTo(imageViewerStartIndex, true); 
-    }
-  }, [emblaApi, imageViewerStartIndex, isImageViewerOpen]);
-
-  // Which image the viewer is on, for the dots.
-  const [viewerIndex, setViewerIndex] = useState(0);
-  useEffect(() => {
-    if (!emblaApi) return;
-    const sync = () => setViewerIndex(emblaApi.selectedScrollSnap());
-    sync();
-    emblaApi.on('select', sync);
-    return () => { emblaApi.off('select', sync); };
-  }, [emblaApi, isImageViewerOpen]);
 
   useEffect(() => {
     // Posts uploaded since poster capture landed already carry a still, so
@@ -549,11 +484,10 @@ function PostComponent(props: PostProps) {
   }
 
 
-  // Only the standalone post and the open image viewer actually render a
-  // follow button. Fetching this unconditionally meant one server round trip
-  // per card in the feed for a value nothing displayed — twenty posts, twenty
-  // requests, all discarded.
-  const needsFollowState = isStandalone || isImageViewerOpen;
+  // Only the standalone post renders a follow button. Fetching this
+  // unconditionally meant one server round trip per card in the feed for a
+  // value nothing displayed — twenty posts, twenty requests, all discarded.
+  const needsFollowState = isStandalone;
 
   useEffect(() => {
     if (!needsFollowState) return;
@@ -701,10 +635,15 @@ function PostComponent(props: PostProps) {
     }
   };
 
+  /**
+   * The photo has its own address now, so this is a navigation rather than a
+   * piece of local state. That is what makes the phone's back button close it,
+   * and what lets a photo be linked to.
+   */
   const openImageViewer = (e: React.MouseEvent, index: number) => {
     e.stopPropagation();
-    setImageViewerStartIndex(index);
-    setIsImageViewerOpen(true);
+    saveScrollPosition();
+    router.push(`/post/${id}/photo/${index}`);
   };
 
   const handleMuteToggle = (e: React.MouseEvent) => {
@@ -974,7 +913,7 @@ function PostComponent(props: PostProps) {
                       ? { aspectRatio: String(feedAspect(media[0].width, media[0].height)) }
                       : { maxHeight: 500 }
                   }
-                  onClick={(e) => { if (isStandalone) { openImageViewer(e, 0); } else { e.stopPropagation(); handlePostClick(); } }}
+                  onClick={(e) => openImageViewer(e, 0)}
               >
                   <Image
                       src={media[0].url}
@@ -998,7 +937,7 @@ function PostComponent(props: PostProps) {
                    item.url && <div 
                       key={index} 
                       className={cn("relative cursor-pointer", imageCount === 3 && index === 0 && "row-span-2")}
-                      onClick={(e) => { if (isStandalone) { openImageViewer(e, index); } else { e.stopPropagation(); handlePostClick(); } }}
+                      onClick={(e) => openImageViewer(e, index)}
                   >
                     <Image
                       src={item.url}
@@ -1137,273 +1076,6 @@ function PostComponent(props: PostProps) {
               </AlertDialogContent>
           </AlertDialog>
           <ReplyDialog post={props} onReply={handleCreateComment} open={isReplyDialogOpen} onOpenChange={setIsReplyDialogOpen} />
-           <Dialog open={isImageViewerOpen} onOpenChange={setIsImageViewerOpen}>
-                <DialogContent
-                    className={cn(
-                        "max-w-none w-screen h-[100dvh] bg-black border-none shadow-none p-0 flex flex-col md:flex-row",
-                        // DialogContent always renders its own close button. On a
-                        // phone that put an X in one corner and our back chevron in
-                        // the other — two controls for one job. It is the only
-                        // direct child button here, so this hides it on mobile and
-                        // leaves the desktop viewer, which has no back control, as
-                        // it was.
-                        "[&>button]:hidden md:[&>button]:block"
-                    )}
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <DialogTitle className="sr-only">Image Viewer</DialogTitle>
-
-                    <div className="flex-1 flex flex-col min-h-0 md:h-full relative">
-                        {/* One row on a solid bar, above the picture rather than
-                            over it: back, author, follow. The old header floated
-                            two rows of controls on a gradient across the top of
-                            the image, so the thing you tapped to look at opened
-                            with its top third covered. */}
-                        <div className="md:hidden flex shrink-0 items-center gap-3 bg-black px-1 py-2">
-                            <DialogClose asChild>
-                                <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 text-white hover:bg-white/10 hover:text-white">
-                                    <ChevronLeft className="h-6 w-6" />
-                                </Button>
-                            </DialogClose>
-
-                            <Link
-                                href={`/profile/${authorId}`}
-                                className="flex min-w-0 flex-1 items-center gap-2"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <Avatar className="h-9 w-9 shrink-0">
-                                    <AvatarImage src={authorAvatar} alt={authorName} />
-                                    <AvatarFallback>{authorName.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <div className="min-w-0 leading-tight">
-                                    <p className="truncate text-sm font-bold text-white">{authorName}</p>
-                                    <p className="truncate text-xs text-neutral-400">@{authorHandle}</p>
-                                </div>
-                            </Link>
-
-                            {!isAuthor && user && (
-                                <FollowButton
-                                    profileId={authorId}
-                                    isFollowing={isFollowing}
-                                    isLoading={followLoading}
-                                    onToggleFollow={setIsFollowing}
-                                />
-                            )}
-                        </div>
-
-                        <div className="relative flex-1 min-h-0 w-full group/viewer">
-                            <div className="overflow-hidden w-full h-full" ref={emblaRef}>
-                                <div className="flex h-full">
-                                    {media?.filter(m => m.type === 'image').map((image, index) => (
-                                        <div key={index} className="flex-[0_0_100%] min-w-0 relative">
-                                            <Image
-                                                src={image.url}
-                                                alt={`Enlarged view of post image ${index + 1}`}
-                                                width={image.width || 1200}
-                                                height={image.height || 1200}
-                                                className="w-full h-full object-contain"
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            {/* Desktop only. On a phone the carousel already
-                                swipes, so these sat on top of the picture
-                                competing with the thing you opened it to look
-                                at. A mouse has no swipe, so they stay where
-                                there is no other way through. */}
-                            {imageCount > 1 && (
-                                <>
-                                    <Button variant="ghost" size="icon" className="hidden md:inline-flex absolute left-2 md:left-4 top-1/2 -translate-y-1/2 text-white h-10 w-10 bg-black/30 hover:bg-black/50 hover:text-white rounded-full opacity-50 group-hover/viewer:opacity-100 transition-opacity" onClick={scrollPrev}>
-                                        <ChevronLeft className="h-6 w-6"/>
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="hidden md:inline-flex absolute right-2 md:right-4 top-1/2 -translate-y-1/2 text-white h-10 w-10 bg-black/30 hover:bg-black/50 hover:text-white rounded-full opacity-50 group-hover/viewer:opacity-100 transition-opacity" onClick={scrollNext}>
-                                        <ChevronRight className="h-6 w-6"/>
-                                    </Button>
-
-                                    {/* Says there is more than one picture, and
-                                        which one you are on — the only thing
-                                        the removed arrows were still doing on a
-                                        phone. Not buttons: at this size they
-                                        would be a smaller tap target than the
-                                        swipe they replace. */}
-                                    <div
-                                        className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-black/40 px-2.5 py-1.5 backdrop-blur-sm"
-                                        aria-hidden
-                                    >
-                                        {media?.filter(m => m.type === 'image').map((_, index) => (
-                                            <span
-                                                key={index}
-                                                className={cn(
-                                                    'h-1.5 w-1.5 rounded-full transition-colors',
-                                                    index === viewerIndex ? 'bg-white' : 'bg-white/40'
-                                                )}
-                                            />
-                                        ))}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-
-                        {/* The counts and the reply box, on black, under the
-                            picture — the whole of the mobile chrome. What used to
-                            sit here was the desktop side panel folded into a 40vh
-                            drawer: caption, buttons, a reply composer with five
-                            coloured icons and a filled Reply button, and the entire
-                            comment thread, all competing under the image.
-
-                            X shows the photo, one muted row of counts, and a reply
-                            field. Reading the thread is what the post page is for,
-                            and every icon here still leads there. */}
-                        <div className="md:hidden shrink-0 bg-black">
-                            <div className="flex items-center justify-between px-3 py-2 text-neutral-400">
-                                <button onClick={handleCommentClick} className="flex items-center gap-1.5 py-1.5 text-[13px] transition-colors hover:text-primary">
-                                    <MessageCircle className="h-[18px] w-[18px]" />
-                                    {formatCount(commentCount)}
-                                </button>
-                                <button onClick={handleActionClick(handleRepost)} className={cn("flex items-center gap-1.5 py-1.5 text-[13px] transition-colors", isReposted ? 'text-green-500' : 'hover:text-green-500')}>
-                                    <Repeat className="h-[18px] w-[18px]" />
-                                    {formatCount(repostCount)}
-                                </button>
-                                <button onClick={handleActionClick(handleLike)} className={cn("flex items-center gap-1.5 py-1.5 text-[13px] transition-colors", isLiked ? 'text-red-500' : 'hover:text-red-500')}>
-                                    <Heart className={cn("h-[18px] w-[18px]", isLiked && 'fill-current')} />
-                                    {formatCount(likeCount)}
-                                </button>
-                                {!!views && (
-                                    <span className="flex items-center gap-1.5 py-1.5 text-[13px]">
-                                        <BarChart3 className="h-[18px] w-[18px]" />
-                                        {formatCount(views)}
-                                    </span>
-                                )}
-                                <button onClick={handleActionClick(handleBookmark)} className={cn("py-1.5 transition-colors", isBookmarked ? 'text-primary' : 'hover:text-primary')}>
-                                    <Bookmark className={cn("h-[18px] w-[18px]", isBookmarked && 'fill-current')} />
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); setViewerShareOpen(true); }} className="py-1.5 transition-colors hover:text-primary">
-                                    <Share2 className="h-[18px] w-[18px]" />
-                                </button>
-                            </div>
-
-                            {/* One field, with the controls inside it — X puts the
-                                photo, GIF and expand icons in the pill rather than
-                                loose on the bar beside a smaller box.
-
-                                Each one opens the composer already on the picker it
-                                names. They used to all open an empty text box, so
-                                tapping the GIF icon looked like it had done nothing. */}
-                            <div className="flex items-center gap-2 border-t border-neutral-800 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
-                                <Avatar className="h-9 w-9 shrink-0">
-                                    <AvatarImage src={user?.user_metadata?.avatar_url} alt="" />
-                                    <AvatarFallback>{(user?.email ?? '?').charAt(0).toUpperCase()}</AvatarFallback>
-                                </Avatar>
-
-                                <div className="flex min-w-0 flex-1 items-center gap-0.5 rounded-full bg-neutral-900 py-1 pl-4 pr-1.5">
-                                    <button
-                                        onClick={handleCommentClick}
-                                        className="min-w-0 flex-1 truncate py-1.5 text-left text-sm text-neutral-500"
-                                    >
-                                        Post your reply
-                                    </button>
-                                    <button onClick={handleCommentClick} className="shrink-0 rounded-full p-1.5 text-neutral-400" aria-label="Open the full reply composer">
-                                        <Maximize2 className="h-[18px] w-[18px]" />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <aside className="hidden md:flex w-full md:w-[380px] md:h-full bg-background flex-col overflow-y-hidden flex-shrink-0 md:max-h-full">
-                        <div className="flex-1 flex flex-col min-h-0">
-                            <ScrollArea className="flex-1">
-                                <div className="p-3 md:p-4">
-                                     <div className="hidden md:flex items-center gap-3">
-                                        <Link href={`/profile/${authorId}`} className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                                            <Avatar>
-                                                <AvatarImage src={authorAvatar} alt={authorName} data-ai-hint="user avatar" />
-                                                <AvatarFallback>{authorName.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                        </Link>
-                                        <div className="flex-1 min-w-0 flex items-center gap-2 overflow-hidden">
-                                            <Link href={`/profile/${authorId}`} className="font-bold hover:underline truncate" onClick={(e) => e.stopPropagation()}>
-                                                {authorName}
-                                            </Link>
-                                            <span className="text-sm text-muted-foreground truncate flex-shrink-0">@{authorHandle}</span>
-                                        </div>
-                                    </div>
-                                    <p className="mt-2 whitespace-pre-wrap text-sm">{linkify(content)}</p>
-                                </div>
-                                <div className="border-t px-3 md:px-4 py-2 flex items-center justify-around text-muted-foreground">
-                                    <Button variant="ghost" size="sm" className="flex items-center gap-2 hover:text-primary" onClick={handleCommentClick}>
-                                        <MessageCircle className="h-5 w-5" />
-                                        <span>{commentCount > 0 ? commentCount : ''}</span>
-                                    </Button>
-                                    <Button variant="ghost" size="sm" className={cn("flex items-center gap-2", isReposted ? 'text-green-500' : 'hover:text-green-500')} onClick={handleActionClick(handleRepost)}>
-                                        <Repeat className="h-5 w-5" />
-                                        <span>{repostCount > 0 ? repostCount : ''}</span>
-                                    </Button>
-                                    <Button variant="ghost" size="sm" className={cn("flex items-center gap-2", isLiked ? 'text-red-500' : 'hover:text-red-500')} onClick={handleActionClick(handleLike)}>
-                                        <Heart className={cn("h-5 w-5", isLiked && 'fill-current')} />
-                                        <span>{likeCount > 0 ? likeCount : ''}</span>
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className={cn("hover:text-primary", isBookmarked && "text-primary")} onClick={handleActionClick(handleBookmark)}>
-                                        <Bookmark className={cn("h-5 w-5", isBookmarked && 'fill-current')} />
-                                    </Button>
-                                    <Sheet open={isViewerShareOpen} onOpenChange={setViewerShareOpen}>
-                                        <SheetTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="hover:text-primary" onClick={(e) => e.stopPropagation()}>
-                                                <Share2 className="h-5 w-5" />
-                                            </Button>
-                                        </SheetTrigger>
-                                        <SheetContent side="bottom" className="rounded-t-lg" onClick={(e) => e.stopPropagation()}>
-                                            <SheetHeader>
-                                                <SheetTitle>Share Post</SheetTitle>
-                                            </SheetHeader>
-                                            <div className="grid grid-cols-4 gap-4 py-4">
-                                                <a href={getShareUrl('twitter')} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-2 text-center group">
-                                                    <div className="h-14 w-14 rounded-full bg-secondary flex items-center justify-center group-hover:bg-accent">
-                                                        <XIcon className="h-7 w-7" />
-                                                    </div>
-                                                    <span className="text-xs">X</span>
-                                                </a>
-                                                <a href={getShareUrl('facebook')} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-2 text-center group">
-                                                    <div className="h-14 w-14 rounded-full bg-secondary flex items-center justify-center group-hover:bg-accent">
-                                                        <FacebookIcon className="h-7 w-7" />
-                                                    </div>
-                                                    <span className="text-xs">Facebook</span>
-                                                </a>
-                                                <a href={getShareUrl('whatsapp')} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-2 text-center group">
-                                                    <div className="h-14 w-14 rounded-full bg-secondary flex items-center justify-center group-hover:bg-accent">
-                                                        <WhatsAppIcon className="h-7 w-7" />
-                                                    </div>
-                                                    <span className="text-xs">WhatsApp</span>
-                                                </a>
-                                                <button onClick={handleCopyLink} className="flex flex-col items-center gap-2 text-center group">
-                                                    <div className="h-14 w-14 rounded-full bg-secondary flex items-center justify-center group-hover:bg-accent">
-                                                        <Copy className="h-7 w-7" />
-                                                    </div>
-                                                    <span className="text-xs">Copy Link</span>
-                                                </button>
-                                            </div>
-                                        </SheetContent>
-                                    </Sheet>
-                                </div>
-
-                                <div className="border-t">
-                                     <CreateComment onComment={handleCreateComment} isDialog={true} />
-                                </div>
-                                <div className="divide-y divide-border border-t">
-                                    {loadingComments ? (
-                                        Array.from({length: 3}).map((_, i) => <CommentSkeleton key={i} />)
-                                    ) : comments.length > 0 ? (
-                                        comments.map((comment) => <Post key={`comment-${comment.id}`} {...comment} isReplyView={true} parentPostId={id}/>)
-                                    ) : (
-                                        <p className="p-8 text-center text-muted-foreground text-sm">No comments yet.</p>
-                                    )}
-                                </div>
-                            </ScrollArea>
-                        </div>
-                    </aside>
-                </DialogContent>
-            </Dialog>
             <LoginOrSignupDialog isOpen={isLoginDialogOpen} onOpenChange={setIsLoginDialogOpen} />
             <AskAiDialog
                 open={isAskAiOpen}

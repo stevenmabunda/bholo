@@ -9,7 +9,13 @@ import { MobileBottomNav } from '@/components/mobile-bottom-nav';
 import { isPublicPath } from '@/lib/public-paths';
 import { useEffect } from 'react';
 
-export default function AppLayout({ children }: { children: ReactNode }) {
+/**
+ * `modal` is the parallel slot the photo viewer renders into. Navigating to a
+ * photo from inside the app fills it and leaves the feed mounted underneath;
+ * opening the same URL cold has nothing to intercept and renders the page
+ * itself. Either way the photo is a real address, so back closes it.
+ */
+export default function AppLayout({ children, modal }: { children: ReactNode; modal: ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   // The middleware has already turned away anyone who should not be here. This
@@ -63,6 +69,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
       {/* Already md:hidden internally. */}
       <MobileBottomNav />
+
+      {modal}
     </>
   );
 }
