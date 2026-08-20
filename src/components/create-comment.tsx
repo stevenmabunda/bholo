@@ -3,7 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
 import { Image as ImageIcon, Film, X, Loader2, Smile, Clapperboard, Sticker } from "lucide-react";
@@ -40,13 +40,7 @@ const EMOJIS = [
 
 
 
-/**
- * What the composer should open with, when it was reached by tapping a specific
- * control rather than the reply field itself.
- */
-export type ReplyIntent = 'image' | 'gif' | null;
-
-export function CreateComment({ onComment, isDialog = false, autoOpen = null }: { onComment: (data: { text: string; media: ReplyMedia[] }) => Promise<any>, isDialog?: boolean, autoOpen?: ReplyIntent }) {
+export function CreateComment({ onComment, isDialog = false }: { onComment: (data: { text: string; media: ReplyMedia[] }) => Promise<any>, isDialog?: boolean }) {
   const { user } = useAuth();
   const { profile } = useProfile();
   const { toast } = useToast();
@@ -59,24 +53,6 @@ export function CreateComment({ onComment, isDialog = false, autoOpen = null }: 
 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
-
-  /**
-   * Tapping the image or GIF control on a post opens this composer, and the
-   * point of tapping those rather than the reply field is to get to a picker.
-   * Landing on an empty text box instead means the control did nothing.
-   *
-   * The file input needs a user gesture to open. It still has one: browsers
-   * keep a click "active" for a few seconds, and this runs immediately after
-   * the tap that mounted the dialog.
-   */
-  useEffect(() => {
-    if (!autoOpen) return;
-    if (autoOpen === 'gif') {
-      setIsGifPopoverOpen(true);
-      return;
-    }
-    imageInputRef.current?.click();
-  }, [autoOpen]);
   
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);

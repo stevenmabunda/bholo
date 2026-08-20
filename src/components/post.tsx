@@ -3,7 +3,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { MessageCircle, Repeat, Heart, Share2, MoreHorizontal, Edit, Trash2, Bookmark, Copy, X, ChevronLeft, ChevronRight, Check, Play, Pause, Volume2, VolumeX, Sparkles, BarChart3, ImageIcon, Maximize2 } from "lucide-react";
+import { MessageCircle, Repeat, Heart, Share2, MoreHorizontal, Edit, Trash2, Bookmark, Copy, X, ChevronLeft, ChevronRight, Check, Play, Pause, Volume2, VolumeX, Sparkles, BarChart3, Maximize2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect, useCallback, memo } from "react";
@@ -55,7 +55,7 @@ import { useToast } from "@/hooks/use-toast";
 import { FollowButton } from "./follow-button";
 import { getIsFollowing } from "@/app/(app)/profile/actions";
 import { ScrollArea } from "./ui/scroll-area";
-import { CreateComment, type ReplyIntent } from "./create-comment";
+import { CreateComment } from "./create-comment";
 import { useLiveComments } from '@/hooks/use-live-comments';
 import { Skeleton } from "./ui/skeleton";
 import useEmblaCarousel from 'embla-carousel-react';
@@ -155,7 +155,7 @@ function formatCount(n?: number): string {
   return n < 1000 ? String(n) : compact.format(n);
 }
 
-function ReplyDialog({ post, onReply, open, onOpenChange, autoOpen = null }: { post: PostType, onReply: (data: { text: string; media: any[] }) => Promise<boolean | null>, open: boolean, onOpenChange: (open: boolean) => void, autoOpen?: ReplyIntent }) {
+function ReplyDialog({ post, onReply, open, onOpenChange }: { post: PostType, onReply: (data: { text: string; media: any[] }) => Promise<boolean | null>, open: boolean, onOpenChange: (open: boolean) => void }) {
     const { toast } = useToast();
     const router = useRouter();
 
@@ -209,7 +209,7 @@ function ReplyDialog({ post, onReply, open, onOpenChange, autoOpen = null }: { p
                         </div>
                     </div>
                 </div>
-                <CreateComment onComment={handleCreateReply} isDialog={true} autoOpen={autoOpen} />
+                <CreateComment onComment={handleCreateReply} isDialog={true} />
             </DialogContent>
         </Dialog>
     );
@@ -379,9 +379,6 @@ function PostComponent(props: PostProps) {
   // viewer rendered two identical sheets on top of each other.
   const [isViewerShareOpen, setViewerShareOpen] = useState(false);
   const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false);
-  // Which picker the reply composer should open with, set by whichever control
-  // was tapped to get there.
-  const [replyIntent, setReplyIntent] = useState<ReplyIntent>(null);
 
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   const [imageViewerStartIndex, setImageViewerStartIndex] = useState(0);
@@ -621,16 +618,12 @@ function PostComponent(props: PostProps) {
       }
   }
 
-  const handleCommentClick = (e: React.MouseEvent) => openReply(null)(e);
-
-  /** Opens the reply composer, optionally straight onto a picker. */
-  const openReply = (intent: ReplyIntent) => (e: React.MouseEvent) => {
+  const handleCommentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user) {
         setIsLoginDialogOpen(true);
         return;
     }
-    setReplyIntent(intent);
     setIsReplyDialogOpen(true);
   };
 
@@ -1152,7 +1145,7 @@ function PostComponent(props: PostProps) {
                   </AlertDialogFooter>
               </AlertDialogContent>
           </AlertDialog>
-          <ReplyDialog post={props} onReply={handleCreateComment} open={isReplyDialogOpen} onOpenChange={setIsReplyDialogOpen} autoOpen={replyIntent} />
+          <ReplyDialog post={props} onReply={handleCreateComment} open={isReplyDialogOpen} onOpenChange={setIsReplyDialogOpen} />
            <Dialog open={isImageViewerOpen} onOpenChange={setIsImageViewerOpen}>
                 <DialogContent
                     className={cn(
@@ -1318,12 +1311,6 @@ function PostComponent(props: PostProps) {
                                         className="min-w-0 flex-1 truncate py-1.5 text-left text-sm text-neutral-500"
                                     >
                                         Post your reply
-                                    </button>
-                                    <button onClick={openReply('image')} className="shrink-0 rounded-full p-1.5 text-neutral-400" aria-label="Reply with a photo">
-                                        <ImageIcon className="h-[18px] w-[18px]" />
-                                    </button>
-                                    <button onClick={openReply('gif')} className="shrink-0 rounded-full p-1.5 text-neutral-400" aria-label="Reply with a GIF">
-                                        <span className="block rounded border border-current px-1 text-[9px] font-bold leading-[14px]">GIF</span>
                                     </button>
                                     <button onClick={handleCommentClick} className="shrink-0 rounded-full p-1.5 text-neutral-400" aria-label="Open the full reply composer">
                                         <Maximize2 className="h-[18px] w-[18px]" />
