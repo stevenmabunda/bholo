@@ -3,7 +3,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { MessageCircle, Repeat, Heart, Share2, MoreHorizontal, Edit, Trash2, Bookmark, Copy, X, ChevronLeft, ChevronRight, Check, Play, Pause, Volume2, VolumeX, Sparkles } from "lucide-react";
+import { MessageCircle, Repeat, Heart, Share2, MoreHorizontal, Edit, Trash2, Bookmark, Copy, X, ChevronLeft, ChevronRight, Check, Play, Pause, Volume2, VolumeX, Sparkles, BarChart3, ImageIcon, Maximize2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect, useCallback, memo } from "react";
@@ -147,6 +147,13 @@ const FacebookIcon = (props: React.SVGProps<SVGSVGElement>) => (
 const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" /></svg>
 );
+
+/** 3.9K, 400K — the way X writes counts once they stop fitting. */
+const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
+function formatCount(n?: number): string {
+  if (!n) return '';
+  return n < 1000 ? String(n) : compact.format(n);
+}
 
 function ReplyDialog({ post, onReply, open, onOpenChange }: { post: PostType, onReply: (data: { text: string; media: any[] }) => Promise<boolean | null>, open: boolean, onOpenChange: (open: boolean) => void }) {
     const { toast } = useToast();
@@ -367,12 +374,18 @@ function PostComponent(props: PostProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isAskAiOpen, setIsAskAiOpen] = useState(false);
   const [isShareSheetOpen, setShareSheetOpen] = useState(false);
+  // The viewer needs its own, because the card's share sheet is still mounted
+  // behind it. Both were reading isShareSheetOpen, so sharing from the open
+  // viewer rendered two identical sheets on top of each other.
+  const [isViewerShareOpen, setViewerShareOpen] = useState(false);
   const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false);
 
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   const [imageViewerStartIndex, setImageViewerStartIndex] = useState(0);
 
-  const { comments: liveComments, loading: loadingComments } = useLiveComments(isImageViewerOpen ? id : null);
+  // Only the desktop viewer shows the thread; on mobile this would be a live
+  // subscription feeding nothing on screen.
+  const { comments: liveComments, loading: loadingComments } = useLiveComments(isImageViewerOpen && !isMobile ? id : null);
   const comments: CommentType[] = liveComments.map(c => ({
     id: c.id,
     authorId: c.authorId,
@@ -1135,49 +1148,59 @@ function PostComponent(props: PostProps) {
           <ReplyDialog post={props} onReply={handleCreateComment} open={isReplyDialogOpen} onOpenChange={setIsReplyDialogOpen} />
            <Dialog open={isImageViewerOpen} onOpenChange={setIsImageViewerOpen}>
                 <DialogContent
-                    className="max-w-none w-screen h-[100dvh] bg-black/90 border-none shadow-none p-0 flex flex-col md:flex-row"
+                    className={cn(
+                        "max-w-none w-screen h-[100dvh] bg-black border-none shadow-none p-0 flex flex-col md:flex-row",
+                        // DialogContent always renders its own close button. On a
+                        // phone that put an X in one corner and our back chevron in
+                        // the other — two controls for one job. It is the only
+                        // direct child button here, so this hides it on mobile and
+                        // leaves the desktop viewer, which has no back control, as
+                        // it was.
+                        "[&>button]:hidden md:[&>button]:block"
+                    )}
                     onClick={(e) => e.stopPropagation()}
                 >
                     <DialogTitle className="sr-only">Image Viewer</DialogTitle>
 
                     <div className="flex-1 flex flex-col min-h-0 md:h-full relative">
-                        {/* Mobile Header for Image Viewer */}
-                         {/* Two rows: the back control sits on its own line at
-                             the top, with the author beneath it. Previously all
-                             three sat on one line, which squeezed the name
-                             between the back and follow buttons. */}
-                         <div className="md:hidden absolute top-0 left-0 right-0 z-20 px-2 pt-4 pb-8 flex flex-col gap-2 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
-                            <div className="flex items-center justify-between">
-                                <DialogClose asChild>
-                                    <Button variant="ghost" size="icon" className="h-9 w-9 text-white rounded-full bg-black/50 hover:bg-black/70">
-                                        <ChevronLeft />
-                                    </Button>
-                                </DialogClose>
+                        {/* One row on a solid bar, above the picture rather than
+                            over it: back, author, follow. The old header floated
+                            two rows of controls on a gradient across the top of
+                            the image, so the thing you tapped to look at opened
+                            with its top third covered. */}
+                        <div className="md:hidden flex shrink-0 items-center gap-3 bg-black px-1 py-2">
+                            <DialogClose asChild>
+                                <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 text-white hover:bg-white/10 hover:text-white">
+                                    <ChevronLeft className="h-6 w-6" />
+                                </Button>
+                            </DialogClose>
 
-                                {!isAuthor && user && (
-                                    <FollowButton
-                                        profileId={authorId}
-                                        isFollowing={isFollowing}
-                                        isLoading={followLoading}
-                                        onToggleFollow={setIsFollowing}
-                                    />
-                                )}
-                            </div>
-
-                            <div className="flex items-center gap-3 text-white min-w-0">
-                                <Avatar className="h-9 w-9 flex-shrink-0">
+                            <Link
+                                href={`/profile/${authorId}`}
+                                className="flex min-w-0 flex-1 items-center gap-2"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <Avatar className="h-9 w-9 shrink-0">
                                     <AvatarImage src={authorAvatar} alt={authorName} />
                                     <AvatarFallback>{authorName.charAt(0)}</AvatarFallback>
                                 </Avatar>
-                                <div className="min-w-0">
-                                    <p className="font-bold text-sm truncate">{authorName}</p>
-                                    <p className="text-xs text-neutral-300 truncate">@{authorHandle}</p>
+                                <div className="min-w-0 leading-tight">
+                                    <p className="truncate text-sm font-bold text-white">{authorName}</p>
+                                    <p className="truncate text-xs text-neutral-400">@{authorHandle}</p>
                                 </div>
-                            </div>
+                            </Link>
+
+                            {!isAuthor && user && (
+                                <FollowButton
+                                    profileId={authorId}
+                                    isFollowing={isFollowing}
+                                    isLoading={followLoading}
+                                    onToggleFollow={setIsFollowing}
+                                />
+                            )}
                         </div>
 
-
-                        <div className="relative flex-1 w-full h-full group/viewer">
+                        <div className="relative flex-1 min-h-0 w-full group/viewer">
                             <div className="overflow-hidden w-full h-full" ref={emblaRef}>
                                 <div className="flex h-full">
                                     {media?.filter(m => m.type === 'image').map((image, index) => (
@@ -1230,9 +1253,75 @@ function PostComponent(props: PostProps) {
                                 </>
                             )}
                         </div>
+
+                        {/* The counts and the reply box, on black, under the
+                            picture — the whole of the mobile chrome. What used to
+                            sit here was the desktop side panel folded into a 40vh
+                            drawer: caption, buttons, a reply composer with five
+                            coloured icons and a filled Reply button, and the entire
+                            comment thread, all competing under the image.
+
+                            X shows the photo, one muted row of counts, and a reply
+                            field. Reading the thread is what the post page is for,
+                            and every icon here still leads there. */}
+                        <div className="md:hidden shrink-0 bg-black">
+                            <div className="flex items-center justify-between px-3 py-2 text-neutral-400">
+                                <button onClick={handleCommentClick} className="flex items-center gap-1.5 py-1.5 text-[13px] transition-colors hover:text-primary">
+                                    <MessageCircle className="h-[18px] w-[18px]" />
+                                    {formatCount(commentCount)}
+                                </button>
+                                <button onClick={handleActionClick(handleRepost)} className={cn("flex items-center gap-1.5 py-1.5 text-[13px] transition-colors", isReposted ? 'text-green-500' : 'hover:text-green-500')}>
+                                    <Repeat className="h-[18px] w-[18px]" />
+                                    {formatCount(repostCount)}
+                                </button>
+                                <button onClick={handleActionClick(handleLike)} className={cn("flex items-center gap-1.5 py-1.5 text-[13px] transition-colors", isLiked ? 'text-red-500' : 'hover:text-red-500')}>
+                                    <Heart className={cn("h-[18px] w-[18px]", isLiked && 'fill-current')} />
+                                    {formatCount(likeCount)}
+                                </button>
+                                {!!views && (
+                                    <span className="flex items-center gap-1.5 py-1.5 text-[13px]">
+                                        <BarChart3 className="h-[18px] w-[18px]" />
+                                        {formatCount(views)}
+                                    </span>
+                                )}
+                                <button onClick={handleActionClick(handleBookmark)} className={cn("py-1.5 transition-colors", isBookmarked ? 'text-primary' : 'hover:text-primary')}>
+                                    <Bookmark className={cn("h-[18px] w-[18px]", isBookmarked && 'fill-current')} />
+                                </button>
+                                <button onClick={(e) => { e.stopPropagation(); setViewerShareOpen(true); }} className="py-1.5 transition-colors hover:text-primary">
+                                    <Share2 className="h-[18px] w-[18px]" />
+                                </button>
+                            </div>
+
+                            {/* A field rather than a composer. Everything on it
+                                opens the same reply dialog, which is the one that
+                                can actually attach media. */}
+                            <div className="flex items-center gap-2 border-t border-neutral-800 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+                                <Avatar className="h-8 w-8 shrink-0">
+                                    <AvatarImage src={user?.user_metadata?.avatar_url} alt="" />
+                                    <AvatarFallback>{(user?.email ?? '?').charAt(0).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <button
+                                    onClick={handleCommentClick}
+                                    className="min-w-0 flex-1 truncate rounded-full bg-neutral-900 px-4 py-2 text-left text-sm text-neutral-500"
+                                >
+                                    Post your reply
+                                </button>
+                                <div className="flex shrink-0 items-center gap-1 text-neutral-400">
+                                    <button onClick={handleCommentClick} className="p-1.5" aria-label="Reply with an image">
+                                        <ImageIcon className="h-[18px] w-[18px]" />
+                                    </button>
+                                    <button onClick={handleCommentClick} className="p-1.5" aria-label="Reply with a GIF">
+                                        <span className="rounded border border-current px-1 text-[9px] font-bold leading-[14px]">GIF</span>
+                                    </button>
+                                    <button onClick={handleCommentClick} className="p-1.5" aria-label="Open the full reply composer">
+                                        <Maximize2 className="h-[18px] w-[18px]" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <aside className="w-full md:w-[380px] md:h-full bg-background flex-col overflow-y-hidden flex-shrink-0 max-h-[40vh] md:max-h-full flex">
+                    <aside className="hidden md:flex w-full md:w-[380px] md:h-full bg-background flex-col overflow-y-hidden flex-shrink-0 md:max-h-full">
                         <div className="flex-1 flex flex-col min-h-0">
                             <ScrollArea className="flex-1">
                                 <div className="p-3 md:p-4">
@@ -1268,7 +1357,7 @@ function PostComponent(props: PostProps) {
                                     <Button variant="ghost" size="icon" className={cn("hover:text-primary", isBookmarked && "text-primary")} onClick={handleActionClick(handleBookmark)}>
                                         <Bookmark className={cn("h-5 w-5", isBookmarked && 'fill-current')} />
                                     </Button>
-                                    <Sheet open={isShareSheetOpen} onOpenChange={setShareSheetOpen}>
+                                    <Sheet open={isViewerShareOpen} onOpenChange={setViewerShareOpen}>
                                         <SheetTrigger asChild>
                                             <Button variant="ghost" size="icon" className="hover:text-primary" onClick={(e) => e.stopPropagation()}>
                                                 <Share2 className="h-5 w-5" />
