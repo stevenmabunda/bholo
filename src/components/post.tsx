@@ -66,7 +66,7 @@ import { useTabContext } from "@/contexts/tab-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { siteUrl } from "@/lib/site";
 import { feedAspect, PORTRAIT_THRESHOLD } from "@/lib/media-aspect";
-import { getFeedScroller } from "@/lib/scroll-container";
+import { saveScrollPosition as savePosition } from "@/lib/scroll-position";
 
 
 type PostProps = PostType & {
@@ -605,18 +605,9 @@ function PostComponent(props: PostProps) {
     }
   };
   
-  const saveScrollPosition = () => {
-      try {
-        const desktopScrollArea = getFeedScroller();
-        if (desktopScrollArea) {
-          sessionStorage.setItem('desktopScrollY', String(desktopScrollArea.scrollTop));
-        } else {
-          sessionStorage.setItem('homeScrollY', String(window.scrollY));
-        }
-      } catch (e) {
-        console.error("Could not save scroll position:", e);
-      }
-  }
+  // Keyed by the page being left, so a post opened from a profile comes back
+  // to that profile rather than to wherever the feed happened to be.
+  const saveScrollPosition = () => savePosition();
 
   const handleCommentClick = (e: React.MouseEvent) => {
     e.stopPropagation();

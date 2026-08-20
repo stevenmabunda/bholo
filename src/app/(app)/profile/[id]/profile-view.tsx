@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-keys';
+import { useScrollRestoration } from '@/hooks/use-scroll-restoration';
 import { supabase } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
@@ -83,6 +84,10 @@ export function ProfileView() {
     queryFn: () => getIsFollowing(currentUser!.id, profileId),
     enabled: !!profileId && !!currentUser && currentUser.id !== profileId,
   });
+
+  // Coming back from a post lands where you were on this profile. Keyed by the
+  // page, so two profiles do not share one position.
+  useScrollRestoration(!postsLoading && userPosts.length > 0);
 
   const isFollowing = followOverride ?? fetchedIsFollowing;
   const setIsFollowing = (value: boolean) => setFollowOverride(value);

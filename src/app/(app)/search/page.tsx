@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-keys';
+import { useScrollRestoration } from '@/hooks/use-scroll-restoration';
 import { searchEverything, type SearchResults } from './actions';
 import { Input } from '@/components/ui/input';
 import { Search, ArrowLeft } from 'lucide-react';
@@ -91,6 +92,10 @@ export default function SearchPage() {
   useEffect(() => {
     setLoading(isLoading && (!!user || !!initialQuery.trim()));
   }, [isLoading, user, initialQuery]);
+
+  // Keyed on the full URL, so results for one query do not restore onto
+  // another's.
+  useScrollRestoration(!loading && !!results && results.posts.length > 0);
 
   const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {

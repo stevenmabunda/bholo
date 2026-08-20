@@ -6,6 +6,7 @@ import { getBookmarkedPosts } from './actions';
 import { Post } from '@/components/post';
 import { PostSkeleton } from '@/components/post-skeleton';
 import { queryKeys } from '@/lib/query-keys';
+import { useScrollRestoration } from '@/hooks/use-scroll-restoration';
 
 export function BookmarksView() {
     const { user } = useAuth();
@@ -21,6 +22,9 @@ export function BookmarksView() {
     });
 
     const loading = !!user && isLoading;
+
+    // Coming back from a post lands where you were, not at the top.
+    useScrollRestoration(!loading && bookmarkedPosts.length > 0);
 
   return (
       <div className="flex h-full min-h-screen flex-col">

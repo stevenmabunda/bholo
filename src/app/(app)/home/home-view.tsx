@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo, useCallback, useRef, Fragment } from 'rea
 import { Post } from '@/components/post';
 import { PromotedPost } from '@/components/promoted-post';
 import { getFeedAds, type ServableAd } from '@/lib/ads';
-import { getFeedScroller } from '@/lib/scroll-container';
+import { useScrollRestoration } from '@/hooks/use-scroll-restoration';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePosts } from '@/contexts/post-context';
 import { PostSkeleton } from '@/components/post-skeleton';
@@ -89,28 +89,9 @@ export function HomeView() {
     document.title = 'Home | BHOLO';
   }, []);
   
-  useEffect(() => {
-    // This effect handles restoring scroll position.
-    if (!loadingForYou && forYouPosts.length > 0) {
-      try {
-        const desktopScrollY = sessionStorage.getItem('desktopScrollY');
-        const desktopScrollArea = getFeedScroller();
-        if (desktopScrollY && desktopScrollArea) {
-          desktopScrollArea.scrollTo(0, parseInt(desktopScrollY, 10));
-          sessionStorage.removeItem('desktopScrollY');
-          return;
-        }
-
-        const mobileScrollY = sessionStorage.getItem('homeScrollY');
-        if (mobileScrollY) {
-            window.scrollTo(0, parseInt(mobileScrollY, 10));
-            sessionStorage.removeItem('homeScrollY');
-        }
-      } catch (e) {
-        console.error("Could not restore scroll position:", e);
-      }
-    }
-  }, [loadingForYou, forYouPosts.length]);
+  // Shared with every other feed now; it keys on the page, so each keeps its
+  // own place.
+  useScrollRestoration(!loadingForYou && forYouPosts.length > 0);
 
 
   const loadMoreForYouPosts = useCallback(async () => {
