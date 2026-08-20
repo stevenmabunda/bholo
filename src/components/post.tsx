@@ -55,7 +55,7 @@ import { useToast } from "@/hooks/use-toast";
 import { FollowButton } from "./follow-button";
 import { getIsFollowing } from "@/app/(app)/profile/actions";
 import { ScrollArea } from "./ui/scroll-area";
-import { CreateComment } from "./create-comment";
+import { CreateComment, type ReplyIntent } from "./create-comment";
 import { useLiveComments } from '@/hooks/use-live-comments';
 import { Skeleton } from "./ui/skeleton";
 import useEmblaCarousel from 'embla-carousel-react';
@@ -155,7 +155,7 @@ function formatCount(n?: number): string {
   return n < 1000 ? String(n) : compact.format(n);
 }
 
-function ReplyDialog({ post, onReply, open, onOpenChange }: { post: PostType, onReply: (data: { text: string; media: any[] }) => Promise<boolean | null>, open: boolean, onOpenChange: (open: boolean) => void }) {
+function ReplyDialog({ post, onReply, open, onOpenChange, autoOpen = null }: { post: PostType, onReply: (data: { text: string; media: any[] }) => Promise<boolean | null>, open: boolean, onOpenChange: (open: boolean) => void, autoOpen?: ReplyIntent }) {
     const { toast } = useToast();
     const router = useRouter();
 
@@ -209,7 +209,7 @@ function ReplyDialog({ post, onReply, open, onOpenChange }: { post: PostType, on
                         </div>
                     </div>
                 </div>
-                <CreateComment onComment={handleCreateReply} isDialog={true} />
+                <CreateComment onComment={handleCreateReply} isDialog={true} autoOpen={autoOpen} />
             </DialogContent>
         </Dialog>
     );
@@ -379,6 +379,9 @@ function PostComponent(props: PostProps) {
   // viewer rendered two identical sheets on top of each other.
   const [isViewerShareOpen, setViewerShareOpen] = useState(false);
   const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false);
+  // Which picker the reply composer should open with, set by whichever control
+  // was tapped to get there.
+  const [replyIntent, setReplyIntent] = useState<ReplyIntent>(null);
 
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   const [imageViewerStartIndex, setImageViewerStartIndex] = useState(0);
@@ -618,12 +621,16 @@ function PostComponent(props: PostProps) {
       }
   }
 
-  const handleCommentClick = (e: React.MouseEvent) => {
+  const handleCommentClick = (e: React.MouseEvent) => openReply(null)(e);
+
+  /** Opens the reply composer, optionally straight onto a picker. */
+  const openReply = (intent: ReplyIntent) => (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user) {
         setIsLoginDialogOpen(true);
         return;
     }
+    setReplyIntent(intent);
     setIsReplyDialogOpen(true);
   };
 
@@ -1145,7 +1152,7 @@ function PostComponent(props: PostProps) {
                   </AlertDialogFooter>
               </AlertDialogContent>
           </AlertDialog>
-          <ReplyDialog post={props} onReply={handleCreateComment} open={isReplyDialogOpen} onOpenChange={setIsReplyDialogOpen} />
+          <ReplyDialog post={props} onReply={handleCreateComment} open={isReplyDialogOpen} onOpenChange={setIsReplyDialogOpen} autoOpen={replyIntent} />
            <Dialog open={isImageViewerOpen} onOpenChange={setIsImageViewerOpen}>
                 <DialogContent
                     className={cn(
@@ -1292,28 +1299,33 @@ function PostComponent(props: PostProps) {
                                 </button>
                             </div>
 
-                            {/* A field rather than a composer. Everything on it
-                                opens the same reply dialog, which is the one that
-                                can actually attach media. */}
+                            {/* One field, with the controls inside it — X puts the
+                                photo, GIF and expand icons in the pill rather than
+                                loose on the bar beside a smaller box.
+
+                                Each one opens the composer already on the picker it
+                                names. They used to all open an empty text box, so
+                                tapping the GIF icon looked like it had done nothing. */}
                             <div className="flex items-center gap-2 border-t border-neutral-800 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
-                                <Avatar className="h-8 w-8 shrink-0">
+                                <Avatar className="h-9 w-9 shrink-0">
                                     <AvatarImage src={user?.user_metadata?.avatar_url} alt="" />
                                     <AvatarFallback>{(user?.email ?? '?').charAt(0).toUpperCase()}</AvatarFallback>
                                 </Avatar>
-                                <button
-                                    onClick={handleCommentClick}
-                                    className="min-w-0 flex-1 truncate rounded-full bg-neutral-900 px-4 py-2 text-left text-sm text-neutral-500"
-                                >
-                                    Post your reply
-                                </button>
-                                <div className="flex shrink-0 items-center gap-1 text-neutral-400">
-                                    <button onClick={handleCommentClick} className="p-1.5" aria-label="Reply with an image">
+
+                                <div className="flex min-w-0 flex-1 items-center gap-0.5 rounded-full bg-neutral-900 py-1 pl-4 pr-1.5">
+                                    <button
+                                        onClick={handleCommentClick}
+                                        className="min-w-0 flex-1 truncate py-1.5 text-left text-sm text-neutral-500"
+                                    >
+                                        Post your reply
+                                    </button>
+                                    <button onClick={openReply('image')} className="shrink-0 rounded-full p-1.5 text-neutral-400" aria-label="Reply with a photo">
                                         <ImageIcon className="h-[18px] w-[18px]" />
                                     </button>
-                                    <button onClick={handleCommentClick} className="p-1.5" aria-label="Reply with a GIF">
-                                        <span className="rounded border border-current px-1 text-[9px] font-bold leading-[14px]">GIF</span>
+                                    <button onClick={openReply('gif')} className="shrink-0 rounded-full p-1.5 text-neutral-400" aria-label="Reply with a GIF">
+                                        <span className="block rounded border border-current px-1 text-[9px] font-bold leading-[14px]">GIF</span>
                                     </button>
-                                    <button onClick={handleCommentClick} className="p-1.5" aria-label="Open the full reply composer">
+                                    <button onClick={handleCommentClick} className="shrink-0 rounded-full p-1.5 text-neutral-400" aria-label="Open the full reply composer">
                                         <Maximize2 className="h-[18px] w-[18px]" />
                                     </button>
                                 </div>
