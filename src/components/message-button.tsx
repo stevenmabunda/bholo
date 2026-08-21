@@ -28,9 +28,17 @@ export function MessageButton({ otherUserId }: { otherUserId: string }) {
         try {
             const conversationId = await getOrCreateConversation(user.id, otherUserId);
             router.push(`/messages/${conversationId}`);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to start conversation:", error);
-            toast({ variant: 'destructive', description: "Could not start a conversation. Please try again." });
+            // "Please try again" was the only thing anyone saw while this was
+            // failing on a database policy, which trying again was never going
+            // to fix. Say what actually went wrong.
+            toast({
+                variant: 'destructive',
+                description: error?.message
+                    ? `Could not start a conversation: ${error.message}`
+                    : "Could not start a conversation. Please try again.",
+            });
         } finally {
             setIsLoading(false);
         }

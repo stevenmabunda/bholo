@@ -28,28 +28,28 @@ export type ConversationDetails = {
     participants: ProfileData[];
 };
 
-export async function getOrCreateConversation(currentUserId: string, otherUserId: string): Promise<string> {
+/**
+ * Opens the 1:1 with someone, creating it only if there is not one already.
+ *
+ * The work happens in the database. Doing it from here meant writing a
+ * participant row for the other person, which a client is not allowed to do and
+ * should not be — a policy permissive enough to let you add them is permissive
+ * enough to let a stranger add themselves to your conversations. It also took
+ * three round trips and could leave a conversation with one participant if the
+ * second write failed.
+ *
+ * `currentUserId` is no longer read: the function uses auth.uid(), so the
+ * caller cannot open a conversation as somebody else. It stays in the signature
+ * for the one caller that passes it.
+ */
+export async function getOrCreateConversation(_currentUserId: string, otherUserId: string): Promise<string> {
     const supabase = await createClient();
 
-    // Find an existing 1:1 conversation between exactly these two users.
-    const { data: mine } = await supabase.from('conversation_participants').select('conversation_id').eq('user_id', currentUserId);
-    const { data: theirs } = await supabase.from('conversation_participants').select('conversation_id').eq('user_id', otherUserId);
+    const { data, error } = await supabase.rpc('start_conversation', { p_other_user_id: otherUserId });
+    if (error) throw error;
+    if (!data) throw new Error('Could not create conversation');
 
-    const mineIds = new Set((mine ?? []).map(r => r.conversation_id));
-    const shared = (theirs ?? []).map(r => r.conversation_id).find(id => mineIds.has(id));
-
-    if (shared) return shared;
-
-    const { data: conversation, error } = await supabase.from('conversations').insert({}).select().single();
-    if (error || !conversation) throw error ?? new Error('Could not create conversation');
-
-    const { error: participantsError } = await supabase.from('conversation_participants').insert([
-        { conversation_id: conversation.id, user_id: currentUserId },
-        { conversation_id: conversation.id, user_id: otherUserId },
-    ]);
-    if (participantsError) throw participantsError;
-
-    return conversation.id;
+    return data as string;
 }
 
 export async function sendMessage(conversationId: string, senderId: string, text: string): Promise<void> {
