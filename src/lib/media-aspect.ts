@@ -15,7 +15,13 @@
 /** Widest anything gets. Past this it reads as a banner rather than an item. */
 export const MAX_ASPECT = 1.91;
 
-/** Tallest a still image gets: 4:5, the portrait bound Meta and X settled on. */
+/**
+ * Tallest a still image gets: 4:5, the portrait bound Meta and X settled on.
+ *
+ * No longer applied to feed photos, which are capped by height and never
+ * cropped — see MAX_IMAGE_HEIGHT_PX. Kept because ad creatives are still
+ * checked against it, where a fixed set of accepted shapes is the point.
+ */
 export const MIN_ASPECT_IMAGE = 0.8;
 
 /**
@@ -29,7 +35,13 @@ export const MIN_ASPECT_IMAGE = 0.8;
  *
  * 500 is deliberately the largest cap that changes desktop while leaving the
  * phone untouched: mobile's tallest was already under it, so nothing there
- * moves. Anything over the cap is cropped, never squashed.
+ * moves.
+ *
+ * Nothing is cropped to reach it. A picture too tall for the cap is scaled
+ * until it fits, so it ends up narrower than the column rather than missing
+ * its bottom — cropping was tried and took the score off results cards and the
+ * last rows off league tables. The spare width sits to the right of a
+ * left-aligned picture.
  *
  * Video is exempt. Cropping a clip is not recoverable — the feed is where it
  * gets watched — so tall video keeps the capped-height treatment described

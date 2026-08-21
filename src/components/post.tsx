@@ -904,24 +904,20 @@ function PostComponent(props: PostProps) {
                   )}
               </div>
             ) : singleImage && media[0].url ? (
-              // Clamped by aspect rather than a pixel height, so the slot is
-              // the same shape on every screen. A very tall photo is cropped
-              // to 4:5 here and shown whole in the viewer on tap — the old
-              // max-h-[500px] with object-contain letterboxed it into black
-              // bars instead, which looked broken rather than deliberate.
+              // Height is capped; nothing is cropped.
+              //
+              // A tall photo is scaled down until it fits the cap, which makes
+              // it narrower than the column rather than shorter than itself.
+              // Cropping was tried and cut the bottom off things that needed it
+              // — the score under a results card, the last rows of a table.
+              //
+              // The leftover width sits to the right, because the picture is
+              // pinned to the left edge of the column. Centring it would leave
+              // a margin either side and read as a mistake; hard against the
+              // text above it reads as deliberate. This is already how tall
+              // video behaves here.
               <div
-                  className="relative w-full bg-black cursor-pointer overflow-hidden"
-                  style={
-                    feedAspect(media[0].width, media[0].height) !== null
-                      ? {
-                          aspectRatio: String(feedAspect(media[0].width, media[0].height)),
-                          // The ratio decides the shape, this decides how far it
-                          // may run. Where they disagree the cap wins and the
-                          // picture is cropped to it.
-                          maxHeight: MAX_IMAGE_HEIGHT_PX,
-                        }
-                      : { maxHeight: MAX_IMAGE_HEIGHT_PX }
-                  }
+                  className="relative w-fit max-w-full cursor-pointer overflow-hidden rounded-2xl bg-black"
                   onClick={(e) => openImageViewer(e, 0)}
               >
                   <Image
@@ -929,17 +925,9 @@ function PostComponent(props: PostProps) {
                       alt={media[0].hint || `Post image 1`}
                       width={media[0].width || 500}
                       height={media[0].height || 500}
-                      className={cn(
-                        'w-full',
-                        // Known shape: fill the clamped box. Unknown: never
-                        // crop, since we cannot tell what would be lost.
-                        feedAspect(media[0].width, media[0].height) !== null
-                          // Anchored to the top, so what the cap takes is the
-                          // bottom of the picture. Centred cropping trimmed both
-                          // ends and clipped the top of heads in the process.
-                          ? 'h-full object-cover object-top'
-                          : 'h-auto object-contain'
-                      )}
+                      sizes="(max-width: 768px) 100vw, 532px"
+                      className="h-auto w-auto max-w-full object-contain"
+                      style={{ maxHeight: MAX_IMAGE_HEIGHT_PX }}
                       data-ai-hint={media[0].hint}
                   />
               </div>
