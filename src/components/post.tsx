@@ -865,9 +865,12 @@ function PostComponent(props: PostProps) {
               // paints narrower inside it — a rounded box with black to the
               // right of the picture, which is the imbalance rather than a fix
               // for it. Bounded here, the frame ends where the photo ends.
-              singleImage && naturalAspect !== null && 'md:max-w-[var(--cap-width)]',
+              // Centred rather than against the left edge. Only bites when the
+              // cap has made the frame narrower than the column; at full width
+              // there is nothing to centre.
+              singleImage && naturalAspect !== null && 'md:mx-auto md:max-w-[var(--cap-width)]',
               isVideo && 'relative bg-black flex items-center justify-center cursor-pointer group/video',
-              isVideo && (isPortraitVideo ? 'w-full md:h-[560px] md:w-auto md:max-w-full' : 'w-full')
+              isVideo && (isPortraitVideo ? 'w-full md:mx-auto md:h-[560px] md:w-auto md:max-w-full' : 'w-full')
             )}
             style={
               isVideo

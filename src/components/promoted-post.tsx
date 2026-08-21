@@ -52,7 +52,7 @@ export function PromotedPost({ ad }: { ad: ServableAd }) {
         // border still ends where the artwork ends. Phones are unchanged —
         // there the column is narrow enough that 4:5 already behaves.
         <div
-          className="relative mt-3 w-full overflow-hidden rounded-2xl border md:max-w-[var(--cap-width)]"
+          className="relative mt-3 w-full overflow-hidden rounded-2xl border md:mx-auto md:max-w-[var(--cap-width)]"
           style={{
             aspectRatio: String(renderAspect(ad.mediaWidth, ad.mediaHeight)),
             '--cap-width': `${Math.round(MAX_IMAGE_HEIGHT_PX * renderAspect(ad.mediaWidth, ad.mediaHeight))}px`,
