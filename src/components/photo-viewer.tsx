@@ -262,13 +262,26 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
           {panelOpen ? <ChevronsRight className="h-5 w-5" /> : <ChevronsLeft className="h-5 w-5" />}
         </Button>
 
+        {/* With the replies open, the photo and the thread become one surface
+            that scrolls together — the photo rides up out of the way as you
+            read, rather than staying pinned while text slides underneath it.
+            That pinned version worked but felt like two panes bolted together;
+            this is how X does it.
+
+            `contents` keeps this wrapper out of the layout whenever it is not
+            the scroller — closed on a phone, and always on desktop, where the
+            photo is a flex child and the replies live in the side panel. */}
+        <div
+          className={cn(
+            showComments ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain md:contents' : 'contents'
+          )}
+        >
         <div
           className={cn(
             'group/viewer relative w-full',
-            // Pulled back rather than pushed off: the photo stays on screen at
-            // a third of the height so you can still see what is being talked
-            // about while you read the replies.
-            showComments ? 'h-[34vh] shrink-0 md:h-auto md:flex-1' : 'min-h-0 flex-1'
+            // Pulled back, but only a little: most of the picture stays with
+            // you, and the first replies sit just under it.
+            showComments ? 'h-[60vh] shrink-0 md:h-auto md:flex-1' : 'min-h-0 flex-1'
           )}
         >
           <div className="h-full w-full overflow-hidden" ref={emblaRef}>
@@ -308,9 +321,10 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
         </div>
 
         {/* The conversation, revealed under the photo. The caption comes back
-            here — it belongs with the replies, not over the picture. */}
+            here — it belongs with the replies, not over the picture. It does
+            not scroll on its own; the wrapper above scrolls both. */}
         {showComments && (
-          <div className="min-h-0 flex-1 overflow-y-auto bg-black md:hidden">
+          <div className="bg-black md:hidden">
             <div className="border-b border-neutral-800 px-4 py-3">
               <p className="whitespace-pre-wrap text-sm text-white">{linkify(post.content)}</p>
             </div>
@@ -350,9 +364,10 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
             )}
           </div>
         )}
+        </div>
 
         {/* Mobile chrome: counts, then the reply field. Pinned under whichever
-            of the two states is showing. */}
+            of the two states is showing — it never scrolls away. */}
         <div className="shrink-0 bg-black md:hidden">
           <div className="flex items-center justify-between px-3 py-2 text-neutral-400">{counts}</div>
 
