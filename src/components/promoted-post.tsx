@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
 import type { ServableAd } from '@/lib/ads';
 import { renderAspect } from '@/lib/ad-specs';
+import { MAX_IMAGE_HEIGHT_PX } from '@/lib/media-aspect';
 import { useAdImpression } from '@/hooks/use-ad-impression';
 
 /**
@@ -44,9 +45,18 @@ export function PromotedPost({ ad }: { ad: ServableAd }) {
         // A hardcoded 16:9 box cropped a third off the first square creative
         // that ran through it. Reserving the right height also stops the feed
         // jumping under the reader while the image loads.
+        // Bounded the same way a photo is, and for the same reason: a 4:5
+        // creative in a desktop column ran to 665px and took most of the
+        // screen, which is precisely the takeover the 4:5 limit exists to
+        // prevent. Capping the width holds the height under the cap while the
+        // border still ends where the artwork ends. Phones are unchanged —
+        // there the column is narrow enough that 4:5 already behaves.
         <div
-          className="relative mt-3 w-full overflow-hidden rounded-2xl border"
-          style={{ aspectRatio: String(renderAspect(ad.mediaWidth, ad.mediaHeight)) }}
+          className="relative mt-3 w-full overflow-hidden rounded-2xl border md:max-w-[var(--cap-width)]"
+          style={{
+            aspectRatio: String(renderAspect(ad.mediaWidth, ad.mediaHeight)),
+            '--cap-width': `${Math.round(MAX_IMAGE_HEIGHT_PX * renderAspect(ad.mediaWidth, ad.mediaHeight))}px`,
+          } as React.CSSProperties}
         >
           <Image
             src={ad.mediaUrl}

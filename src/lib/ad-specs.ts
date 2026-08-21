@@ -12,8 +12,8 @@
  */
 
 export const AD_FORMATS = [
-  { name: 'Square', ratio: '1:1', pixels: '1080 × 1080', value: 1 / 1, note: 'Safest. Works in every slot.' },
-  { name: 'Portrait', ratio: '4:5', pixels: '1080 × 1350', value: 4 / 5, note: 'Most space on a phone.' },
+  { name: 'Portrait', ratio: '4:5', pixels: '1080 × 1350', value: 4 / 5, note: 'Recommended. Most space on a phone.' },
+  { name: 'Square', ratio: '1:1', pixels: '1080 × 1080', value: 1 / 1, note: 'Works in every slot.' },
   { name: 'Landscape', ratio: '1.91:1', pixels: '1200 × 628', value: 1.91, note: 'Link-style, least prominent.' },
 ] as const;
 
@@ -63,7 +63,9 @@ export function checkCreative(width: number, height: number): SpecCheck {
  * accepted range so one oversized file cannot stretch the feed.
  */
 export function renderAspect(width?: number | null, height?: number | null): number {
-  if (!width || !height) return 1; // Unknown: assume square, the safe default.
+  // Unknown: assume the house format. Square was the old guess and it made an
+  // unmeasured creative render squarer than most artwork actually is.
+  if (!width || !height) return MIN_ASPECT;
   return Math.min(MAX_ASPECT, Math.max(MIN_ASPECT, width / height));
 }
 
