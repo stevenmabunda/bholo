@@ -63,7 +63,7 @@ import { useTabContext } from "@/contexts/tab-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { siteUrl } from "@/lib/site";
 import { XIcon, FacebookIcon, WhatsAppIcon } from "@/components/icons";
-import { feedAspect, PORTRAIT_THRESHOLD } from "@/lib/media-aspect";
+import { feedAspect, PORTRAIT_THRESHOLD, MAX_IMAGE_HEIGHT_PX } from "@/lib/media-aspect";
 import { saveScrollPosition as savePosition } from "@/lib/scroll-position";
 
 
@@ -701,6 +701,11 @@ function PostComponent(props: PostProps) {
   
   const singleImage = imageCount === 1;
 
+  // The photo's real shape, before any clamping. Desktop uses it as-is.
+  const naturalAspect = (singleImage && media?.[0]?.width && media?.[0]?.height)
+    ? media[0].width! / media[0].height!
+    : null;
+
   // Several pictures ride in a strip you scroll, so the arrows need to reach it.
   const stripRef = useRef<HTMLDivElement>(null);
   const nudgeStrip = (direction: -1 | 1) => (e: React.MouseEvent) => {
@@ -854,12 +859,7 @@ function PostComponent(props: PostProps) {
         {mediaExists && (
           <div
             className={cn(
-              "mt-3 rounded-2xl overflow-hidden",
-              // A single photo draws its own edge, so the outline was just a
-              // line around a picture. Video keeps it, because a clip that
-              // letterboxes needs something to say where it ends, and so does
-              // the photo strip, whose cells meet at a seam.
-              !singleImage && "border",
+              "mt-3 rounded-2xl overflow-hidden border",
               isVideo && 'relative bg-black flex items-center justify-center cursor-pointer group/video',
               isVideo && (isPortraitVideo ? 'w-full md:h-[560px] md:w-auto md:max-w-full' : 'w-full')
             )}
@@ -909,28 +909,33 @@ function PostComponent(props: PostProps) {
                   )}
               </div>
             ) : singleImage && media[0].url ? (
-              // Two behaviours, because the two screens have different problems.
+              // One slot, two shapes.
               //
-              // On a phone the column is narrow, a photo clamped to 4:5 lands
-              // around 469px, and filling the width is what makes it feel like
-              // a phone app. That is what mobile does, unchanged.
+              // Mobile fills the column and clamps to 4:5, cropping a very tall
+              // photo — a narrow column is where filling the width is what makes
+              // it feel like a phone app.
               //
-              // Desktop is wider, so the same ratio ran to 665px and one photo
-              // took most of the screen. There the height is capped instead and
-              // the picture keeps every pixel, coming out narrower than the
-              // column and sitting against its left edge — the treatment tall
-              // video already gets here.
+              // Desktop keeps the photo's own shape and bounds its WIDTH to
+              // whatever holds the height under the cap. That is the part a
+              // max-height could not do: the frame ends where the picture ends,
+              // so the outline still hugs it instead of drawing a box with dead
+              // space beside a portrait. Narrower than the column, against its
+              // left edge, nothing cropped.
               <div
                   className={cn(
                     "relative w-full bg-black cursor-pointer overflow-hidden",
-                    // Inline styles beat classes, so the ratio has to be turned
-                    // off with force before the height cap can take over.
-                    "md:!aspect-auto md:max-h-[500px]"
+                    // Inline styles beat classes, so both shapes travel as
+                    // custom properties and the breakpoint picks one.
+                    naturalAspect !== null && "[aspect-ratio:var(--shape-mobile)] md:[aspect-ratio:var(--shape-desktop)] md:[max-width:var(--cap-width)]"
                   )}
                   style={
-                    feedAspect(media[0].width, media[0].height) !== null
-                      ? { aspectRatio: String(feedAspect(media[0].width, media[0].height)) }
-                      : { maxHeight: 500 }
+                    naturalAspect !== null
+                      ? ({
+                          '--shape-mobile': String(feedAspect(media[0].width, media[0].height)),
+                          '--shape-desktop': String(naturalAspect),
+                          '--cap-width': `${Math.round(MAX_IMAGE_HEIGHT_PX * naturalAspect)}px`,
+                        } as React.CSSProperties)
+                      : { maxHeight: MAX_IMAGE_HEIGHT_PX }
                   }
                   onClick={(e) => openImageViewer(e, 0)}
               >
@@ -942,22 +947,12 @@ function PostComponent(props: PostProps) {
                       sizes="(max-width: 768px) 100vw, 532px"
                       className={cn(
                         'w-full',
-                        // Known shape: fill the clamped box. Unknown: never
-                        // crop, since we cannot tell what would be lost.
-                        feedAspect(media[0].width, media[0].height) !== null
+                        // On desktop the slot is already the photo's shape, so
+                        // cover fits it exactly and crops nothing. On mobile it
+                        // is the 4:5 clamp, and cover is what fills it.
+                        naturalAspect !== null
                           ? 'h-full object-cover'
-                          : 'h-auto max-h-[500px] object-contain',
-                        // Desktop: fill the column, stop at the cap, crop
-                        // nothing.
-                        //
-                        // w-auto was wrong here. It renders a picture at its own
-                        // pixel size, so a 650px-wide photo sat at 650px in a
-                        // wider column with a gap beside it — small and adrift,
-                        // rather than a photo that fills its slot. w-full scales
-                        // it to the column the way X does; the cap then holds
-                        // back anything tall enough to run away, and what is
-                        // held back is pinned left rather than centred.
-                        'md:h-auto md:w-full md:max-h-[500px] md:object-contain md:object-left'
+                          : 'h-auto max-h-[500px] object-contain'
                       )}
                       data-ai-hint={media[0].hint}
                   />

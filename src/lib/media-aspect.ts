@@ -19,6 +19,24 @@ export const MAX_ASPECT = 1.91;
 export const MIN_ASPECT_IMAGE = 0.8;
 
 /**
+ * The most vertical space one photo may take in a desktop feed.
+ *
+ * The 4:5 floor above is a ratio, so how tall it renders depends on the column.
+ * A phone column is narrow enough that it lands around 469px and reads fine.
+ * Desktop is wider, and the same ratio ran to 665px — one photo taking most of
+ * a laptop screen.
+ *
+ * Desktop bounds the height instead, and does it by bounding the *width* to
+ * whatever keeps the picture under this: a slot narrower than the column, of
+ * the photo's own shape. Nothing is cropped and the frame still hugs the
+ * picture, which a max-height could not do — it would leave a bordered box with
+ * dead space beside a tall photo.
+ *
+ * Mobile ignores this entirely and keeps filling the column.
+ */
+export const MAX_IMAGE_HEIGHT_PX = 500;
+
+/**
  * Video keeps its real shape all the way down to 9:16.
  *
  * Cropping a photo is recoverable — you tap it and see the original. Cropping
