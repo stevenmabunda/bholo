@@ -19,6 +19,25 @@ export const MAX_ASPECT = 1.91;
 export const MIN_ASPECT_IMAGE = 0.8;
 
 /**
+ * The most vertical space one still image may take in a feed, whatever its
+ * shape.
+ *
+ * The 4:5 floor above is a ratio, so how tall it actually renders depends on
+ * how wide the column is. On a phone that lands at about 469px and is fine. On
+ * desktop the column is wider, so the same rule produced 665px — over half of
+ * the last 130 images, each taking most of a laptop screen on its own.
+ *
+ * 500 is deliberately the largest cap that changes desktop while leaving the
+ * phone untouched: mobile's tallest was already under it, so nothing there
+ * moves. Anything over the cap is cropped, never squashed.
+ *
+ * Video is exempt. Cropping a clip is not recoverable — the feed is where it
+ * gets watched — so tall video keeps the capped-height treatment described
+ * below instead.
+ */
+export const MAX_IMAGE_HEIGHT_PX = 500;
+
+/**
  * Video keeps its real shape all the way down to 9:16.
  *
  * Cropping a photo is recoverable — you tap it and see the original. Cropping

@@ -63,7 +63,7 @@ import { useTabContext } from "@/contexts/tab-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { siteUrl } from "@/lib/site";
 import { XIcon, FacebookIcon, WhatsAppIcon } from "@/components/icons";
-import { feedAspect, PORTRAIT_THRESHOLD } from "@/lib/media-aspect";
+import { feedAspect, PORTRAIT_THRESHOLD, MAX_IMAGE_HEIGHT_PX } from "@/lib/media-aspect";
 import { saveScrollPosition as savePosition } from "@/lib/scroll-position";
 
 
@@ -913,8 +913,14 @@ function PostComponent(props: PostProps) {
                   className="relative w-full bg-black cursor-pointer overflow-hidden"
                   style={
                     feedAspect(media[0].width, media[0].height) !== null
-                      ? { aspectRatio: String(feedAspect(media[0].width, media[0].height)) }
-                      : { maxHeight: 500 }
+                      ? {
+                          aspectRatio: String(feedAspect(media[0].width, media[0].height)),
+                          // The ratio decides the shape, this decides how far it
+                          // may run. Where they disagree the cap wins and the
+                          // picture is cropped to it.
+                          maxHeight: MAX_IMAGE_HEIGHT_PX,
+                        }
+                      : { maxHeight: MAX_IMAGE_HEIGHT_PX }
                   }
                   onClick={(e) => openImageViewer(e, 0)}
               >
@@ -928,8 +934,11 @@ function PostComponent(props: PostProps) {
                         // Known shape: fill the clamped box. Unknown: never
                         // crop, since we cannot tell what would be lost.
                         feedAspect(media[0].width, media[0].height) !== null
-                          ? 'h-full object-cover'
-                          : 'h-auto max-h-[500px] object-contain'
+                          // Anchored to the top, so what the cap takes is the
+                          // bottom of the picture. Centred cropping trimmed both
+                          // ends and clipped the top of heads in the process.
+                          ? 'h-full object-cover object-top'
+                          : 'h-auto object-contain'
                       )}
                       data-ai-hint={media[0].hint}
                   />
