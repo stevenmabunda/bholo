@@ -21,6 +21,20 @@ export const AD_FORMATS = [
 export const MIN_ASPECT = 0.8;   // 4:5
 export const MAX_ASPECT = 1.91;  // 1.91:1
 
+/**
+ * How much of a phone screen a creative may fill.
+ *
+ * Desktop bounds ads with a pixel height, which works because a desktop column
+ * is a known width. Phones are not one size — 667 to 930 tall in normal use —
+ * so a pixel cap would land differently on each. A share of the viewport lands
+ * the same everywhere.
+ *
+ * At half the screen the ad is plainly the biggest thing in view but the post
+ * beneath it still shows, which is the difference between a large ad and a
+ * takeover.
+ */
+export const MAX_AD_SCREEN_SHARE = 0.5;
+
 /** Below this, artwork visibly softens on a modern phone. */
 export const MIN_WIDTH = 600;
 

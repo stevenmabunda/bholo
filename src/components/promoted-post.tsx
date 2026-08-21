@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
 import type { ServableAd } from '@/lib/ads';
-import { renderAspect } from '@/lib/ad-specs';
+import { renderAspect, MAX_AD_SCREEN_SHARE } from '@/lib/ad-specs';
 import { MAX_IMAGE_HEIGHT_PX } from '@/lib/media-aspect';
 import { useAdImpression } from '@/hooks/use-ad-impression';
 
@@ -52,10 +52,16 @@ export function PromotedPost({ ad }: { ad: ServableAd }) {
         // border still ends where the artwork ends. Phones are unchanged —
         // there the column is narrow enough that 4:5 already behaves.
         <div
-          className="relative mt-3 w-full overflow-hidden rounded-2xl border md:mx-auto md:max-w-[var(--cap-width)]"
+          className="relative mt-3 mx-auto w-full max-w-[var(--cap-width-phone)] overflow-hidden rounded-2xl border md:max-w-[var(--cap-width)]"
           style={{
             aspectRatio: String(renderAspect(ad.mediaWidth, ad.mediaHeight)),
             '--cap-width': `${Math.round(MAX_IMAGE_HEIGHT_PX * renderAspect(ad.mediaWidth, ad.mediaHeight))}px`,
+            // A phone gets a share of the screen rather than a pixel count,
+            // because phones are not one size. Half the viewport leaves the ad
+            // clearly the largest thing in view without owning it, and the
+            // post under it stays visible — which is what stops a paid slot
+            // reading as a takeover.
+            '--cap-width-phone': `calc(${MAX_AD_SCREEN_SHARE} * 100vh * ${renderAspect(ad.mediaWidth, ad.mediaHeight)})`,
           } as React.CSSProperties}
         >
           <Image
