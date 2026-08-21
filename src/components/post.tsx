@@ -935,15 +935,13 @@ function PostComponent(props: PostProps) {
                   />
               </div>
             ) : imageCount > 1 ? (
-              /* A strip you scroll, not a grid of tiles.
-                 The grid cropped every picture into a fixed cell — a portrait
-                 beside a landscape lost most of both. Here each keeps its own
-                 shape at a shared height and you move along them, which is what
-                 X does with a set of photos. Tapping one still opens it. */
-              <div
-                className="group/strip relative"
-                style={{ aspectRatio: String(feedAspect(media[0].width, media[0].height) ?? 16 / 9) }}
-              >
+              /* Two at a time, sharing the width, scrolling to the rest.
+                 The old grid crammed every picture into one fixed block, and
+                 giving each its natural width instead just handed the whole
+                 card to the first one. X splits the space: two photos side by
+                 side with a seam between them, and more arrive by scrolling.
+                 Tapping one still opens it. */
+              <div className="group/strip relative aspect-[4/3]">
                 <div
                   ref={stripRef}
                   className="no-scrollbar flex h-full snap-x snap-mandatory gap-0.5 overflow-x-auto overscroll-x-contain"
@@ -954,17 +952,19 @@ function PostComponent(props: PostProps) {
                       <button
                         key={index}
                         type="button"
-                        className="relative h-full shrink-0 snap-start cursor-pointer bg-black"
+                        /* Half the width each, so a pair shares the space
+                           evenly and a third is a scroll away rather than a
+                           squeeze. */
+                        className="relative h-full w-[calc(50%-1px)] shrink-0 snap-start cursor-pointer bg-black"
                         onClick={(e) => openImageViewer(e, index)}
                         aria-label={`Open image ${index + 1} of ${imageCount}`}
                       >
                         <Image
                           src={item.url}
                           alt={item.hint || `Post image ${index + 1}`}
-                          width={item.width || 1200}
-                          height={item.height || 1200}
-                          sizes="(max-width: 768px) 90vw, 500px"
-                          className="h-full w-auto max-w-none object-cover"
+                          fill
+                          sizes="(max-width: 768px) 45vw, 300px"
+                          className="object-cover"
                           data-ai-hint={item.hint}
                         />
                       </button>
@@ -993,9 +993,13 @@ function PostComponent(props: PostProps) {
                   <ChevronRight className="h-5 w-5" />
                 </Button>
 
-                <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm md:group-hover/strip:opacity-0">
-                  {imageCount} photos
-                </span>
+                {/* Only worth saying when there is something you cannot
+                    already see — with two, both are on screen. */}
+                {imageCount > 2 && (
+                  <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm md:group-hover/strip:opacity-0">
+                    {imageCount} photos
+                  </span>
+                )}
               </div>
             ) : null}
           </div>
