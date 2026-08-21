@@ -3,7 +3,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { MessageCircle, Repeat, Heart, Share2, MoreHorizontal, Edit, Trash2, Bookmark, Copy, X, ChevronLeft, Check, Play, Pause, Volume2, VolumeX, Sparkles } from "lucide-react";
+import { MessageCircle, Repeat, Heart, Share2, MoreHorizontal, Edit, Trash2, Bookmark, Copy, X, ChevronLeft, ChevronRight, Check, Play, Pause, Volume2, VolumeX, Sparkles } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect, useCallback, memo } from "react";
@@ -701,11 +701,14 @@ function PostComponent(props: PostProps) {
   
   const singleImage = imageCount === 1;
 
-  const gridClasses = {
-    2: 'grid-cols-2 grid-rows-1',
-    3: 'grid-cols-2 grid-rows-2',
-    4: 'grid-cols-2 grid-rows-2',
-  }[imageCount] || '';
+  // Several pictures ride in a strip you scroll, so the arrows need to reach it.
+  const stripRef = useRef<HTMLDivElement>(null);
+  const nudgeStrip = (direction: -1 | 1) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const el = stripRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction * el.clientWidth * 0.85, behavior: 'smooth' });
+  };
 
   const mainPostContent = (
     <div className={cn("flex space-x-3 md:space-x-4", isReplyView ? 'p-3 md:p-4' : 'p-3 md:p-4')}>
@@ -932,23 +935,67 @@ function PostComponent(props: PostProps) {
                   />
               </div>
             ) : imageCount > 1 ? (
-              <div className={cn("grid h-full gap-0.5 aspect-video", gridClasses)}>
-                {media.map((item, index) => (
-                   item.url && <div 
-                      key={index} 
-                      className={cn("relative cursor-pointer", imageCount === 3 && index === 0 && "row-span-2")}
-                      onClick={(e) => openImageViewer(e, index)}
-                  >
-                    <Image
-                      src={item.url}
-                      alt={item.hint || `Post image ${index + 1}`}
-                      fill
-                      sizes="(max-width: 640px) 50vw, 300px"
-                      className="object-cover"
-                      data-ai-hint={item.hint}
-                    />
-                  </div>
-                ))}
+              /* A strip you scroll, not a grid of tiles.
+                 The grid cropped every picture into a fixed cell — a portrait
+                 beside a landscape lost most of both. Here each keeps its own
+                 shape at a shared height and you move along them, which is what
+                 X does with a set of photos. Tapping one still opens it. */
+              <div
+                className="group/strip relative"
+                style={{ aspectRatio: String(feedAspect(media[0].width, media[0].height) ?? 16 / 9) }}
+              >
+                <div
+                  ref={stripRef}
+                  className="no-scrollbar flex h-full snap-x snap-mandatory gap-0.5 overflow-x-auto overscroll-x-contain"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {media.map((item, index) => (
+                    item.url && (
+                      <button
+                        key={index}
+                        type="button"
+                        className="relative h-full shrink-0 snap-start cursor-pointer bg-black"
+                        onClick={(e) => openImageViewer(e, index)}
+                        aria-label={`Open image ${index + 1} of ${imageCount}`}
+                      >
+                        <Image
+                          src={item.url}
+                          alt={item.hint || `Post image ${index + 1}`}
+                          width={item.width || 1200}
+                          height={item.height || 1200}
+                          sizes="(max-width: 768px) 90vw, 500px"
+                          className="h-full w-auto max-w-none object-cover"
+                          data-ai-hint={item.hint}
+                        />
+                      </button>
+                    )
+                  ))}
+                </div>
+
+                {/* A mouse has no swipe. These stay out of the way until the
+                    card is hovered, the way the viewer's arrows do. */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={nudgeStrip(-1)}
+                  aria-label="Previous image"
+                  className="absolute left-2 top-1/2 hidden h-9 w-9 -translate-y-1/2 rounded-full bg-black/50 text-white opacity-0 transition-opacity hover:bg-black/70 hover:text-white group-hover/strip:opacity-100 md:inline-flex"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={nudgeStrip(1)}
+                  aria-label="Next image"
+                  className="absolute right-2 top-1/2 hidden h-9 w-9 -translate-y-1/2 rounded-full bg-black/50 text-white opacity-0 transition-opacity hover:bg-black/70 hover:text-white group-hover/strip:opacity-100 md:inline-flex"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+
+                <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm md:group-hover/strip:opacity-0">
+                  {imageCount} photos
+                </span>
               </div>
             ) : null}
           </div>
