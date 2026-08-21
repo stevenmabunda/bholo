@@ -29,12 +29,13 @@ function PanelContents({
   const width = useResponsiveGridWidth(maxWidth);
 
   // Giphy's <Grid> is a masonry with no height of its own — it grows with
-  // however many results come back. Unconstrained, the popover ended up taller
-  // than a phone screen, and the search bar at the top got pushed out of view,
-  // which is the one control the picker exists for. Cap the panel and scroll
-  // the results underneath a pinned search bar.
+  // however many results come back. The panel used to cap itself at 60vh, which
+  // is not the same as the space the popover actually has: opening upward near
+  // the bottom of a window, 60vh was more room than existed and the top of the
+  // panel — the search bar — went off-screen. The popover owns the height now
+  // and this fills it, scrolling the results under a pinned search bar.
   return (
-    <div className="flex max-h-[60vh] flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <div className="shrink-0">
         <SearchBar />
       </div>

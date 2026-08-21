@@ -441,7 +441,16 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
                         <Clapperboard className="h-5 w-5 text-primary" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-2 border-none bg-background/95 backdrop-blur-sm shadow-lg">
+                <PopoverContent
+                    // Bounded by the space Radix says is actually there, so
+                    // the panel cannot open taller than the gap it is
+                    // opening into. Unbounded, a picker sitting near the
+                    // bottom of a desktop window opened upwards past the top
+                    // of the screen and took its search bar with it — the one
+                    // control the picker exists for.
+                    collisionPadding={12}
+                    className="flex w-auto max-h-[min(60vh,var(--radix-popover-content-available-height))] flex-col overflow-hidden p-2 border-none bg-background/95 backdrop-blur-sm shadow-lg"
+                      >
                     <div className="mb-2 flex gap-1">
                         <Button
                             type="button"
