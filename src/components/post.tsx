@@ -63,7 +63,7 @@ import { useTabContext } from "@/contexts/tab-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { siteUrl } from "@/lib/site";
 import { XIcon, FacebookIcon, WhatsAppIcon } from "@/components/icons";
-import { feedAspect, PORTRAIT_THRESHOLD, MAX_IMAGE_HEIGHT_PX } from "@/lib/media-aspect";
+import { feedAspect, PORTRAIT_THRESHOLD } from "@/lib/media-aspect";
 import { saveScrollPosition as savePosition } from "@/lib/scroll-position";
 
 
@@ -854,7 +854,12 @@ function PostComponent(props: PostProps) {
         {mediaExists && (
           <div
             className={cn(
-              "mt-3 rounded-2xl overflow-hidden border",
+              "mt-3 rounded-2xl overflow-hidden",
+              // A single photo draws its own edge, so the outline was just a
+              // line around a picture. Video keeps it, because a clip that
+              // letterboxes needs something to say where it ends, and so does
+              // the photo strip, whose cells meet at a seam.
+              !singleImage && "border",
               isVideo && 'relative bg-black flex items-center justify-center cursor-pointer group/video',
               isVideo && (isPortraitVideo ? 'w-full md:h-[560px] md:w-auto md:max-w-full' : 'w-full')
             )}
@@ -904,20 +909,29 @@ function PostComponent(props: PostProps) {
                   )}
               </div>
             ) : singleImage && media[0].url ? (
-              // Height is capped; nothing is cropped.
+              // Two behaviours, because the two screens have different problems.
               //
-              // A tall photo is scaled down until it fits the cap, which makes
-              // it narrower than the column rather than shorter than itself.
-              // Cropping was tried and cut the bottom off things that needed it
-              // — the score under a results card, the last rows of a table.
+              // On a phone the column is narrow, a photo clamped to 4:5 lands
+              // around 469px, and filling the width is what makes it feel like
+              // a phone app. That is what mobile does, unchanged.
               //
-              // The leftover width sits to the right, because the picture is
-              // pinned to the left edge of the column. Centring it would leave
-              // a margin either side and read as a mistake; hard against the
-              // text above it reads as deliberate. This is already how tall
-              // video behaves here.
+              // Desktop is wider, so the same ratio ran to 665px and one photo
+              // took most of the screen. There the height is capped instead and
+              // the picture keeps every pixel, coming out narrower than the
+              // column and sitting against its left edge — the treatment tall
+              // video already gets here.
               <div
-                  className="relative w-fit max-w-full cursor-pointer overflow-hidden rounded-2xl bg-black"
+                  className={cn(
+                    "relative w-full bg-black cursor-pointer overflow-hidden",
+                    // Inline styles beat classes, so the ratio has to be turned
+                    // off with force before the height cap can take over.
+                    "md:!aspect-auto md:w-fit md:max-w-full md:max-h-[500px]"
+                  )}
+                  style={
+                    feedAspect(media[0].width, media[0].height) !== null
+                      ? { aspectRatio: String(feedAspect(media[0].width, media[0].height)) }
+                      : { maxHeight: 500 }
+                  }
                   onClick={(e) => openImageViewer(e, 0)}
               >
                   <Image
@@ -926,8 +940,16 @@ function PostComponent(props: PostProps) {
                       width={media[0].width || 500}
                       height={media[0].height || 500}
                       sizes="(max-width: 768px) 100vw, 532px"
-                      className="h-auto w-auto max-w-full object-contain"
-                      style={{ maxHeight: MAX_IMAGE_HEIGHT_PX }}
+                      className={cn(
+                        'w-full',
+                        // Known shape: fill the clamped box. Unknown: never
+                        // crop, since we cannot tell what would be lost.
+                        feedAspect(media[0].width, media[0].height) !== null
+                          ? 'h-full object-cover'
+                          : 'h-auto max-h-[500px] object-contain',
+                        // Desktop: no crop at all, just bounded.
+                        'md:h-auto md:w-auto md:max-h-[500px] md:max-w-full md:object-contain'
+                      )}
                       data-ai-hint={media[0].hint}
                   />
               </div>
