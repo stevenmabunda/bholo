@@ -925,7 +925,7 @@ function PostComponent(props: PostProps) {
                     "relative w-full bg-black cursor-pointer overflow-hidden",
                     // Inline styles beat classes, so the ratio has to be turned
                     // off with force before the height cap can take over.
-                    "md:!aspect-auto md:w-fit md:max-w-full md:max-h-[500px]"
+                    "md:!aspect-auto md:max-h-[500px]"
                   )}
                   style={
                     feedAspect(media[0].width, media[0].height) !== null
@@ -947,8 +947,17 @@ function PostComponent(props: PostProps) {
                         feedAspect(media[0].width, media[0].height) !== null
                           ? 'h-full object-cover'
                           : 'h-auto max-h-[500px] object-contain',
-                        // Desktop: no crop at all, just bounded.
-                        'md:h-auto md:w-auto md:max-h-[500px] md:max-w-full md:object-contain'
+                        // Desktop: fill the column, stop at the cap, crop
+                        // nothing.
+                        //
+                        // w-auto was wrong here. It renders a picture at its own
+                        // pixel size, so a 650px-wide photo sat at 650px in a
+                        // wider column with a gap beside it — small and adrift,
+                        // rather than a photo that fills its slot. w-full scales
+                        // it to the column the way X does; the cap then holds
+                        // back anything tall enough to run away, and what is
+                        // held back is pinned left rather than centred.
+                        'md:h-auto md:w-full md:max-h-[500px] md:object-contain md:object-left'
                       )}
                       data-ai-hint={media[0].hint}
                   />
