@@ -21,6 +21,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { cleanSocials, SOCIAL_NETWORKS, SOCIAL_LABELS, socialUrl, type SocialNetwork } from "@/lib/socials";
+import { XIcon, FacebookIcon, InstagramIcon, TikTokIcon, GlobeIcon } from "@/components/icons";
 import * as z from "zod";
 import { useParams, useRouter } from "next/navigation";
 import { getUserProfile, getIsFollowing, toggleFollow, type ProfileData, getLikedPosts, updateUserPosts, getMediaPosts, getUserPosts } from "../actions";
@@ -44,6 +46,13 @@ const profileFormSchema = z.object({
     location: z.string().max(30, "Location must not exceed 30 characters.").optional(),
     country: z.string().max(50, "Country must not exceed 50 characters.").optional(),
     favouriteClub: z.string().max(50, "Club name must not exceed 50 characters.").optional(),
+    // Handles, not links. Anything paste-shaped is reduced to a handle on save,
+    // so the URL is ours to build rather than theirs to supply.
+    x: z.string().max(60).optional(),
+    instagram: z.string().max(60).optional(),
+    tiktok: z.string().max(60).optional(),
+    facebook: z.string().max(60).optional(),
+    website: z.string().max(200).optional(),
 });
 
 
@@ -252,6 +261,51 @@ export function ProfileView() {
             <span>Joined {profile.joined}</span>
           </div>
         </div>
+
+        {/* Icons rather than pasted addresses — the whole reason these are
+            separate fields. Every href is built from a stored handle, and the
+            website has already been checked for an http(s) scheme, so nothing
+            here came straight from a text box.
+
+            nofollow because these are unverified: anyone can type any handle,
+            and we are not lending them ranking on the strength of that. */}
+        {(() => {
+          const socials = profile.socials ?? {};
+          const glyphs: Record<SocialNetwork, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
+            x: XIcon, instagram: InstagramIcon, tiktok: TikTokIcon, facebook: FacebookIcon,
+          };
+          const links = SOCIAL_NETWORKS
+            .filter((n) => socials[n])
+            .map((n) => ({ key: n, href: socialUrl(n, socials[n]!), label: `${SOCIAL_LABELS[n]}: @${socials[n]}`, Glyph: glyphs[n] }));
+
+          if (socials.website) {
+            links.push({
+              key: 'website' as SocialNetwork,
+              href: socials.website,
+              label: socials.website.replace(/^https?:\/\//, '').replace(/\/$/, ''),
+              Glyph: GlobeIcon,
+            });
+          }
+          if (!links.length) return null;
+
+          return (
+            <div className="mt-3 flex flex-wrap items-center gap-4">
+              {links.map(({ key, href, label, Glyph }) => (
+                <a
+                  key={key}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  title={label}
+                  aria-label={label}
+                  className="text-muted-foreground transition-colors hover:text-primary"
+                >
+                  <Glyph className="h-5 w-5" />
+                </a>
+              ))}
+            </div>
+          );
+        })()}
         <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1">
           <FollowListDialog profileId={profile.uid} type="following">
             <div className="cursor-pointer hover:underline">
@@ -381,6 +435,11 @@ function EditProfileDialog({ isOpen, onOpenChange, profile, onProfileUpdate }: {
             location: profile?.location || '',
             country: profile?.country || '',
             favouriteClub: profile?.favouriteClub || '',
+            x: profile?.socials?.x || '',
+            instagram: profile?.socials?.instagram || '',
+            tiktok: profile?.socials?.tiktok || '',
+            facebook: profile?.socials?.facebook || '',
+            website: profile?.socials?.website || '',
         },
     });
     
@@ -393,6 +452,11 @@ function EditProfileDialog({ isOpen, onOpenChange, profile, onProfileUpdate }: {
                 location: profile.location || '',
                 country: profile.country || '',
                 favouriteClub: profile.favouriteClub || '',
+                x: profile.socials?.x || '',
+                instagram: profile.socials?.instagram || '',
+                tiktok: profile.socials?.tiktok || '',
+                facebook: profile.socials?.facebook || '',
+                website: profile.socials?.website || '',
             });
             setAvatarPreview(profile.photoURL);
             setBannerPreview(profile.bannerUrl);
@@ -481,6 +545,10 @@ function EditProfileDialog({ isOpen, onOpenChange, profile, onProfileUpdate }: {
                 favourite_club: data.favouriteClub,
                 banner_url: newBannerUrl,
                 banner_position: Math.round(bannerPosition),
+                socials: cleanSocials({
+                    x: data.x, instagram: data.instagram, tiktok: data.tiktok,
+                    facebook: data.facebook, website: data.website,
+                }),
             }).eq('id', user.id);
 
             if (error) throw error;
@@ -586,6 +654,46 @@ function EditProfileDialog({ isOpen, onOpenChange, profile, onProfileUpdate }: {
 
                             <Controller name="favouriteClub" control={form.control} render={({ field }) => <Input placeholder="Favourite Club" {...field} />} />
                             {form.formState.errors.favouriteClub && <p className="text-sm text-destructive">{form.formState.errors.favouriteClub.message}</p>}
+
+                            {/* Handles rather than links. Paste a whole URL and
+                                it is reduced to the handle on save, tracking
+                                junk and all — so what gets stored is the part
+                                that identifies the account, and the link is
+                                built from it. */}
+                            <div className="space-y-3 border-t pt-4">
+                                <p className="text-sm font-medium">Social accounts</p>
+
+                                {SOCIAL_NETWORKS.map((network) => (
+                                    <div key={network} className="flex items-center gap-2">
+                                        <span className="w-20 shrink-0 text-sm text-muted-foreground">{SOCIAL_LABELS[network]}</span>
+                                        <div className="relative flex-1">
+                                            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">@</span>
+                                            <Controller
+                                                name={network}
+                                                control={form.control}
+                                                render={({ field }) => (
+                                                    <Input className="pl-7" placeholder="yourhandle" autoCapitalize="none" autoCorrect="off" spellCheck={false} {...field} />
+                                                )}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+
+                                <div className="flex items-center gap-2">
+                                    <span className="w-20 shrink-0 text-sm text-muted-foreground">Website</span>
+                                    <Controller
+                                        name="website"
+                                        control={form.control}
+                                        render={({ field }) => (
+                                            <Input className="flex-1" placeholder="yoursite.com" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} {...field} />
+                                        )}
+                                    />
+                                </div>
+
+                                <p className="text-xs text-muted-foreground">
+                                    Leave blank to remove. Anything that is not a working handle or address is dropped when you save.
+                                </p>
+                            </div>
                         </form>
                     </div>
                 </ScrollArea>

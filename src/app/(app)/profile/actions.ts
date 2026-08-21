@@ -2,6 +2,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import type { Socials } from '@/lib/socials';
 import type { PostType } from '@/lib/data';
 import { formatTimestamp } from '@/lib/utils';
 
@@ -19,6 +20,7 @@ export type ProfileData = {
   joined: string;
   followersCount: number;
   followingCount: number;
+  socials?: Socials;
 };
 
 function mapPostRow(row: any): PostType {
@@ -64,6 +66,7 @@ export async function getUserProfile(
     bannerPosition: data.banner_position ?? 50,
     followersCount: data.followers_count || 0,
     followingCount: data.following_count || 0,
+    socials: (data.socials ?? {}) as Socials,
   };
 }
 
@@ -254,7 +257,7 @@ export async function getUsersToFollow(currentUserId: string): Promise<ProfileDa
               displayName: p.display_name || 'User',
               handle: p.handle || 'user',
               photoURL: p.photo_url || 'https://placehold.co/40x40.png',
-              bannerUrl: '', bio: '', country: '', favouriteClub: '', joined: '', followersCount: 0, followingCount: 0, location: '', bannerPosition: 50,
+              bannerUrl: '', bio: '', country: '', favouriteClub: '', joined: '', followersCount: 0, followingCount: 0, location: '', bannerPosition: 50, socials: {},
           } as ProfileData));
 
         return usersToSuggest.slice(0, 3);
