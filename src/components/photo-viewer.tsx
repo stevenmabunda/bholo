@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import useEmblaCarousel from 'embla-carousel-react';
 import {
   MessageCircle, Repeat, Heart, Bookmark, Share2, Copy,
-  ChevronLeft, ChevronRight, BarChart3, Maximize2, X,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, BarChart3, Maximize2, X,
 } from 'lucide-react';
 
 import type { PostType } from '@/lib/data';
@@ -65,6 +65,14 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
   const [isShareOpen, setShareOpen] = useState(false);
   const [isLoginOpen, setLoginOpen] = useState(false);
   const [isReplyOpen, setReplyOpen] = useState(false);
+  /**
+   * Whether the desktop side panel is showing.
+   *
+   * The toggle sits opposite the close control, the way X has it: close on the
+   * left of the picture, collapse on the right. Collapsed, the picture takes
+   * the whole window.
+   */
+  const [panelOpen, setPanelOpen] = useState(true);
   /**
    * Whether the conversation is showing.
    *
@@ -237,9 +245,21 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
           )}
         </div>
 
-        {/* Desktop has no back bar, so it keeps a close control of its own. */}
-        <Button variant="ghost" size="icon" onClick={close} className="absolute right-4 top-4 z-20 hidden h-9 w-9 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white md:inline-flex" aria-label="Close">
+        {/* Desktop has no back bar, so it keeps controls of its own: close on
+            the left, panel toggle on the right, as X arranges them. */}
+        <Button variant="ghost" size="icon" onClick={close} className="absolute left-4 top-4 z-20 hidden h-9 w-9 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white md:inline-flex" aria-label="Close">
           <X className="h-5 w-5" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setPanelOpen(v => !v)}
+          className="absolute right-4 top-4 z-20 hidden h-9 w-9 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white md:inline-flex"
+          aria-label={panelOpen ? 'Hide replies' : 'Show replies'}
+          aria-expanded={panelOpen}
+        >
+          {panelOpen ? <ChevronsRight className="h-5 w-5" /> : <ChevronsLeft className="h-5 w-5" />}
         </Button>
 
         <div
@@ -349,8 +369,10 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
         </div>
       </div>
 
-      {/* Desktop side panel. */}
-      <aside className="hidden w-[380px] shrink-0 flex-col bg-background md:flex md:h-full">
+      {/* Desktop side panel. The left border is the seam between picture and
+          replies — without it the two areas ran together. */}
+      {panelOpen && (
+      <aside className="hidden w-[380px] shrink-0 flex-col border-l bg-background md:flex md:h-full">
         <ScrollArea className="flex-1">
           <div className="p-4">
             <div className="flex items-center gap-3">
@@ -416,6 +438,7 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
           </div>
         </ScrollArea>
       </aside>
+      )}
 
       <Sheet open={isShareOpen} onOpenChange={setShareOpen}>
         <SheetContent side="bottom" className="rounded-t-lg">
