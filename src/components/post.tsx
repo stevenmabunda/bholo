@@ -860,10 +860,22 @@ function PostComponent(props: PostProps) {
           <div
             className={cn(
               "mt-3 rounded-2xl overflow-hidden border",
+              // The border lives here, so the cap has to live here too. With it
+              // on the inner slot the frame stayed full width and the photo
+              // paints narrower inside it — a rounded box with black to the
+              // right of the picture, which is the imbalance rather than a fix
+              // for it. Bounded here, the frame ends where the photo ends.
+              singleImage && naturalAspect !== null && 'md:max-w-[var(--cap-width)]',
               isVideo && 'relative bg-black flex items-center justify-center cursor-pointer group/video',
               isVideo && (isPortraitVideo ? 'w-full md:h-[560px] md:w-auto md:max-w-full' : 'w-full')
             )}
-            style={isVideo ? { aspectRatio: String(videoAspect) } : undefined}
+            style={
+              isVideo
+                ? { aspectRatio: String(videoAspect) }
+                : singleImage && naturalAspect !== null
+                  ? ({ '--cap-width': `${Math.round(MAX_IMAGE_HEIGHT_PX * naturalAspect)}px` } as React.CSSProperties)
+                  : undefined
+            }
             onClick={handlePostClick}
           >
             {isVideo && media[0].url ? (
@@ -926,14 +938,13 @@ function PostComponent(props: PostProps) {
                     "relative w-full bg-black cursor-pointer overflow-hidden",
                     // Inline styles beat classes, so both shapes travel as
                     // custom properties and the breakpoint picks one.
-                    naturalAspect !== null && "[aspect-ratio:var(--shape-mobile)] md:[aspect-ratio:var(--shape-desktop)] md:[max-width:var(--cap-width)]"
+                    naturalAspect !== null && "[aspect-ratio:var(--shape-mobile)] md:[aspect-ratio:var(--shape-desktop)]"
                   )}
                   style={
                     naturalAspect !== null
                       ? ({
                           '--shape-mobile': String(feedAspect(media[0].width, media[0].height)),
                           '--shape-desktop': String(naturalAspect),
-                          '--cap-width': `${Math.round(MAX_IMAGE_HEIGHT_PX * naturalAspect)}px`,
                         } as React.CSSProperties)
                       : { maxHeight: MAX_IMAGE_HEIGHT_PX }
                   }
