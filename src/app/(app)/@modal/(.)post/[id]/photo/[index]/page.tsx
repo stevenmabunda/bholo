@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getPost } from '@/app/(app)/post/[id]/actions';
 import { PhotoViewer } from '@/components/photo-viewer';
+import { viewableMedia } from '@/lib/viewable-media';
 
 type Props = { params: Promise<{ id: string; index: string }> };
 
@@ -17,9 +18,9 @@ export default async function PhotoModal({ params }: Props) {
   const post = await getPost(id);
   if (!post) notFound();
 
-  const images = (post.media ?? []).filter(m => m.type === 'image');
+  const slides = viewableMedia(post.media);
   const start = Number(index);
-  if (!images.length || !Number.isInteger(start) || start < 0 || start >= images.length) {
+  if (!slides.length || !Number.isInteger(start) || start < 0 || start >= slides.length) {
     notFound();
   }
 

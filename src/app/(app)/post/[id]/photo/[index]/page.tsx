@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getPost } from '../../actions';
 import { PhotoViewer } from '@/components/photo-viewer';
+import { viewableMedia } from '@/lib/viewable-media';
 
 type Props = { params: Promise<{ id: string; index: string }> };
 
@@ -19,8 +20,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // '… | BHOLO | BHOLO'.
   if (!post) return { title: 'Photo' };
 
-  const images = (post.media ?? []).filter(m => m.type === 'image');
-  const image = images[Number(index)] ?? images[0];
+  const slides = viewableMedia(post.media);
+  const slide = slides[Number(index)] ?? slides[0];
+  // A crawler cannot use a video URL, but it can use the still we captured
+  // when the video was uploaded.
+  const preview = slide?.type === 'video' ? slide.posterUrl : slide?.url;
 
   return {
     title: `Photo by @${post.authorHandle}`,
@@ -28,7 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: `Photo by @${post.authorHandle}`,
       description: post.content?.slice(0, 200),
-      images: image ? [{ url: image.url, width: image.width, height: image.height }] : undefined,
+      images: preview ? [{ url: preview, width: slide?.width, height: slide?.height }] : undefined,
     },
   };
 }
@@ -38,10 +42,10 @@ export default async function PhotoPage({ params }: Props) {
   const post = await getPost(id);
   if (!post) notFound();
 
-  const images = (post.media ?? []).filter(m => m.type === 'image');
+  const slides = viewableMedia(post.media);
   const start = Number(index);
   // A made-up index would leave the carousel on a blank slide.
-  if (!images.length || !Number.isInteger(start) || start < 0 || start >= images.length) {
+  if (!slides.length || !Number.isInteger(start) || start < 0 || start >= slides.length) {
     notFound();
   }
 

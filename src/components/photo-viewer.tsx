@@ -18,6 +18,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { getIsFollowing } from '@/app/(app)/profile/actions';
 import { useLiveComments, type CommentRow } from '@/hooks/use-live-comments';
+import { viewableMedia } from '@/lib/viewable-media';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { formatTimestamp } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -126,7 +127,7 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
   const { toast } = useToast();
   const { likePost, repostPost, bookmarkPost, addComment, likedPostIds, bookmarkedPostIds, repostedPostIds } = usePosts();
 
-  const images = useMemo(() => (post.media ?? []).filter(m => m.type === 'image'), [post.media]);
+  const slides = useMemo(() => viewableMedia(post.media), [post.media]);
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, startIndex });
   const [index, setIndex] = useState(startIndex);
 
@@ -381,22 +382,37 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
         >
           <div className="h-full w-full overflow-hidden" ref={emblaRef}>
             <div className="flex h-full">
-              {images.map((image, i) => (
+              {slides.map((slide, i) => (
                 <div key={i} className="relative min-w-0 flex-[0_0_100%]">
-                  <Image
-                    src={image.url}
-                    alt={`Image ${i + 1} of ${images.length}`}
-                    width={image.width || 1200}
-                    height={image.height || 1200}
-                    className="h-full w-full object-contain"
-                    priority={i === startIndex}
-                  />
+                  {slide.type === 'video' ? (
+                    /* Its own poster and a play control, nothing playing on its
+                       own. A clip that starts talking the moment a photo opens
+                       is the fastest way to make someone close the app — and on
+                       a phone it spends data nobody asked it to. */
+                    <video
+                      src={slide.url}
+                      poster={slide.posterUrl || undefined}
+                      controls
+                      playsInline
+                      preload={i === startIndex ? 'metadata' : 'none'}
+                      className="h-full w-full object-contain"
+                    />
+                  ) : (
+                    <Image
+                      src={slide.url}
+                      alt={`Item ${i + 1} of ${slides.length}`}
+                      width={slide.width || 1200}
+                      height={slide.height || 1200}
+                      className="h-full w-full object-contain"
+                      priority={i === startIndex}
+                    />
+                  )}
                 </div>
               ))}
             </div>
           </div>
 
-          {images.length > 1 && (
+          {slides.length > 1 && (
             <>
               {/* Desktop only: a mouse has no swipe. */}
               <Button variant="ghost" size="icon" onClick={() => emblaApi?.scrollPrev()} className="absolute left-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 rounded-full bg-black/30 text-white opacity-50 transition-opacity hover:bg-black/50 hover:text-white group-hover/viewer:opacity-100 md:left-4 md:inline-flex">
@@ -407,7 +423,7 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
               </Button>
 
               <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/40 px-2.5 py-1.5 backdrop-blur-sm" aria-hidden>
-                {images.map((_, i) => (
+                {slides.map((_, i) => (
                   <span key={i} className={cn('h-1.5 w-1.5 rounded-full transition-colors', i === index ? 'bg-white' : 'bg-white/40')} />
                 ))}
               </div>

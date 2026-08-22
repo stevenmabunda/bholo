@@ -64,6 +64,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { siteUrl } from "@/lib/site";
 import { XIcon, FacebookIcon, WhatsAppIcon } from "@/components/icons";
 import { feedAspect, PORTRAIT_THRESHOLD, MAX_IMAGE_HEIGHT_PX } from "@/lib/media-aspect";
+import { viewableIndexOf } from "@/lib/viewable-media";
 import { saveScrollPosition as savePosition } from "@/lib/scroll-position";
 
 
@@ -731,14 +732,13 @@ function PostComponent(props: PostProps) {
   const singleImage = !isVideo && mediaExists && media.length === 1 && media[0].type === 'image';
 
   /**
-   * Where a piece of media sits among the images alone.
+   * Where a piece of media sits among the things the viewer can show.
    *
-   * The viewer only shows images, so it counts them without the video. Passing
-   * the position in `media` would open the wrong picture in any post where a
-   * video comes first.
+   * The viewer skips GIFs and stickers, so its indexes are not positions in
+   * `media` — handing it one would open the wrong item in any post that mixes
+   * them.
    */
-  const imageIndexOf = (mediaIndex: number) =>
-    (media ?? []).slice(0, mediaIndex).filter(m => m.type === 'image').length;
+  const viewerIndexOf = (mediaIndex: number) => viewableIndexOf(media, mediaIndex);
 
   // The photo's real shape, before any clamping. Desktop uses it as-is.
   const naturalAspect = (singleImage && media?.[0]?.width && media?.[0]?.height)
@@ -1026,23 +1026,30 @@ function PostComponent(props: PostProps) {
                   {media.map((item, index) => (
                     item.url && (
                       item.type === 'video' ? (
-                        /* A video in the strip plays where it is. Sending it to
-                           the photo viewer would be sending it somewhere that
-                           only shows pictures. */
-                        <div
+                        /* The still we captured on upload, with a play badge
+                           over it — the same shape X gives a clip in a mixed
+                           post. Tapping opens it in the viewer, where it plays;
+                           the feed stays quiet and downloads nothing. */
+                        <button
                           key={index}
-                          className="relative h-full w-[calc(50%-1px)] shrink-0 snap-start bg-black"
-                          onClick={(e) => e.stopPropagation()}
+                          type="button"
+                          className="group/clip relative h-full w-[calc(50%-1px)] shrink-0 snap-start cursor-pointer bg-black"
+                          onClick={(e) => openImageViewer(e, viewerIndexOf(index))}
+                          aria-label="Play video"
                         >
-                          <video
-                            src={item.url}
-                            poster={item.posterUrl || undefined}
-                            controls
-                            playsInline
-                            preload="metadata"
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
+                          {item.posterUrl ? (
+                            <Image src={item.posterUrl} alt={item.hint || 'Video'} fill sizes="(max-width: 768px) 45vw, 300px" className="object-cover" />
+                          ) : (
+                            /* No still was captured for this one — older posts,
+                               and any upload where the capture failed. */
+                            <video src={item.url} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                          )}
+                          <span className="absolute inset-0 flex items-center justify-center">
+                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 backdrop-blur-sm transition-colors group-hover/clip:bg-black/70">
+                              <Play className="ml-0.5 h-6 w-6 fill-white text-white" />
+                            </span>
+                          </span>
+                        </button>
                       ) : (
                         <button
                           key={index}
@@ -1051,8 +1058,8 @@ function PostComponent(props: PostProps) {
                              evenly and a third is a scroll away rather than a
                              squeeze. */
                           className="relative h-full w-[calc(50%-1px)] shrink-0 snap-start cursor-pointer bg-black"
-                          onClick={(e) => openImageViewer(e, imageIndexOf(index))}
-                          aria-label={`Open image ${imageIndexOf(index) + 1} of ${imageCount}`}
+                          onClick={(e) => openImageViewer(e, viewerIndexOf(index))}
+                          aria-label={`Open image ${viewerIndexOf(index) + 1}`}
                         >
                           <Image
                             src={item.url}
