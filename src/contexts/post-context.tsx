@@ -395,25 +395,75 @@ export function PostProvider({ children }: { children: ReactNode }) {
     // they could not see.
     if (!onFeed) return;
 
+    /** Buffers a post for the banner, if it is not already known. */
+    const buffer = (post: PostType) => {
+      if (post.authorId === user.id) return;
+      const cached = queryClient.getQueryData<PostType[]>(queryKeys.feed()) ?? [];
+      if (cached.some(p => p.id === post.id)) return;
+      setNewForYouPosts(newPrev => {
+        if (newPrev.some(p => p.id === post.id)) return newPrev;
+        // Only the three newest avatars are ever shown and no total is
+        // displayed, so an unbounded buffer just grew for as long as the tab
+        // stayed open.
+        return [post, ...newPrev].slice(0, NEW_POSTS_BUFFER_LIMIT);
+      });
+    };
+
+    /**
+     * Ask what arrived while we were not listening.
+     *
+     * The banner used to rely on the socket alone, which is fine on a desktop
+     * tab that stays awake for hours. A phone suspends the connection the
+     * moment you leave the app, so every post made while BHOLO was in the
+     * background was delivered to nobody and never mentioned again — the
+     * banner simply never appeared, which is exactly the case someone hits
+     * when they switch apps and come back.
+     *
+     * So on arriving, and on every return to the foreground, we ask for posts
+     * newer than the newest one on screen and buffer those.
+     */
+    const catchUp = async () => {
+      const cached = queryClient.getQueryData<PostType[]>(queryKeys.feed()) ?? [];
+      const newest = cached.find(p => p.createdAt)?.createdAt;
+      if (!newest) return;
+
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .gt('created_at', newest)
+        .neq('author_id', user.id)
+        // No scheduled_for filter here on purpose. 008 enforces that in the
+        // SELECT policy precisely so queries do not have to, and filtering it
+        // here would also hide a scheduled post that has since published —
+        // which RLS allows through and the feed should show.
+        .order('created_at', { ascending: false })
+        .limit(NEW_POSTS_BUFFER_LIMIT);
+
+      if (error || !data) return;
+      // Oldest first, so the newest ends up at the head of the buffer.
+      [...data].reverse().forEach(row => buffer(mapRow(row)));
+    };
+
     const channel = supabase
       .channel(`posts-feed-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload) => {
-        const row = payload.new as any;
-        if (row.author_id === user.id) return;
-        const post = mapRow(row);
-        const cached = queryClient.getQueryData<PostType[]>(queryKeys.feed()) ?? [];
-        if (cached.some(p => p.id === post.id)) return;
-        setNewForYouPosts(newPrev => {
-          if (newPrev.some(p => p.id === post.id)) return newPrev;
-          // Only the three newest avatars are ever shown and no total is
-          // displayed, so an unbounded buffer just grew for as long as the tab
-          // stayed open.
-          return [post, ...newPrev].slice(0, NEW_POSTS_BUFFER_LIMIT);
-        });
+        buffer(mapRow(payload.new as any));
       })
-      .subscribe();
+      .subscribe(status => {
+        // Covers the first connection and every reconnect after a phone wakes
+        // the socket back up.
+        if (status === 'SUBSCRIBED') void catchUp();
+      });
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void catchUp();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
 
     return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
       supabase.removeChannel(channel);
     };
   }, [user, queryClient, onFeed]);
