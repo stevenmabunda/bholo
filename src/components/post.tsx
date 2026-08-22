@@ -945,13 +945,10 @@ function PostComponent(props: PostProps) {
                            {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                         </Button>
                   </div>
-                  {/* Desktop-only hover affordance. It was previously shown
-                      on mobile too, where there's no real hover — a tap left
-                      the state stuck, which is why the play icon appeared to
-                      be permanently on top of the video. */}
-                  <div className="hidden md:flex absolute inset-0 items-center justify-center pointer-events-none opacity-0 group-hover/video:opacity-100 transition-opacity">
-                      {isFeedVideoPlaying ? <Pause className="h-12 w-12 text-white/70 drop-shadow-lg" fill="currentColor" /> : <Play className="h-12 w-12 text-white/70 drop-shadow-lg" fill="currentColor" />}
-                  </div>
+                  {/* No play icon over the middle of the picture. There is
+                      already one in the bar at the bottom, so on hover the
+                      video wore two of them — and the centre one covered the
+                      thing being watched. */}
                   {isFeedVideoPlaying && (
                     <div
                       ref={progressRef}
