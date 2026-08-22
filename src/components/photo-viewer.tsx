@@ -366,6 +366,7 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
                       parentPostId={post.id}
                       commentId={c.id}
                       initialLikes={c.likes}
+                      initialReposts={c.reposts}
                       onReplyClick={openReply}
                     />
                   </div>
@@ -463,6 +464,7 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
                       parentPostId={post.id}
                       commentId={c.id}
                       initialLikes={c.likes}
+                      initialReposts={c.reposts}
                       onReplyClick={openReply}
                     />
                   </div>

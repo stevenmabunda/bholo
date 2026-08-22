@@ -38,6 +38,7 @@ type PostContextType = {
   addComment: (postId: string, data: { text: string; media: ReplyMedia[] }) => Promise<boolean | null>;
   likePost: (postId: string, currentlyLiked: boolean) => Promise<void>;
   likeComment: (postId: string, commentId: string, isUnlike: boolean) => Promise<void>;
+  repostComment: (commentId: string, isReposted: boolean) => Promise<void>;
   repostPost: (postId: string, isReposted: boolean) => Promise<void>;
   bookmarkPost: (postId: string, isBookmarked: boolean) => Promise<void>;
   bookmarkedPostIds: Set<string>;
@@ -631,6 +632,22 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (error) console.error("Error updating reposts:", error);
   };
 
+  /**
+   * Reposting a comment, as a row.
+   *
+   * The button used to change colour and stop there — nothing reached the
+   * database, and the count beside it never moved. A row per person per comment
+   * means the count is maintained by the trigger, and a second one is refused
+   * by the unique index rather than quietly inflating the number.
+   */
+  const repostComment = async (commentId: string, isReposted: boolean) => {
+    if (!user) return;
+    const { error } = isReposted
+      ? await supabase.from('reposts').delete().eq('user_id', user.id).eq('comment_id', commentId)
+      : await supabase.from('reposts').insert({ user_id: user.id, comment_id: commentId });
+    if (error) console.error("Error updating comment reposts:", error);
+  };
+
   const bookmarkPost = async (postId: string, isBookmarked: boolean) => {
     if (!user) return;
 
@@ -661,7 +678,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       forYouPosts, newForYouPosts,
       loadingForYou,
       showNewForYouPosts, addPost, editPost, deletePost, addVote,
-      addComment, likePost, likeComment, repostPost, bookmarkPost,
+      addComment, likePost, likeComment, repostPost, repostComment, bookmarkPost,
       bookmarkedPostIds, likedPostIds,
       fetchForYouPosts
   };

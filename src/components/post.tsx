@@ -81,13 +81,14 @@ type CommentType = PostType;
  * Exported because the photo viewer shows the same thread and was rendering it
  * without any of this — a list of replies you could read and not answer.
  */
-export function CommentEngagement({ parentPostId, commentId, initialLikes, onReplyClick }: { parentPostId: string, commentId: string, initialLikes: number, onReplyClick: (event: React.MouseEvent) => void }) {
+export function CommentEngagement({ parentPostId, commentId, initialLikes, initialReposts = 0, onReplyClick }: { parentPostId: string, commentId: string, initialLikes: number, initialReposts?: number, onReplyClick: (event: React.MouseEvent) => void }) {
     const { user } = useAuth();
-    const { likeComment } = usePosts();
+    const { likeComment, repostComment } = usePosts();
     const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
     
     const [likeCount, setLikeCount] = useState(initialLikes);
     const [isLiked, setIsLiked] = useState(false);
+    const [repostCount, setRepostCount] = useState(initialReposts);
     const [isReposted, setIsReposted] = useState(false);
 
     const handleActionClick = (action: () => void) => (e: React.MouseEvent) => {
@@ -108,9 +109,10 @@ export function CommentEngagement({ parentPostId, commentId, initialLikes, onRep
     };
     
     const handleRepost = () => {
-      // NOTE: Reposting comments is often a more complex feature (e.g., quote tweet).
-      // For now, this is a UI-only interaction.
-      setIsReposted(!isReposted);
+      const next = !isReposted;
+      setIsReposted(next);
+      setRepostCount(prev => Math.max(prev + (next ? 1 : -1), 0));
+      repostComment(commentId, isReposted);
     }
     
     const handleReply = (e: React.MouseEvent) => {
@@ -130,6 +132,7 @@ export function CommentEngagement({ parentPostId, commentId, initialLikes, onRep
                 </Button>
                 <Button variant="ghost" size='icon' className={cn("h-8 w-8 flex items-center gap-2 hover:text-green-500", isReposted && "text-green-500")} onClick={handleActionClick(handleRepost)}>
                     <Repeat className="h-5 w-5" />
+                    {repostCount > 0 && <span className="text-xs">{repostCount}</span>}
                 </Button>
                 <Button variant="ghost" size='icon' className={cn("h-8 w-8 flex items-center gap-2", isLiked ? 'text-red-500' : 'hover:text-red-500')} onClick={handleActionClick(handleLike)}>
                     <Heart className={cn("h-5 w-5", isLiked && 'fill-current')} />
@@ -1134,6 +1137,7 @@ function PostComponent(props: PostProps) {
                 parentPostId={parentPostId} 
                 commentId={id} 
                 initialLikes={initialLikes} 
+                initialReposts={initialReposts}
                 onReplyClick={handleCommentClick}
             />
         )}
