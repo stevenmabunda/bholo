@@ -75,7 +75,13 @@ type PostProps = PostType & {
 
 type CommentType = PostType;
 
-function CommentEngagement({ parentPostId, commentId, initialLikes, onReplyClick }: { parentPostId: string, commentId: string, initialLikes: number, onReplyClick: (event: React.MouseEvent) => void }) {
+/**
+ * Reply, repost and like for a single comment.
+ *
+ * Exported because the photo viewer shows the same thread and was rendering it
+ * without any of this — a list of replies you could read and not answer.
+ */
+export function CommentEngagement({ parentPostId, commentId, initialLikes, onReplyClick }: { parentPostId: string, commentId: string, initialLikes: number, onReplyClick: (event: React.MouseEvent) => void }) {
     const { user } = useAuth();
     const { likeComment } = usePosts();
     const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);

@@ -26,6 +26,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { CreateComment } from '@/components/create-comment';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { FollowButton } from '@/components/follow-button';
+import { CommentEngagement } from '@/components/post';
 import { LoginOrSignupDialog } from '@/components/login-or-signup-dialog';
 import { XIcon, FacebookIcon, WhatsAppIcon } from '@/components/icons';
 
@@ -358,6 +359,15 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
                         )}
                       </div>
                     )}
+
+                    {/* The same row a reply gets on the post page. Without it
+                        this was a thread you could read and not answer. */}
+                    <CommentEngagement
+                      parentPostId={post.id}
+                      commentId={c.id}
+                      initialLikes={c.likes}
+                      onReplyClick={openReply}
+                    />
                   </div>
                 </article>
               ))
@@ -446,6 +456,15 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
                         )}
                       </div>
                     )}
+
+                    {/* The same row a reply gets on the post page. Without it
+                        this was a thread you could read and not answer. */}
+                    <CommentEngagement
+                      parentPostId={post.id}
+                      commentId={c.id}
+                      initialLikes={c.likes}
+                      onReplyClick={openReply}
+                    />
                   </div>
                 </article>
               ))
