@@ -35,7 +35,7 @@ type PostContextType = {
   editPost: (postId: string, data: { text:string }) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
   addVote: (postId: string, choiceIndex: number) => Promise<void>;
-  addComment: (postId: string, data: { text: string; media: ReplyMedia[] }) => Promise<boolean | null>;
+  addComment: (postId: string, data: { text: string; media: ReplyMedia[]; parentCommentId?: string | null }) => Promise<boolean | null>;
   likePost: (postId: string, currentlyLiked: boolean) => Promise<void>;
   likeComment: (postId: string, commentId: string, isUnlike: boolean) => Promise<void>;
   repostComment: (commentId: string, isReposted: boolean) => Promise<void>;
@@ -555,10 +555,22 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const addComment = async (postId: string, data: { text: string; media: ReplyMedia[] }): Promise<boolean | null> => {
+  /**
+   * The comment a reply should hang from.
+   *
+   * Answering a reply should join the conversation it is part of, not start a
+   * second level of indentation under it. So if the comment being answered is
+   * itself a reply, its parent is used instead.
+   */
+  const topLevelParent = async (commentId: string): Promise<string> => {
+    const { data } = await supabase.from('comments').select('parent_comment_id').eq('id', commentId).single();
+    return (data?.parent_comment_id as string | null) ?? commentId;
+  };
+
+  const addComment = async (postId: string, data: { text: string; media: ReplyMedia[]; parentCommentId?: string | null }): Promise<boolean | null> => {
     if (!user || !profile) throw new Error("User not authenticated.");
 
-    const { text, media } = data;
+    const { text, media, parentCommentId } = data;
     try {
         const mediaUploads = await Promise.all(media.map(async (m) => {
             if (m.type === 'gif' || m.type === 'sticker') {
@@ -584,6 +596,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
             author_avatar: profile.photo_url,
             content: text,
             media: mediaUploads,
+            // One level only. Answering a reply attaches to that reply's own
+            // parent, so the thread never indents twice and cannot march off
+            // the side of a phone.
+            parent_comment_id: parentCommentId ? await topLevelParent(parentCommentId) : null,
         });
         if (error) throw error;
 

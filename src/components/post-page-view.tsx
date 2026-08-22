@@ -108,6 +108,34 @@ export function PostPageView({ postId }: { postId: string }) {
 
   const loadingPost = !!postId && isLoading && !cachedFromFeed;
   const { comments: liveComments, loading: loadingComments } = useLiveComments(postId);
+  /**
+   * The thread, arranged rather than listed.
+   *
+   * Every reply used to land at the bottom as a fresh top-level comment, so
+   * answering someone put your response nowhere near what it answered. Replies
+   * now sit under their parent, in the order they were written. One level only
+   * — a reply to a reply is stored against the same parent, so this never nests
+   * twice.
+   */
+  const threaded = (() => {
+    const tops = liveComments.filter(c => !c.parentCommentId);
+    const repliesByParent = new Map<string, typeof liveComments>();
+    for (const c of liveComments) {
+      if (!c.parentCommentId) continue;
+      const existing = repliesByParent.get(c.parentCommentId) ?? [];
+      existing.push(c);
+      repliesByParent.set(c.parentCommentId, existing);
+    }
+    // A reply whose parent is missing — deleted, or not loaded — would vanish
+    // otherwise, so it falls back to sitting on its own.
+    const known = new Set(tops.map(c => c.id));
+    const orphans = liveComments.filter(c => c.parentCommentId && !known.has(c.parentCommentId));
+    return [...tops, ...orphans].map(parent => ({
+      parent,
+      replies: repliesByParent.get(parent.id) ?? [],
+    }));
+  })();
+
   const comments: PostType[] = liveComments.map(c => ({
     id: c.id,
     authorId: c.authorId,
@@ -210,14 +238,35 @@ export function PostPageView({ postId }: { postId: string }) {
                     </div>
                 ))
             ) : comments.length > 0 ? (
-                 comments.map((comment, index) => (
-                    <div key={`comment-${comment.id}`} className={cn(
-                        "border-b",
-                        index % 2 !== 0 && "border-b-transparent"
-                    )}>
-                        <Post {...comment} isReplyView={true} parentPostId={post.id} />
-                    </div>
-                 ))
+                 threaded.map(({ parent, replies }) => {
+                    const asPost = (c: typeof parent): PostType => ({
+                        id: c.id, authorId: c.authorId, authorName: c.authorName,
+                        authorHandle: c.authorHandle, authorAvatar: c.authorAvatar,
+                        content: c.content, timestamp: formatTimestamp(new Date(c.createdAt)),
+                        media: c.media.map(m => ({ ...m, url: m.url ?? '' })),
+                        comments: c.comments, reposts: c.reposts, likes: c.likes,
+                    });
+                    return (
+                        <div key={`comment-${parent.id}`} className="border-b">
+                            <Post {...asPost(parent)} isReplyView={true} parentPostId={post.id} />
+
+                            {/* Indented once, against a line, so it is clear
+                                what the reply is answering. */}
+                            {replies.length > 0 && (
+                                <div className="ml-6 border-l pl-3 md:ml-10 md:pl-4">
+                                    {replies.map(reply => (
+                                        <Post
+                                            key={`reply-${reply.id}`}
+                                            {...asPost(reply)}
+                                            isReplyView={true}
+                                            parentPostId={post.id}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                 })
             ) : (
                  <div className="p-8 text-center text-muted-foreground">
                     <h2 className="text-xl font-bold">No comments yet</h2>

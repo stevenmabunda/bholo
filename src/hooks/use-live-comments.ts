@@ -16,6 +16,8 @@ export type CommentRow = {
   likes: number;
   reposts: number;
   comments: number;
+  /** The comment this answers, or null when it answers the post itself. */
+  parentCommentId: string | null;
   createdAt: string;
 };
 
@@ -32,6 +34,7 @@ function mapRow(row: any): CommentRow {
     likes: row.likes_count,
     reposts: row.reposts_count,
     comments: row.replies_count,
+    parentCommentId: row.parent_comment_id ?? null,
     createdAt: row.created_at,
   };
 }

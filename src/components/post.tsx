@@ -490,7 +490,12 @@ function PostComponent(props: PostProps) {
   const handleCreateComment = async (data: { text: string; media: any[] }) => {
     if (!user || !id) return null;
     try {
-      const success = await addComment(id, data);
+      // In a reply view `id` is the comment, not the post — so the reply goes
+      // on the post and remembers which comment it answers. Sent with `id` as
+      // the post, it would have been filed against a post that does not exist.
+      const success = isReplyView && parentPostId
+        ? await addComment(parentPostId, { ...data, parentCommentId: id })
+        : await addComment(id, data);
       if (success) {
         setCommentCount(prev => prev + 1);
       }

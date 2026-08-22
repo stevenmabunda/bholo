@@ -284,7 +284,15 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
             'group/viewer relative w-full',
             // Pulled back, but only a little: most of the picture stays with
             // you, and the first replies sit just under it.
-            showComments ? 'h-[60vh] shrink-0 md:h-auto md:flex-1' : 'min-h-0 flex-1'
+            // shrink-0 is for the phone, where the photo holds 60vh and the
+            // thread scrolls past it. It had no desktop override, so sending a
+            // reply — which turns showComments on — left the desktop photo
+            // unable to shrink into its space: 557px of picture in 462px of
+            // column, overflowing and appearing to blow up. md:shrink puts it
+            // back, and md:min-h-0 lets it go below its content height.
+            showComments
+              ? 'h-[60vh] shrink-0 md:h-auto md:min-h-0 md:flex-1 md:shrink'
+              : 'min-h-0 flex-1'
           )}
         >
           <div className="h-full w-full overflow-hidden" ref={emblaRef}>
