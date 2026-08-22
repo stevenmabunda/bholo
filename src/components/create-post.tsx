@@ -59,6 +59,9 @@ const EMOJI_GROUPS = [
 ];
 
 
+/** Images and video together, up to this many, at most one of them a video. */
+const MAX_MEDIA_PER_POST = 4;
+
 export function CreatePost({ onPost }: { onPost: (data: { text: string; media: Media[], poll?: PostType['poll'], location?: string | null, scheduledFor?: string | null }) => Promise<any> }) {
   const { user } = useAuth();
   const { profile } = useProfile();
@@ -82,31 +85,35 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
 
-    const fileType = files[0].type.startsWith('image/') ? 'image' : 'video';
+    // Each file is judged on its own. The whole selection used to take its type
+    // from files[0], so picking a video first refused the lot as "one video per
+    // post", and picking an image first labelled the video an image and posted
+    // it as one.
+    const picked = files.map(file => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+      type: (file.type.startsWith('video/') ? 'video' : 'image') as 'video' | 'image',
+    }));
 
-    media.forEach(m => URL.revokeObjectURL(m.previewUrl));
-    setShowPoll(false);
+    const combined = [...media, ...picked];
+    const videos = combined.filter(m => m.type === 'video').length;
 
-    if (fileType === 'video') {
-        if (files.length > 1) {
-            toast({ variant: 'destructive', description: "You can only upload one video per post." });
-            return;
-        }
-        const file = files[0];
-        setMedia([{ file, previewUrl: URL.createObjectURL(file), type: 'video' }]);
-    } else {
-        if (files.length > 4) {
-            toast({ variant: 'destructive', description: "You can only upload up to 4 images." });
-            return;
-        }
-        
-        const newMedia = files.map(file => ({
-            file,
-            previewUrl: URL.createObjectURL(file),
-            type: 'image' as const
-        }));
-        setMedia(newMedia);
+    const reject = (why: string) => {
+      picked.forEach(m => URL.revokeObjectURL(m.previewUrl));
+      toast({ variant: 'destructive', description: why });
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    };
+
+    if (videos > 1) return reject('One video per post. The rest can be images.');
+    if (combined.length > MAX_MEDIA_PER_POST) {
+      return reject(`Up to ${MAX_MEDIA_PER_POST} items per post — you picked ${combined.length}.`);
     }
+
+    // Appended, not replaced. Choosing again used to throw away what was
+    // already attached, so images and a video could never be added in two goes.
+    setShowPoll(false);
+    setMedia(combined);
+    if (imageInputRef.current) imageInputRef.current.value = '';
   };
 
   const removeMedia = (index: number) => {
@@ -286,13 +293,22 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
   };
 
   const isPostable = text.trim().length > 0 || media.length > 0 || (showPoll && pollChoices.some(c => c.trim()));
-  const hasVideo = media.length > 0 && media[0].type === 'video';
-  const hasGif = media.length > 0 && media[0].type === 'gif';
-  const hasSticker = media.length > 0 && media[0].type === 'sticker';
-  const hasImages = media.length > 0 && media[0].type === 'image';
-  const hasContent = showPoll || hasVideo || hasImages || hasGif || hasSticker;
+  // Asked of the whole selection, not of media[0]. A mixed post begins with
+  // whichever file was picked first, so reading only the first item decided the
+  // shape of everything from an accident of ordering.
+  const hasGif = media.some(m => m.type === 'gif');
+  const hasSticker = media.some(m => m.type === 'sticker');
+  const videoCount = media.filter(m => m.type === 'video').length;
+  const hasVideo = videoCount > 0;
+  const hasImages = media.some(m => m.type === 'image');
 
-  const singleImage = hasImages && media.length === 1;
+  // A poll or a Giphy pick still owns the post; photos and video no longer do,
+  // so more can be added until the limit is reached.
+  const hasContent = showPoll || hasGif || hasSticker;
+  const mediaFull = media.length >= MAX_MEDIA_PER_POST;
+
+  const singleImage = hasImages && !hasVideo && media.length === 1;
+  const singleVideo = hasVideo && media.length === 1;
 
   const gridClasses = {
     2: 'grid-cols-2 grid-rows-1',
@@ -349,7 +365,7 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
 
           {media.length > 0 && (
             <div className="mt-3 rounded-2xl overflow-hidden border max-h-[50vh] overflow-y-auto">
-                {hasVideo ? (
+                {singleVideo ? (
                     <div className="relative">
                         <video src={media[0].previewUrl} controls className="w-full h-auto max-h-96 object-contain" />
                         <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8 rounded-full bg-black/50 hover:bg-black/75 text-white hover:text-white" onClick={() => removeMedia(0)}>
@@ -364,10 +380,16 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
                         </Button>
                     </div>
                 ) : (
+                    /* Mixed selections live here too, so a cell renders whatever
+                       it holds rather than assuming every one is a picture. */
                     <div className={cn("grid aspect-video gap-0.5", gridClasses)}>
                         {media.map((item, index) => (
-                            <div key={index} className={cn("relative", media.length === 3 && index === 0 && 'row-span-2')}>
-                                <Image src={item.previewUrl} alt={`Preview ${index + 1}`} fill className="object-cover" />
+                            <div key={index} className={cn("relative bg-black", media.length === 3 && index === 0 && 'row-span-2')}>
+                                {item.type === 'video' ? (
+                                    <video src={item.previewUrl} muted playsInline className="h-full w-full object-cover" />
+                                ) : (
+                                    <Image src={item.previewUrl} alt={`Preview ${index + 1}`} fill className="object-cover" />
+                                )}
                                 <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8 rounded-full bg-black/50 hover:bg-black/75 text-white hover:text-white" onClick={() => removeMedia(index)}>
                                     <X className="h-4 w-4" />
                                 </Button>
@@ -402,7 +424,7 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
                 multiple
                 disabled={posting}
               />
-              <Button variant="ghost" size="icon" title="Add photos or video" onClick={() => imageInputRef.current?.click()} disabled={!!hasContent || posting}>
+              <Button variant="ghost" size="icon" title="Add photos or video" onClick={() => imageInputRef.current?.click()} disabled={!!hasContent || mediaFull || posting}>
                 <ImageIcon className="h-5 w-5 text-primary" />
               </Button>
               <Popover>
@@ -437,7 +459,7 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
                   Giphy search with a different asset type. */}
               <Popover open={isGifPopoverOpen} onOpenChange={setIsGifPopoverOpen}>
                 <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" title="GIFs and stickers" disabled={!!hasContent || posting}>
+                    <Button variant="ghost" size="icon" title="GIFs and stickers" disabled={!!hasContent || media.length > 0 || posting}>
                         <Clapperboard className="h-5 w-5 text-primary" />
                     </Button>
                 </PopoverTrigger>

@@ -389,7 +389,7 @@ function PostComponent(props: PostProps) {
   const isBookmarked = useMemo(() => bookmarkedPostIds.has(id), [bookmarkedPostIds, id]);
 
   const mediaExists = media && media.length > 0;
-  const isVideo = mediaExists && media[0].type === 'video';
+  const isVideo = mediaExists && media.length === 1 && media[0].type === 'video';
   // 16:9 only when the real shape is genuinely unknown — every video uploaded
   // or backfilled since carries its own dimensions.
   const videoAspect = (isVideo && feedAspect(media[0].width, media[0].height, 'video')) || 16 / 9;
@@ -723,9 +723,22 @@ function PostComponent(props: PostProps) {
     };
   }, []);
 
-  const imageCount = mediaExists && !isVideo ? media.length : 0;
-  
-  const singleImage = imageCount === 1;
+  // A post can now carry images and a video together, so "how many pictures"
+  // and "is this a video post" are no longer opposites. isVideo means the whole
+  // post is one video; anything else with more than one item rides the strip.
+  const imageCount = mediaExists && !isVideo ? media.filter(m => m.type === 'image').length : 0;
+
+  const singleImage = !isVideo && mediaExists && media.length === 1 && media[0].type === 'image';
+
+  /**
+   * Where a piece of media sits among the images alone.
+   *
+   * The viewer only shows images, so it counts them without the video. Passing
+   * the position in `media` would open the wrong picture in any post where a
+   * video comes first.
+   */
+  const imageIndexOf = (mediaIndex: number) =>
+    (media ?? []).slice(0, mediaIndex).filter(m => m.type === 'image').length;
 
   // The photo's real shape, before any clamping. Desktop uses it as-is.
   const naturalAspect = (singleImage && media?.[0]?.width && media?.[0]?.height)
@@ -1012,25 +1025,45 @@ function PostComponent(props: PostProps) {
                 >
                   {media.map((item, index) => (
                     item.url && (
-                      <button
-                        key={index}
-                        type="button"
-                        /* Half the width each, so a pair shares the space
-                           evenly and a third is a scroll away rather than a
-                           squeeze. */
-                        className="relative h-full w-[calc(50%-1px)] shrink-0 snap-start cursor-pointer bg-black"
-                        onClick={(e) => openImageViewer(e, index)}
-                        aria-label={`Open image ${index + 1} of ${imageCount}`}
-                      >
-                        <Image
-                          src={item.url}
-                          alt={item.hint || `Post image ${index + 1}`}
-                          fill
-                          sizes="(max-width: 768px) 45vw, 300px"
-                          className="object-cover"
-                          data-ai-hint={item.hint}
-                        />
-                      </button>
+                      item.type === 'video' ? (
+                        /* A video in the strip plays where it is. Sending it to
+                           the photo viewer would be sending it somewhere that
+                           only shows pictures. */
+                        <div
+                          key={index}
+                          className="relative h-full w-[calc(50%-1px)] shrink-0 snap-start bg-black"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <video
+                            src={item.url}
+                            poster={item.posterUrl || undefined}
+                            controls
+                            playsInline
+                            preload="metadata"
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <button
+                          key={index}
+                          type="button"
+                          /* Half the width each, so a pair shares the space
+                             evenly and a third is a scroll away rather than a
+                             squeeze. */
+                          className="relative h-full w-[calc(50%-1px)] shrink-0 snap-start cursor-pointer bg-black"
+                          onClick={(e) => openImageViewer(e, imageIndexOf(index))}
+                          aria-label={`Open image ${imageIndexOf(index) + 1} of ${imageCount}`}
+                        >
+                          <Image
+                            src={item.url}
+                            alt={item.hint || `Post image ${index + 1}`}
+                            fill
+                            sizes="(max-width: 768px) 45vw, 300px"
+                            className="object-cover"
+                            data-ai-hint={item.hint}
+                          />
+                        </button>
+                      )
                     )
                   ))}
                 </div>
