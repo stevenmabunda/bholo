@@ -43,6 +43,9 @@ type PostContextType = {
   bookmarkPost: (postId: string, isBookmarked: boolean) => Promise<void>;
   bookmarkedPostIds: Set<string>;
   likedPostIds: Set<string>;
+  repostedPostIds: Set<string>;
+  likedCommentIds: Set<string>;
+  repostedCommentIds: Set<string>;
   fetchForYouPosts: (options?: { limit?: number; before?: string }) => Promise<PostType[]>;
 };
 
@@ -291,27 +294,53 @@ export function PostProvider({ children }: { children: ReactNode }) {
     enabled: !!user,
     staleTime: 60_000,
     queryFn: async () => {
-      if (!user) return { bookmarked: [] as string[], liked: [] as string[] };
-      const [{ data: bookmarks }, { data: likes }] = await Promise.all([
-        // Explicit and newest-first, so the bound is a defined "most recent
-        // 1000" rather than an arbitrary slice from PostgREST's cap. A user
-        // past that would stop seeing their oldest likes reflected in the
-        // feed; the real fix then is looking up state for the posts on
-        // screen instead of the whole history.
+      const empty = {
+        bookmarked: [] as string[], liked: [] as string[], reposted: [] as string[],
+        likedComments: [] as string[], repostedComments: [] as string[],
+      };
+      if (!user) return empty;
+
+      // Explicit and newest-first, so the bound is a defined "most recent
+      // 1000" rather than an arbitrary slice from PostgREST's cap. A user
+      // past that would stop seeing their oldest likes reflected in the
+      // feed; the real fix then is looking up state for the posts on
+      // screen instead of the whole history.
+      //
+      // Comment likes and reposts are read here too. Without them every
+      // comment rendered as though you had never touched it — the row was in
+      // the database, the icon just did not know, so a reload silently undid
+      // what you had done and let you like the same thing again.
+      const recent = (table: string, column: 'post_id' | 'comment_id') =>
+        supabase.from(table).select(column).eq('user_id', user.id)
+          .not(column, 'is', null).order('created_at', { ascending: false }).limit(1000);
+
+      const [bookmarks, likes, reposts, commentLikes, commentReposts] = await Promise.all([
         supabase.from('bookmarks').select('post_id').eq('user_id', user.id)
           .order('created_at', { ascending: false }).limit(1000),
-        supabase.from('likes').select('post_id').eq('user_id', user.id)
-          .not('post_id', 'is', null).order('created_at', { ascending: false }).limit(1000),
+        recent('likes', 'post_id'),
+        recent('reposts', 'post_id'),
+        recent('likes', 'comment_id'),
+        recent('reposts', 'comment_id'),
       ]);
+
+      const ids = (result: { data: any[] | null }, column: string) =>
+        (result.data ?? []).map((row: any) => row[column] as string);
+
       return {
-        bookmarked: (bookmarks ?? []).map((b) => b.post_id as string),
-        liked: (likes ?? []).map((l) => l.post_id as string),
+        bookmarked: ids(bookmarks, 'post_id'),
+        liked: ids(likes, 'post_id'),
+        reposted: ids(reposts, 'post_id'),
+        likedComments: ids(commentLikes, 'comment_id'),
+        repostedComments: ids(commentReposts, 'comment_id'),
       };
     },
   });
 
   const bookmarkedPostIds = new Set(interactions?.bookmarked ?? []);
   const likedPostIds = new Set(interactions?.liked ?? []);
+  const repostedPostIds = new Set(interactions?.reposted ?? []);
+  const likedCommentIds = new Set(interactions?.likedComments ?? []);
+  const repostedCommentIds = new Set(interactions?.repostedComments ?? []);
 
   // Live bookmark/like IDs for the current user — realtime now feeds the
   // query cache rather than separate component state, so there's one
@@ -332,6 +361,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       .channel(`user-interactions-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookmarks', filter: `user_id=eq.${user.id}` }, invalidate)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'likes', filter: `user_id=eq.${user.id}` }, invalidate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reposts', filter: `user_id=eq.${user.id}` }, invalidate)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
@@ -627,8 +657,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (error) console.error("Error updating comment likes:", error);
   };
 
+  /**
+   * Reposting a post, as a row — the same table comments use.
+   *
+   * It used to call increment_repost_count, which bumps the number and keeps
+   * no record of who did it. Nothing could tell you that you had already
+   * reposted something, and a reload let you add to the count again. The RPC
+   * still exists for the counter it maintains, but nothing calls it now.
+   */
   const repostPost = async (postId: string, isReposted: boolean) => {
-    const { error } = await supabase.rpc('increment_repost_count', { p_post_id: postId, p_delta: isReposted ? -1 : 1 });
+    if (!user) return;
+    const { error } = isReposted
+      ? await supabase.from('reposts').delete().eq('user_id', user.id).eq('post_id', postId)
+      : await supabase.from('reposts').insert({ user_id: user.id, post_id: postId });
     if (error) console.error("Error updating reposts:", error);
   };
 
@@ -679,7 +720,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       loadingForYou,
       showNewForYouPosts, addPost, editPost, deletePost, addVote,
       addComment, likePost, likeComment, repostPost, repostComment, bookmarkPost,
-      bookmarkedPostIds, likedPostIds,
+      bookmarkedPostIds, likedPostIds, repostedPostIds, likedCommentIds, repostedCommentIds,
       fetchForYouPosts
   };
 

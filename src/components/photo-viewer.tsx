@@ -49,7 +49,7 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
   const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { likePost, repostPost, bookmarkPost, addComment, likedPostIds, bookmarkedPostIds } = usePosts();
+  const { likePost, repostPost, bookmarkPost, addComment, likedPostIds, bookmarkedPostIds, repostedPostIds } = usePosts();
 
   const images = useMemo(() => (post.media ?? []).filter(m => m.type === 'image'), [post.media]);
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, startIndex });
@@ -60,7 +60,7 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
   // reading the old number until the page was fetched again.
   const [commentCount, setCommentCount] = useState(post.comments);
   const [repostCount, setRepostCount] = useState(post.reposts);
-  const [isReposted, setIsReposted] = useState(false);
+  const [repostedOverride, setRepostedOverride] = useState<boolean | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(true);
   const [isShareOpen, setShareOpen] = useState(false);
@@ -90,6 +90,7 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
   const { comments, loading: commentsLoading } = useLiveComments(wantsComments ? post.id : null);
 
   const isLiked = likedPostIds.has(post.id);
+  const isReposted = repostedOverride ?? repostedPostIds.has(post.id);
   const isBookmarked = bookmarkedPostIds.has(post.id);
   const isAuthor = !!user && user.id === post.authorId;
 
@@ -138,9 +139,10 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
   });
 
   const handleRepost = requireUser(() => {
-    setIsReposted(!isReposted);
-    setRepostCount(isReposted ? repostCount - 1 : repostCount + 1);
-    repostPost(post.id, !isReposted);
+    const next = !isReposted;
+    setRepostedOverride(next);
+    setRepostCount(prev => Math.max(prev + (next ? 1 : -1), 0));
+    repostPost(post.id, isReposted);
   });
 
   const handleBookmark = requireUser(() => {

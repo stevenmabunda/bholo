@@ -83,13 +83,19 @@ type CommentType = PostType;
  */
 export function CommentEngagement({ parentPostId, commentId, initialLikes, initialReposts = 0, onReplyClick }: { parentPostId: string, commentId: string, initialLikes: number, initialReposts?: number, onReplyClick: (event: React.MouseEvent) => void }) {
     const { user } = useAuth();
-    const { likeComment, repostComment } = usePosts();
+    const { likeComment, repostComment, likedCommentIds, repostedCommentIds } = usePosts();
     const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
-    
+
     const [likeCount, setLikeCount] = useState(initialLikes);
-    const [isLiked, setIsLiked] = useState(false);
     const [repostCount, setRepostCount] = useState(initialReposts);
-    const [isReposted, setIsReposted] = useState(false);
+    // Seeded from what the person has actually done, not from an assumption
+    // that they have done nothing. Both used to start false on every render, so
+    // a reload showed a comment you had liked as unliked — and let you like it
+    // again, which the primary key then refused in silence.
+    const [likedOverride, setLikedOverride] = useState<boolean | null>(null);
+    const [repostedOverride, setRepostedOverride] = useState<boolean | null>(null);
+    const isLiked = likedOverride ?? likedCommentIds.has(commentId);
+    const isReposted = repostedOverride ?? repostedCommentIds.has(commentId);
 
     const handleActionClick = (action: () => void) => (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -102,15 +108,16 @@ export function CommentEngagement({ parentPostId, commentId, initialLikes, initi
     };
 
     const handleLike = () => {
-        const newIsLiked = !isLiked;
-        setIsLiked(newIsLiked);
-        setLikeCount(prev => prev + (newIsLiked ? 1 : -1));
-        likeComment(parentPostId, commentId, newIsLiked);
+        const next = !isLiked;
+        setLikedOverride(next);
+        setLikeCount(prev => Math.max(prev + (next ? 1 : -1), 0));
+        // The context's argument is "is this an unlike", i.e. the state before.
+        likeComment(parentPostId, commentId, isLiked);
     };
     
     const handleRepost = () => {
       const next = !isReposted;
-      setIsReposted(next);
+      setRepostedOverride(next);
       setRepostCount(prev => Math.max(prev + (next ? 1 : -1), 0));
       repostComment(commentId, isReposted);
     }
@@ -342,7 +349,7 @@ function PostComponent(props: PostProps) {
   
   const router = useRouter();
   const { user } = useAuth();
-  const { editPost, deletePost, likePost, repostPost, bookmarkPost, bookmarkedPostIds, addComment, addVote, likedPostIds } = usePosts();
+  const { editPost, deletePost, likePost, repostPost, bookmarkPost, bookmarkedPostIds, addComment, addVote, likedPostIds, repostedPostIds } = usePosts();
   const { toast } = useToast();
   const { setActiveTab } = useTabContext();
   const isMobile = useIsMobile();
@@ -352,7 +359,10 @@ function PostComponent(props: PostProps) {
 
   const [likeCount, setLikeCount] = useState(initialLikes);
   const [repostCount, setRepostCount] = useState(initialReposts);
-  const [isReposted, setIsReposted] = useState(false);
+  // Seeded from what has actually been reposted, so a reload no longer shows
+  // your own repost as though it never happened.
+  const [repostedOverride, setRepostedOverride] = useState<boolean | null>(null);
+  const isReposted = repostedOverride ?? repostedPostIds.has(id);
   
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
@@ -576,9 +586,11 @@ function PostComponent(props: PostProps) {
   };
 
   const handleRepost = () => {
-    setIsReposted(!isReposted);
-    setRepostCount(isReposted ? repostCount - 1 : repostCount + 1);
-    repostPost(id, !isReposted);
+    const next = !isReposted;
+    setRepostedOverride(next);
+    setRepostCount(prev => Math.max(prev + (next ? 1 : -1), 0));
+    // The context's argument is the state before the click.
+    repostPost(id, isReposted);
   };
 
   const handleBookmark = () => {
