@@ -17,7 +17,7 @@ import { usePosts } from '@/contexts/post-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { getIsFollowing } from '@/app/(app)/profile/actions';
-import { useLiveComments } from '@/hooks/use-live-comments';
+import { useLiveComments, type CommentRow } from '@/hooks/use-live-comments';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { formatTimestamp } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -45,6 +45,81 @@ function formatCount(n?: number): string {
  * about it. It is a route now: tapping a photo in the feed overlays it with the
  * feed still mounted behind, back closes it, and the URL can be shared.
  */
+
+/**
+ * One reply, in either of the two places the viewer shows the thread: over
+ * black on a phone, on the panel background on desktop. It was written out
+ * twice and had already drifted — the second copy carried a stray class the
+ * first did not.
+ */
+function Reply({
+  comment, dark, postId, onReply,
+}: {
+  comment: CommentRow;
+  dark: boolean;
+  postId: string;
+  onReply: (parentCommentId: string) => void;
+}) {
+  return (
+    <article className={cn('flex gap-3 border-b', dark ? 'border-neutral-800 px-4 py-3' : 'p-4')}>
+      <Avatar className="h-9 w-9 shrink-0">
+        <AvatarImage src={comment.authorAvatar} alt={comment.authorName} />
+        <AvatarFallback>{comment.authorName.charAt(0)}</AvatarFallback>
+      </Avatar>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm">
+          <span className={cn('font-bold', dark && 'text-white')}>{comment.authorName}</span>{' '}
+          <span className={dark ? 'text-neutral-500' : 'text-muted-foreground'}>
+            @{comment.authorHandle} · {formatTimestamp(new Date(comment.createdAt))}
+          </span>
+        </p>
+        {comment.content && (
+          <p className={cn('mt-0.5 whitespace-pre-wrap text-sm', dark && 'text-neutral-200')}>
+            {linkify(comment.content)}
+          </p>
+        )}
+        {comment.media?.length > 0 && (
+          <div className={cn('mt-2 overflow-hidden rounded-xl border', dark && 'border-neutral-800')}>
+            {comment.media[0].type === 'video' ? (
+              <video src={comment.media[0].url ?? ''} className="max-h-64 w-auto" controls playsInline />
+            ) : (
+              // GIFs and stickers are remote Giphy URLs of unknown size, so
+              // this is a plain img rather than next/image.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={comment.media[0].url ?? ''} alt="" className="max-h-64 w-auto object-contain" />
+            )}
+          </div>
+        )}
+
+        <CommentEngagement
+          parentPostId={postId}
+          commentId={comment.id}
+          initialLikes={comment.likes}
+          initialReposts={comment.reposts}
+          onReplyClick={() => onReply(comment.id)}
+        />
+      </div>
+    </article>
+  );
+}
+
+/**
+ * The thread arranged into parents and their replies, one level deep — the
+ * same shape the post page uses, so the two agree about what answers what.
+ */
+function threadOf(comments: CommentRow[]) {
+  const tops = comments.filter(c => !c.parentCommentId);
+  const byParent = new Map<string, CommentRow[]>();
+  for (const c of comments) {
+    if (!c.parentCommentId) continue;
+    byParent.set(c.parentCommentId, [...(byParent.get(c.parentCommentId) ?? []), c]);
+  }
+  // A reply whose parent is gone would vanish otherwise, so it stands alone.
+  const known = new Set(tops.map(c => c.id));
+  const orphans = comments.filter(c => c.parentCommentId && !known.has(c.parentCommentId));
+  return [...tops, ...orphans].map(parent => ({ parent, replies: byParent.get(parent.id) ?? [] }));
+}
+
 export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: number }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -150,16 +225,25 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
     toast({ description: !isBookmarked ? 'Post bookmarked.' : 'Bookmark removed.' });
   });
 
-  const openReply = () => {
+  /**
+   * Which comment the composer is answering, or null for the post itself.
+   * Without it every reply sent from here landed as a new top-level comment,
+   * however deep in the thread it was written.
+   */
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+
+  const openReply = (parentCommentId: string | null = null) => {
     if (!user) { setLoginOpen(true); return; }
+    setReplyTo(parentCommentId);
     setReplyOpen(true);
   };
 
   const submitReply = async (data: { text: string; media: any[] }) => {
     try {
-      const ok = await addComment(post.id, data);
+      const ok = await addComment(post.id, { ...data, parentCommentId: replyTo });
       if (ok) {
         setReplyOpen(false);
+        setReplyTo(null);
         setCommentCount(prev => prev + 1);
         // Straight into the thread, so the reply is visible rather than
         // announced. It arrives over realtime on its own.
@@ -345,42 +429,20 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
             ) : comments.length === 0 ? (
               <p className="p-6 text-center text-sm text-neutral-500">No replies yet.</p>
             ) : (
-              comments.map(c => (
-                <article key={c.id} className="flex gap-3 border-b border-neutral-800 px-4 py-3">
-                  <Avatar className="h-9 w-9 shrink-0">
-                    <AvatarImage src={c.authorAvatar} alt={c.authorName} />
-                    <AvatarFallback>{c.authorName.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm">
-                      <span className="font-bold text-white">{c.authorName}</span>{' '}
-                      <span className="text-neutral-500">@{c.authorHandle} · {formatTimestamp(new Date(c.createdAt))}</span>
-                    </p>
-                    {c.content && <p className="mt-0.5 whitespace-pre-wrap text-sm text-neutral-200">{linkify(c.content)}</p>}
-                    {c.media?.length > 0 && (
-                      <div className="mt-2 overflow-hidden rounded-xl border border-neutral-800">
-                        {c.media[0].type === 'video' ? (
-                          <video src={c.media[0].url ?? ''} className="max-h-64 w-auto" controls playsInline />
-                        ) : (
-                          // GIFs and stickers are remote Giphy URLs of unknown
-                          // size, so this is a plain img rather than next/image.
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={c.media[0].url ?? ''} alt="" className="max-h-64 w-auto object-contain" />
-                        )}
-                      </div>
-                    )}
-
-                    {/* The same row a reply gets on the post page. Without it
-                        this was a thread you could read and not answer. */}
-                    <CommentEngagement
-                      parentPostId={post.id}
-                      commentId={c.id}
-                      initialLikes={c.likes}
-                      initialReposts={c.reposts}
-                      onReplyClick={openReply}
-                    />
-                  </div>
-                </article>
+              threadOf(comments).map(({ parent, replies }) => (
+                <div key={parent.id}>
+                  <Reply comment={parent} dark={true} postId={post.id} onReply={openReply} />
+                  {replies.length > 0 && (
+                    /* Indented once against a line, the same as the post page.
+                       A reply to a reply is stored against this same parent, so
+                       the thread never steps in twice. */
+                    <div className="ml-6 border-l border-neutral-800 pl-3 md:ml-10 md:pl-4">
+                      {replies.map(r => (
+                        <Reply key={r.id} comment={r} dark={true} postId={post.id} onReply={openReply} />
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))
             )}
           </div>
@@ -397,7 +459,7 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
               <AvatarImage src={user?.user_metadata?.avatar_url} alt="" />
               <AvatarFallback>{(user?.email ?? '?').charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
-            <button onClick={openReply} className="flex min-w-0 flex-1 items-center gap-0.5 rounded-full bg-neutral-900 py-1 pl-4 pr-1.5">
+            <button onClick={() => openReply()} className="flex min-w-0 flex-1 items-center gap-0.5 rounded-full bg-neutral-900 py-1 pl-4 pr-1.5">
               <span className="min-w-0 flex-1 truncate py-1.5 text-left text-sm text-neutral-500">Post your reply</span>
               <span className="shrink-0 rounded-full p-1.5 text-neutral-400"><Maximize2 className="h-[18px] w-[18px]" /></span>
             </button>
@@ -432,7 +494,7 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
           <div className="flex items-center justify-around border-t px-4 py-2 text-muted-foreground">{counts}</div>
 
           <div className="border-t p-4">
-            <button onClick={openReply} className="block w-full rounded-full bg-secondary px-4 py-2 text-left text-sm text-muted-foreground hover:bg-accent">
+            <button onClick={() => openReply()} className="block w-full rounded-full bg-secondary px-4 py-2 text-left text-sm text-muted-foreground hover:bg-accent">
               Post your reply
             </button>
           </div>
@@ -443,42 +505,20 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
             ) : comments.length === 0 ? (
               <p className="p-6 text-center text-sm text-muted-foreground">No replies yet.</p>
             ) : (
-              comments.map(c => (
-                <article key={c.id} className="flex gap-3 border-b p-4">
-                  <Avatar className="h-9 w-9 shrink-0">
-                    <AvatarImage src={c.authorAvatar} alt={c.authorName} />
-                    <AvatarFallback>{c.authorName.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm">
-                      <span className="font-bold">{c.authorName}</span>{' '}
-                      <span className="text-muted-foreground">@{c.authorHandle} · {formatTimestamp(new Date(c.createdAt))}</span>
-                    </p>
-                    {c.content && <p className="mt-0.5 whitespace-pre-wrap text-sm">{linkify(c.content)}</p>}
-                    {c.media?.length > 0 && (
-                      <div className="mt-2 overflow-hidden rounded-xl border ">
-                        {c.media[0].type === 'video' ? (
-                          <video src={c.media[0].url ?? ''} className="max-h-64 w-auto" controls playsInline />
-                        ) : (
-                          // GIFs and stickers are remote Giphy URLs of unknown
-                          // size, so this is a plain img rather than next/image.
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={c.media[0].url ?? ''} alt="" className="max-h-64 w-auto object-contain" />
-                        )}
-                      </div>
-                    )}
-
-                    {/* The same row a reply gets on the post page. Without it
-                        this was a thread you could read and not answer. */}
-                    <CommentEngagement
-                      parentPostId={post.id}
-                      commentId={c.id}
-                      initialLikes={c.likes}
-                      initialReposts={c.reposts}
-                      onReplyClick={openReply}
-                    />
-                  </div>
-                </article>
+              threadOf(comments).map(({ parent, replies }) => (
+                <div key={parent.id}>
+                  <Reply comment={parent} dark={false} postId={post.id} onReply={openReply} />
+                  {replies.length > 0 && (
+                    /* Indented once against a line, the same as the post page.
+                       A reply to a reply is stored against this same parent, so
+                       the thread never steps in twice. */
+                    <div className="ml-6 border-l pl-3 md:ml-10 md:pl-4">
+                      {replies.map(r => (
+                        <Reply key={r.id} comment={r} dark={false} postId={post.id} onReply={openReply} />
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))
             )}
           </div>
