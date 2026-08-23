@@ -731,6 +731,15 @@ function PostComponent(props: PostProps) {
 
   const singleImage = !isVideo && mediaExists && media.length === 1 && media[0].type === 'image';
 
+  // A lone GIF or sticker. It needs its own branch rather than riding with
+  // singleImage: the photo viewer deliberately skips these (see
+  // viewable-media.ts), so the single-image slot — whose click opens the
+  // viewer — would open the wrong item or nothing at all. Without this
+  // branch a GIF post matched none of them and rendered as an empty
+  // bordered box, i.e. a hairline where the picture should be.
+  const singleAnimated = !isVideo && mediaExists && media.length === 1
+    && (media[0].type === 'gif' || media[0].type === 'sticker');
+
   /**
    * Where a piece of media sits among the things the viewer can show.
    *
@@ -1007,6 +1016,22 @@ function PostComponent(props: PostProps) {
                       data-ai-hint={media[0].hint}
                   />
               </div>
+            ) : singleAnimated && media[0].url ? (
+              /* Kept at its own shape and uncropped. A reaction GIF is
+                 usually short and wide, and the 4:5 clamp a photo gets would
+                 cut the joke in half. Unoptimized so it actually animates —
+                 the whole point of posting one. No viewer click: tapping
+                 falls through to the container and opens the post. */
+              <Image
+                  src={media[0].url}
+                  alt={media[0].hint || 'GIF'}
+                  width={media[0].width || 480}
+                  height={media[0].height || 270}
+                  unoptimized
+                  sizes="(max-width: 768px) 100vw, 532px"
+                  className="w-full h-auto max-h-[500px] object-contain bg-black"
+                  data-ai-hint={media[0].hint}
+              />
             ) : imageCount > 1 ? (
               /* Two at a time, sharing the width, scrolling to the rest.
                  The old grid crammed every picture into one fixed block, and
