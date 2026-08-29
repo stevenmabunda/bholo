@@ -132,15 +132,14 @@ function ShareSheet({ post }: { post: PostType }) {
 
     const handleCopyLink = (e: React.MouseEvent) => {
         e.stopPropagation();
-        const postUrl = `${window.location.origin}/post/${post.id}`;
+        const postUrl = `${siteUrl}/post/${post.id}`;
         navigator.clipboard.writeText(postUrl);
         toast({ description: "Link copied to clipboard!" });
     };
 
     const getShareUrl = (platform: 'twitter' | 'facebook' | 'whatsapp') => {
-        // Built during render, which also runs on the server — see post.tsx.
-        const origin = typeof window !== 'undefined' ? window.location.origin : siteUrl;
-        const postUrl = encodeURIComponent(`${origin}/post/${post.id}`);
+        // Always the configured site URL, never window.location.origin — see post.tsx.
+        const postUrl = encodeURIComponent(`${siteUrl}/post/${post.id}`);
         const text = encodeURIComponent(post.content);
 
         switch (platform) {

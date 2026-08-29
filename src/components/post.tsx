@@ -639,17 +639,15 @@ function PostComponent(props: PostProps) {
   
   const handleCopyLink = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const postUrl = `${window.location.origin}/post/${id}`;
+    const postUrl = `${siteUrl}/post/${id}`;
     navigator.clipboard.writeText(postUrl);
     toast({ description: "Link copied to clipboard!" });
   };
-  
+
   const getShareUrl = (platform: 'twitter' | 'facebook' | 'whatsapp') => {
-    // These hrefs are built during render, which also runs on the server —
-    // reaching for window here threw and took the whole post page's SSR with
-    // it. On the server the configured site URL is the right origin anyway.
-    const origin = typeof window !== 'undefined' ? window.location.origin : siteUrl;
-    const postUrl = encodeURIComponent(`${origin}/post/${id}`);
+    // Always the configured site URL, never window.location.origin — a post
+    // opened from the Vercel domain must still share the custom domain.
+    const postUrl = encodeURIComponent(`${siteUrl}/post/${id}`);
     const text = encodeURIComponent(content);
 
     switch (platform) {

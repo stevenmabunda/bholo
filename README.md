@@ -47,15 +47,6 @@ take.
   video tab's jsonb query. Unverified; the tab works without it, just slower as
   the table grows.
 
-### Waiting on something
-
-- **Email signup is a dead end.** Confirmation is on and Supabase's built-in
-  sender is development-only, so signing up with email hands back no session and
-  waits on a mail that never arrives. Google works and needs no email. Password
-  reset is broken for the same reason. Both start working the moment custom SMTP
-  is configured, which is waiting on the custom domain — or immediately if email
-  confirmation is switched off in the dashboard.
-
 ### Decided, not missing
 
 Recorded so nobody "fixes" them later.
