@@ -26,10 +26,8 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TrendingTopics } from '@/components/trending-topics';
 import { useUnreadNotificationCount } from '@/hooks/use-unread-notifications';
-import LivePage from '../live/page';
 import { Card } from '@/components/ui/card';
 import { SignupPrompt } from '@/components/signup-prompt';
-import VideoFeedPage from '../video/page';
 
 
 /** The first paid slot sits after the tenth post, and one recurs every tenth
@@ -315,9 +313,6 @@ export function HomeView() {
            <TabsContent value="trending" className="h-full p-4">
              <TrendingTopics />
           </TabsContent>
-          {/* <TabsContent value="live" className="h-full">
-            <LivePage />
-          </TabsContent> */}
         </main>
       </Tabs>
     </div>

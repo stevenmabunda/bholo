@@ -14,6 +14,7 @@ import { queryKeys } from '@/lib/query-keys';
 import type { ReplyMedia } from '@/components/create-comment';
 import { getRecentPosts } from '@/app/(app)/home/actions';
 import { usePathname } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 /**
  * A post is created in two steps — the row is inserted, then updated once its
@@ -83,14 +84,25 @@ function extractKeywords(text: string): string[] {
   return Array.from(topics);
 }
 
+/**
+ * A format the browser can't decode (HEIC straight off an iPhone is the
+ * common case) must cost the post its dimensions, not the upload — img.onload
+ * never fires for those, and with no onerror this used to hang forever,
+ * leaving uploadPromises unresolved and the post permanently text-only.
+ */
 const getImageDimensions = (file: File): Promise<{ width: number; height: number }> => {
   return new Promise((resolve) => {
     const img = document.createElement('img');
+    const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
       resolve({ width: img.width, height: img.height });
-      URL.revokeObjectURL(img.src);
+      URL.revokeObjectURL(objectUrl);
     };
-    img.src = URL.createObjectURL(file);
+    img.onerror = () => {
+      resolve({ width: 0, height: 0 });
+      URL.revokeObjectURL(objectUrl);
+    };
+    img.src = objectUrl;
   });
 };
 
@@ -186,6 +198,7 @@ function mapRow(row: any): PostType {
 
 export function PostProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [newForYouPosts, setNewForYouPosts] = useState<PostType[]>([]);
 
   const { user } = useAuth();
@@ -545,6 +558,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
         queryClient.setQueryData(queryKeys.post(optimisticPost.id), finalPost);
     }).catch(uploadError => {
         console.error("Error during media upload, post created without media:", uploadError);
+        toast({
+            variant: 'destructive',
+            description: "Your post went up, but the attached media failed to upload. Try adding it again by editing the post.",
+        });
     });
 
     if (text) {
