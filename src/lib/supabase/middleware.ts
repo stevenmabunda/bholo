@@ -29,8 +29,5 @@ export async function updateSession(request: NextRequest) {
   // route's JS bundle is fetched.
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Handed back so the caller can run its own cookie-bound query (the
-  // onboarding-gate check in middleware.ts) without standing up a second
-  // client against the same request.
-  return { response: supabaseResponse, user, supabase };
+  return { response: supabaseResponse, user };
 }

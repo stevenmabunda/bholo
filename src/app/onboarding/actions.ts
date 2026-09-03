@@ -1,9 +1,7 @@
 'use server';
 
-import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { PSL_TEAMS } from '@/lib/psl-teams';
-import { ONBOARDING_COOKIE, ONBOARDING_COOKIE_MAX_AGE } from '@/lib/onboarding';
 
 export async function completeTeamOnboarding(
   teamName: string
@@ -32,15 +30,6 @@ export async function completeTeamOnboarding(
     console.error('completeTeamOnboarding failed:', error);
     return { success: false, error: 'Could not save your team. Please try again.' };
   }
-
-  const cookieStore = await cookies();
-  cookieStore.set(ONBOARDING_COOKIE, '1', {
-    maxAge: ONBOARDING_COOKIE_MAX_AGE,
-    path: '/',
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-  });
 
   return { success: true };
 }
