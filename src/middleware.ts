@@ -42,6 +42,11 @@ export const config = {
     // sw.js and offline.html must never redirect — a redirected response is
     // an invalid service worker script, and a logged-out visitor with no
     // network is exactly who the offline fallback exists for.
-    '/((?!_next/static|_next/image|favicon.ico|sw\\.js|offline\\.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // .well-known/assetlinks.json must never redirect either — Android's
+    // Digital Asset Links verifier fetches it directly and unauthenticated
+    // to confirm the TWA package and this domain are the same app; a login
+    // redirect there means Android never trusts the app, so it always shows
+    // browser chrome instead of launching as a standalone TWA.
+    '/((?!_next/static|_next/image|favicon.ico|sw\\.js|offline\\.html|\\.well-known/assetlinks\\.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
