@@ -52,7 +52,7 @@ export function FixturesWidget({ isPage = false, matches: propMatches, loading: 
                 </>
             ) : matches.length > 0 ? (
                 matches.map((match) => (
-                    <div key={match.id} className="flex flex-col gap-2 text-sm">
+                    <Link key={match.id} href={`/live/${match.id}`} className="flex flex-col gap-2 text-sm hover:opacity-80">
                         <p className="text-xs text-muted-foreground font-semibold">{match.league}</p>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 w-2/5 truncate">
@@ -75,7 +75,7 @@ export function FixturesWidget({ isPage = false, matches: propMatches, loading: 
                                 <Image src={match.team2.logo || 'https://placehold.co/20x20.png'} alt={match.team2.name} width={20} height={20} className="rounded-full" />
                             </div>
                         </div>
-                    </div>
+                    </Link>
                 ))
             ) : (
                 <div className="text-center text-muted-foreground p-4">
