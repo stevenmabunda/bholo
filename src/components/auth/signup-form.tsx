@@ -71,6 +71,16 @@ export function SignupForm() {
           display_name: values.name,
           handle,
         },
+        // Without this, the confirmation email falls back to the bare Site
+        // URL (bholofootball.co.za/?code=...) instead of /auth/callback —
+        // root page.tsx redirects that straight to /home and drops the
+        // query string with it, so the code is never exchanged for a
+        // session at all. Confirmed live: an account created this way had
+        // email_confirmed_at set (Supabase's own verify step, independent
+        // of what happens after) but never actually landed a session on
+        // this site, which also meant the new-signup onboarding redirect —
+        // living entirely inside /auth/callback — never ran.
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 
