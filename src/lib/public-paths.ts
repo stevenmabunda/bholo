@@ -9,7 +9,12 @@
  * what making those posts publicly readable was for.
  */
 export const PUBLIC_PATHS = [
-  '/login', '/signup', '/forgot-password', '/auth/callback',
+  // Both auth landing routes must be reachable logged-out — that is the
+  // entire population that clicks a confirmation or password-reset link.
+  // /auth/confirm is what establishes the session in the first place, so
+  // gating it behind having a session bounces every new signup to /login
+  // before its handler ever runs.
+  '/login', '/signup', '/forgot-password', '/auth/callback', '/auth/confirm',
   '/terms', '/privacy', '/help', '/feedback',
   // A single shared post, the way X and Instagram let you read one without an
   // account. Individual actions on it still prompt for sign-in.
