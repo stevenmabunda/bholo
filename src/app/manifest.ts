@@ -9,9 +9,9 @@ import type { MetadataRoute } from 'next';
 //
 // `serviceworker` isn't part of the current Web App Manifest spec (Next's
 // own Manifest type doesn't have it) — it's a legacy field some PWA
-// scanners, PWABuilder's report card included, still read to statically
-// confirm a service worker exists without running page JS. Costs nothing
-// to include alongside the real runtime registration in register-sw.tsx.
+// scanners historically read as a static fallback without running page JS.
+// Left in since it costs nothing; the real registration is the inline
+// script in layout.tsx's <head>.
 type ManifestWithLegacyFields = MetadataRoute.Manifest & {
   serviceworker?: { src: string; scope?: string };
 };

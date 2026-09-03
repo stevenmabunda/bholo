@@ -11,7 +11,6 @@ import { AppQueryProvider } from '@/lib/query-provider';
 import { createClient } from '@/lib/supabase/server';
 import { siteUrl } from '@/lib/site';
 import Script from 'next/script';
-import { RegisterServiceWorker } from '@/components/register-sw';
 
 const siteDescription =
   'BHOLO is South Africa\'s home for football banter — where Chiefs, Pirates, Sundowns and Betway Premiership fans clash, roast and hype every matchday. Post your hot takes, react with GIFs, track live PSL fixtures and standings, and join the conversation South African football deserves.';
@@ -71,6 +70,18 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`dark ${inter.variable}`}>
       <head>
+        {/* Registers before React ever hydrates — a plain inline script
+            runs the instant the HTML parser reaches it, independent of
+            bundle download/parse/hydrate time. A prior useEffect-based
+            registration worked for real visitors but was too slow for
+            PWABuilder's installability scanner, which checks shortly after
+            navigation and doesn't wait for a JS-heavy app (five context
+            providers deep) to finish hydrating first. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js'); }`,
+          }}
+        />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         {/* Matches manifest.ts's theme_color/background_color — this is what
             colors the Android status bar and task-switcher card once this
@@ -82,7 +93,6 @@ export default async function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className="font-body antialiased">
-        <RegisterServiceWorker />
         <AppQueryProvider>
           <AuthProvider initialUser={user}>
             <PostProvider>
