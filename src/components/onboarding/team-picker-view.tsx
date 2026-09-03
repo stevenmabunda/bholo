@@ -71,7 +71,14 @@ export function TeamPickerView() {
                   </span>
                 )}
                 <div className="relative h-14 w-14">
-                  <Image src={team.badge} alt={team.name} fill sizes="56px" className="object-contain" />
+                  {/* priority, not the lazy default: this grid is the
+                      entire page, so every crest is already on screen —
+                      and native lazy-loading on a `fill` image measures
+                      an absolutely-positioned, percentage-sized box before
+                      layout settles, sees zero, and never queues the
+                      fetch at all. Confirmed live: all 16 silently never
+                      requested with the default. */}
+                  <Image src={team.badge} alt={team.name} fill sizes="56px" priority className="object-contain" />
                 </div>
                 <span className="text-xs font-medium text-foreground leading-tight">
                   {team.name}
