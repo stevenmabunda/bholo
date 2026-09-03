@@ -71,16 +71,20 @@ export function SignupForm() {
           display_name: values.name,
           handle,
         },
-        // Without this, the confirmation email falls back to the bare Site
-        // URL (bholofootball.co.za/?code=...) instead of /auth/callback —
-        // root page.tsx redirects that straight to /home and drops the
-        // query string with it, so the code is never exchanged for a
-        // session at all. Confirmed live: an account created this way had
-        // email_confirmed_at set (Supabase's own verify step, independent
-        // of what happens after) but never actually landed a session on
-        // this site, which also meant the new-signup onboarding redirect —
-        // living entirely inside /auth/callback — never ran.
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        // Deliberately /home, not /auth/callback: confirmed live that this
+        // client never writes a PKCE code_verifier on signUp(), so the
+        // confirmation link always delivers the session as a URL hash
+        // fragment (#access_token=...), never a ?code=. Fragments never
+        // reach the server, so routing this through /auth/callback would
+        // just bounce through its "no code" branch to /login?error=... —
+        // a real but pointless detour, since AuthProvider's own
+        // onAuthStateChange listener (auth-context.tsx) is what actually
+        // picks up the session and handles new-signup onboarding, and it
+        // runs on any page. Without emailRedirectTo at all, this fell back
+        // to the bare Site URL, which root page.tsx redirects to /home
+        // anyway — but only by accident, and only for whatever the Site
+        // URL happens to be set to.
+        emailRedirectTo: `${window.location.origin}/home`,
       },
     });
 
