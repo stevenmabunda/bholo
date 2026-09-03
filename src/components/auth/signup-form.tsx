@@ -71,19 +71,11 @@ export function SignupForm() {
           display_name: values.name,
           handle,
         },
-        // Deliberately /home, not /auth/callback: confirmed live that this
-        // client never writes a PKCE code_verifier on signUp(), so the
-        // confirmation link always delivers the session as a URL hash
-        // fragment (#access_token=...), never a ?code=. Fragments never
-        // reach the server, so routing this through /auth/callback would
-        // just bounce through its "no code" branch to /login?error=... —
-        // a real but pointless detour, since AuthProvider's own
-        // onAuthStateChange listener (auth-context.tsx) is what actually
-        // picks up the session and handles new-signup onboarding, and it
-        // runs on any page. Without emailRedirectTo at all, this fell back
-        // to the bare Site URL, which root page.tsx redirects to /home
-        // anyway — but only by accident, and only for whatever the Site
-        // URL happens to be set to.
+        // Only a fallback. The confirm-signup email template builds its own
+        // link to /auth/confirm with {{ .TokenHash }}, so it ignores this —
+        // it matters only if that template is ever reverted to the default
+        // {{ .ConfirmationURL }}, which would otherwise fall back to the
+        // bare Site URL. Landing somewhere real beats landing nowhere.
         emailRedirectTo: `${window.location.origin}/home`,
       },
     });

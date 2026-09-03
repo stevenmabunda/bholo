@@ -35,8 +35,13 @@ export default function ForgotPasswordPage() {
     setError(null);
     setSuccess(false);
 
+    // /auth/confirm, not /auth/callback: a recovery link carries a token
+    // hash, never an authorization code, so the callback route could only
+    // ever bounce it to its failure branch. Same defect the signup
+    // confirmation had. Like signup's emailRedirectTo this is really just a
+    // fallback — the recovery email template builds its own link.
     const { error } = await supabase.auth.resetPasswordForEmail(values.email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/profile`,
+      redirectTo: `${window.location.origin}/auth/confirm?next=/profile`,
     });
 
     if (error) {
