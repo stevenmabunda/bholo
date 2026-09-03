@@ -105,8 +105,12 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
     const url = match?.[0] ?? null;
 
     if (!url) {
-      lastAttemptedUrlRef.current = null;
-      setLinkPreview(null);
+      // A successful fetch strips its URL out of `text` below, which lands
+      // right back here on the re-run that strip causes — with no card to
+      // preserve, that would be indistinguishable from the user having
+      // deleted it, and immediately clear the card just attached. Only read
+      // "no URL" as "removed" when there is nothing already attached.
+      if (!linkPreview) lastAttemptedUrlRef.current = null;
       return;
     }
     if (url === lastAttemptedUrlRef.current) return;
@@ -125,7 +129,7 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
     }, 600);
 
     return () => clearTimeout(timer);
-  }, [text, media.length]);
+  }, [text, media.length, linkPreview]);
 
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
