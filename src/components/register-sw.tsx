@@ -3,28 +3,22 @@
 import { useEffect } from 'react';
 
 /**
- * Registers /sw.js after the page has finished loading. Deferred to the
- * `load` event (not run eagerly on mount) so it never competes with the
- * feed/auth/fixture requests that actually matter for first paint — a PWA
- * installability check only needs a service worker to exist, not to be
- * registered instantly.
+ * Registers /sw.js as soon as this mounts. Previously this waited for the
+ * window `load` event on top of React's own mount timing, which is two
+ * deferrals stacked on each other — harmless for a real visitor, but it
+ * meant installability scanners (PWABuilder's report card among them) that
+ * check shortly after navigation sometimes finished their check before
+ * registration had even fired, and reported no service worker despite one
+ * being present. Registering immediately on mount removes that race; /sw.js
+ * is 2KB and registration doesn't block rendering either way.
  */
 export function RegisterServiceWorker() {
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
-    const register = () => {
-      navigator.serviceWorker.register('/sw.js').catch((err) => {
-        console.error('Service worker registration failed:', err);
-      });
-    };
-
-    if (document.readyState === 'complete') {
-      register();
-    } else {
-      window.addEventListener('load', register);
-      return () => window.removeEventListener('load', register);
-    }
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.error('Service worker registration failed:', err);
+    });
   }, []);
 
   return null;
