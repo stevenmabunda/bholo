@@ -64,23 +64,9 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&#0*39;|&apos;/g, "'");
 }
 
-/**
- * Fetches a pasted URL server-side and pulls its Open Graph tags for a link
- * card — the same "image + title + domain" preview X and most publishers'
- * own share buttons produce. Auth-gated so this can't become an open
- * URL-fetching proxy for anonymous callers.
- */
-export async function getLinkPreview(rawUrl: string): Promise<LinkPreviewData | { error: string }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'You need to be logged in.' };
-
-  const normalised = websiteUrl(rawUrl);
-  if (!normalised) return { error: 'Not a valid URL.' };
-
-  const target = new URL(normalised);
-  if (isBlockedHost(target.hostname)) return { error: 'That URL cannot be previewed.' };
-
+/** A direct fetch — cheap, unlimited, and all most sites need. Returns null
+ *  on any failure rather than an error, since the caller has a fallback. */
+async function fetchDirect(target: URL): Promise<LinkPreviewData | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
@@ -95,10 +81,10 @@ export async function getLinkPreview(rawUrl: string): Promise<LinkPreviewData | 
         Accept: 'text/html',
       },
     });
-    if (!res.ok || !res.body) return { error: `Could not reach that page (${res.status}).` };
+    if (!res.ok || !res.body) return null;
 
     const contentType = res.headers.get('content-type') ?? '';
-    if (!contentType.includes('text/html')) return { error: "That link isn't a webpage." };
+    if (!contentType.includes('text/html')) return null;
 
     // Read only up to MAX_BYTES rather than the whole response.
     const reader = res.body.getReader();
@@ -116,7 +102,7 @@ export async function getLinkPreview(rawUrl: string): Promise<LinkPreviewData | 
     const ogTitle = extractMeta(html, 'og:title');
     const titleTagMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
     const title = ogTitle ?? (titleTagMatch?.[1] ? decodeHtmlEntities(titleTagMatch[1].trim()) : undefined);
-    if (!title) return { error: 'No preview available for that link.' };
+    if (!title) return null;
 
     let image = extractMeta(html, 'og:image');
     if (image && !/^https?:\/\//i.test(image)) {
@@ -129,10 +115,83 @@ export async function getLinkPreview(rawUrl: string): Promise<LinkPreviewData | 
 
     return { url: target.toString(), title, description, image, siteName };
   } catch (error) {
-    const timedOut = error instanceof Error && error.name === 'AbortError';
-    console.error('getLinkPreview failed:', error);
-    return { error: timedOut ? 'That page took too long to load.' : 'Could not load a preview for that link.' };
+    console.error('fetchDirect failed:', error);
+    return null;
   } finally {
     clearTimeout(timeout);
   }
+}
+
+/**
+ * Falls back to Microlink's API — a hosted headless browser, so it gets past
+ * the publishers whose bot-detection (Cloudflare's challenge page, mainly)
+ * rejects a plain server fetch outright before any HTML is ever returned.
+ * Works with no API key at all on Microlink's free tier (25 req/day,
+ * unauthenticated); MICROLINK_API_KEY, once set, upgrades to their paid host
+ * and a much higher limit — nothing else here changes.
+ */
+async function fetchViaMicrolink(target: URL): Promise<LinkPreviewData | null> {
+  const apiKey = process.env.MICROLINK_API_KEY;
+  const endpoint = apiKey ? 'https://pro.microlink.io' : 'https://api.microlink.io';
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    const url = new URL(endpoint);
+    url.searchParams.set('url', target.toString());
+    const res = await fetch(url.toString(), {
+      signal: controller.signal,
+      headers: apiKey ? { 'x-api-key': apiKey } : undefined,
+    });
+    if (!res.ok) return null;
+
+    const json = await res.json();
+    if (json.status !== 'success' || !json.data?.title) return null;
+
+    const data = json.data;
+    return {
+      url: data.url ?? target.toString(),
+      title: data.title,
+      description: data.description ?? undefined,
+      image: data.image?.url,
+      siteName: data.publisher ?? target.hostname.replace(/^www\./, ''),
+    };
+  } catch (error) {
+    console.error('fetchViaMicrolink failed:', error);
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Fetches a pasted URL server-side and pulls its Open Graph tags for a link
+ * card — the same "image + title + domain" preview X and most publishers'
+ * own share buttons produce. Auth-gated so this can't become an open
+ * URL-fetching proxy for anonymous callers.
+ *
+ * Tries a direct fetch first — free and unlimited — and only spends a
+ * Microlink request on the sites that actually need a real browser to get
+ * past (Cloudflare's challenge page, mainly), so the free tier's daily quota
+ * lasts for the cases that matter rather than every link anyone pastes.
+ */
+export async function getLinkPreview(rawUrl: string): Promise<LinkPreviewData | { error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'You need to be logged in.' };
+
+  const normalised = websiteUrl(rawUrl);
+  if (!normalised) return { error: 'Not a valid URL.' };
+
+  const target = new URL(normalised);
+  if (isBlockedHost(target.hostname)) return { error: 'That URL cannot be previewed.' };
+
+  const direct = await fetchDirect(target);
+  if (direct) return direct;
+
+  const viaMicrolink = await fetchViaMicrolink(target);
+  if (viaMicrolink) return viaMicrolink;
+
+  return { error: 'No preview available for that link.' };
 }
