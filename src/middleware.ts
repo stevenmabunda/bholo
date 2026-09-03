@@ -39,6 +39,9 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // sw.js and offline.html must never redirect — a redirected response is
+    // an invalid service worker script, and a logged-out visitor with no
+    // network is exactly who the offline fallback exists for.
+    '/((?!_next/static|_next/image|favicon.ico|sw\\.js|offline\\.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

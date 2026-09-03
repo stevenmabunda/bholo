@@ -11,6 +11,7 @@ import { AppQueryProvider } from '@/lib/query-provider';
 import { createClient } from '@/lib/supabase/server';
 import { siteUrl } from '@/lib/site';
 import Script from 'next/script';
+import { RegisterServiceWorker } from '@/components/register-sw';
 
 const siteDescription =
   'BHOLO is South Africa\'s home for football banter — where Chiefs, Pirates, Sundowns and Betway Premiership fans clash, roast and hype every matchday. Post your hot takes, react with GIFs, track live PSL fixtures and standings, and join the conversation South African football deserves.';
@@ -71,8 +72,17 @@ export default async function RootLayout({
     <html lang="en" className={`dark ${inter.variable}`}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        {/* Matches manifest.ts's theme_color/background_color — this is what
+            colors the Android status bar and task-switcher card once this
+            is wrapped as a Trusted Web Activity, and the browser chrome on
+            mobile Chrome/Safari before that. */}
+        <meta name="theme-color" content="#0A0A0A" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className="font-body antialiased">
+        <RegisterServiceWorker />
         <AppQueryProvider>
           <AuthProvider initialUser={user}>
             <PostProvider>
