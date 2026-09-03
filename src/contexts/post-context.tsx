@@ -204,12 +204,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { profile } = useProfile();
   const onFeed = usePathname() === '/home';
+  // Same fallback used by useProfile's own cache key — a stable key for
+  // the logged-out visitors who can still land on /post/[id].
+  const feedUserId = user?.id ?? 'anonymous';
 
   // The feed lives in the query cache, so navigating away and back
   // renders instantly from cache instead of refetching behind a
   // skeleton. Pagination appends into this same cache entry.
   const { data: forYouPosts = [], isLoading: loadingForYou } = useQuery({
-    queryKey: queryKeys.feed(),
+    queryKey: queryKeys.feed(feedUserId),
     queryFn: () => getRecentPosts({ limit: 20 }),
     staleTime: 60_000,
   });
@@ -218,9 +221,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   // to edit local state.
   const updateFeed = useCallback(
     (updater: (posts: PostType[]) => PostType[]) => {
-      queryClient.setQueryData<PostType[]>(queryKeys.feed(), (prev) => updater(prev ?? []));
+      queryClient.setQueryData<PostType[]>(queryKeys.feed(feedUserId), (prev) => updater(prev ?? []));
     },
-    [queryClient]
+    [queryClient, feedUserId]
   );
 
   const fetchForYouPosts = useCallback(
@@ -234,7 +237,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
             return [...prev, ...posts.filter((p) => !existingIds.has(p.id))];
           });
         } else {
-          queryClient.setQueryData(queryKeys.feed(), posts);
+          queryClient.setQueryData(queryKeys.feed(feedUserId), posts);
         }
         return posts;
       } catch (error) {
@@ -242,7 +245,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         return [];
       }
     },
-    [queryClient, updateFeed]
+    [queryClient, updateFeed, feedUserId]
   );
 
   /**
@@ -411,7 +414,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     /** Buffers a post for the banner, if it is not already known. */
     const buffer = (post: PostType) => {
       if (post.authorId === user.id) return;
-      const cached = queryClient.getQueryData<PostType[]>(queryKeys.feed()) ?? [];
+      const cached = queryClient.getQueryData<PostType[]>(queryKeys.feed(user.id)) ?? [];
       if (cached.some(p => p.id === post.id)) return;
       setNewForYouPosts(newPrev => {
         if (newPrev.some(p => p.id === post.id)) return newPrev;
@@ -436,7 +439,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
      * newer than the newest one on screen and buffer those.
      */
     const catchUp = async () => {
-      const cached = queryClient.getQueryData<PostType[]>(queryKeys.feed()) ?? [];
+      const cached = queryClient.getQueryData<PostType[]>(queryKeys.feed(user.id)) ?? [];
       const newest = cached.find(p => p.createdAt)?.createdAt;
       if (!newest) return;
 
@@ -623,7 +626,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.rpc('vote_on_poll', { p_post_id: postId, p_choice_index: choiceIndex });
     if (error) {
       console.error("Failed to update vote:", error);
-      queryClient.invalidateQueries({ queryKey: queryKeys.feed() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.feed(feedUserId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.post(postId) });
     }
   };

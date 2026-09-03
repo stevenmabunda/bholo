@@ -1,6 +1,7 @@
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
 import { makeServerQueryClient } from '@/lib/query-client-server';
 import { queryKeys } from '@/lib/query-keys';
+import { createClient } from '@/lib/supabase/server';
 import { getRecentPosts } from './actions';
 import { HomeView } from './home-view';
 
@@ -14,8 +15,14 @@ import { HomeView } from './home-view';
 export default async function HomePage() {
   const queryClient = makeServerQueryClient();
 
+  // Must match PostProvider's feedUserId exactly, or this prefetch hydrates
+  // a cache entry the client query never reads and fetches again anyway.
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const feedUserId = user?.id ?? 'anonymous';
+
   await queryClient.prefetchQuery({
-    queryKey: queryKeys.feed(),
+    queryKey: queryKeys.feed(feedUserId),
     queryFn: () => getRecentPosts({ limit: 20 }),
   });
 

@@ -95,7 +95,7 @@ export function PostPageView({ postId }: { postId: string }) {
   // so the page renders instantly and revalidates in the background
   // instead of flashing a skeleton on every open.
   const cachedFromFeed = queryClient
-    .getQueryData<PostType[]>(queryKeys.feed())
+    .getQueryData<PostType[]>(queryKeys.feed(user?.id ?? 'anonymous'))
     ?.find(p => p.id === postId);
 
   const { data: post = null, isLoading } = useQuery({

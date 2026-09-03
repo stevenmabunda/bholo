@@ -45,7 +45,10 @@ const profileFormSchema = z.object({
     bio: z.string().max(160, "Bio must not exceed 160 characters.").optional(),
     location: z.string().max(30, "Location must not exceed 30 characters.").optional(),
     country: z.string().max(50, "Country must not exceed 50 characters.").optional(),
-    favouriteClub: z.string().max(50, "Club name must not exceed 50 characters.").optional(),
+    // favouriteClub is deliberately not editable here — it's chosen once,
+    // from the fixed list of 16 PSL clubs, on the onboarding team picker.
+    // A free-text field here let it drift from that list, which the feed's
+    // team-first matching (getRecentPosts) depends on staying exact.
     // Handles, not links. Anything paste-shaped is reduced to a handle on save,
     // so the URL is ours to build rather than theirs to supply.
     x: z.string().max(60).optional(),
@@ -434,7 +437,6 @@ function EditProfileDialog({ isOpen, onOpenChange, profile, onProfileUpdate }: {
             bio: profile?.bio || '',
             location: profile?.location || '',
             country: profile?.country || '',
-            favouriteClub: profile?.favouriteClub || '',
             x: profile?.socials?.x || '',
             instagram: profile?.socials?.instagram || '',
             tiktok: profile?.socials?.tiktok || '',
@@ -451,7 +453,6 @@ function EditProfileDialog({ isOpen, onOpenChange, profile, onProfileUpdate }: {
                 bio: profile.bio || '',
                 location: profile.location || '',
                 country: profile.country || '',
-                favouriteClub: profile.favouriteClub || '',
                 x: profile.socials?.x || '',
                 instagram: profile.socials?.instagram || '',
                 tiktok: profile.socials?.tiktok || '',
@@ -542,7 +543,6 @@ function EditProfileDialog({ isOpen, onOpenChange, profile, onProfileUpdate }: {
                 bio: data.bio,
                 location: data.location,
                 country: data.country,
-                favourite_club: data.favouriteClub,
                 banner_url: newBannerUrl,
                 banner_position: Math.round(bannerPosition),
                 socials: cleanSocials({
@@ -651,9 +651,6 @@ function EditProfileDialog({ isOpen, onOpenChange, profile, onProfileUpdate }: {
 
                             <Controller name="country" control={form.control} render={({ field }) => <Input placeholder="Country" {...field} />} />
                             {form.formState.errors.country && <p className="text-sm text-destructive">{form.formState.errors.country.message}</p>}
-
-                            <Controller name="favouriteClub" control={form.control} render={({ field }) => <Input placeholder="Favourite Club" {...field} />} />
-                            {form.formState.errors.favouriteClub && <p className="text-sm text-destructive">{form.formState.errors.favouriteClub.message}</p>}
 
                             {/* Handles rather than links. Paste a whole URL and
                                 it is reduced to the handle on save, tracking

@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
+import { useProfile } from '@/hooks/use-profile';
 import { SidebarNav } from '@/components/sidebar-nav';
 import { RightSidebar } from '@/components/right-sidebar';
 import { MobileBottomNav } from '@/components/mobile-bottom-nav';
@@ -17,17 +18,25 @@ import { useEffect } from 'react';
  */
 export default function AppLayout({ children, modal }: { children: ReactNode; modal: ReactNode }) {
   const { user, loading } = useAuth();
+  const { profile, loading: profileLoading } = useProfile();
   const router = useRouter();
   // The middleware has already turned away anyone who should not be here. This
   // is the client-side backstop — and it must agree with the middleware about
   // which routes are open, or a shared post link bounces its reader to /login.
   const isPublic = isPublicPath(usePathname());
 
+  // Same reasoning as the auth backstop above, for the onboarding gate in
+  // middleware.ts — this is everything under (app), which is exactly "the
+  // app" a not-yet-onboarded user shouldn't be able to reach.
+  const needsOnboarding = !!user && !profileLoading && !!profile && !profile.favourite_club;
+
   useEffect(() => {
     if (!loading && !user && !isPublic) {
       router.replace('/login');
+    } else if (needsOnboarding) {
+      router.replace('/onboarding/team');
     }
-  }, [user, loading, router, isPublic]);
+  }, [user, loading, router, isPublic, needsOnboarding]);
 
   if (loading) {
     return null; // The global loader in AuthProvider handles this.
@@ -36,6 +45,10 @@ export default function AppLayout({ children, modal }: { children: ReactNode; mo
   // Blanking here was the other half of the same bug: even without the
   // redirect, a logged-out reader on a public route got an empty page.
   if (!user && !isPublic) {
+    return null;
+  }
+
+  if (needsOnboarding) {
     return null;
   }
   
