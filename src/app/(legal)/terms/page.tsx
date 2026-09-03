@@ -72,7 +72,7 @@ export default function TermsPage() {
 
       <h2>9. Contact</h2>
       <p>
-        For questions about these Terms, contact: [Insert contact email].
+        For questions about these Terms, contact: support@bholofootball.co.za.
       </p>
     </div>
   );

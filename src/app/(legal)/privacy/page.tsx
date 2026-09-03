@@ -73,7 +73,7 @@ export default function PrivacyPage() {
 
       <h2>8. Contact</h2>
       <p>
-        For privacy-related questions, email us at [Insert contact email].
+        For privacy-related questions, email us at support@bholofootball.co.za.
       </p>
     </div>
   );
