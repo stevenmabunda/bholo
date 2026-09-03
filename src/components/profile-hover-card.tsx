@@ -7,11 +7,11 @@ import {
   HoverCardTrigger,
 } from '@/components/ui/hover-card';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { Button } from './ui/button';
-import { CalendarDays, Heart, MapPin, Users } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
-import type { ProfileData } from '@/app/(app)/profile/actions';
+import { Users } from 'lucide-react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getUserProfile, getIsFollowing } from '@/app/(app)/profile/actions';
+import { queryKeys } from '@/lib/query-keys';
 import { Skeleton } from './ui/skeleton';
 import { useAuth } from '@/hooks/use-auth';
 import { FollowButton } from './follow-button';
@@ -44,47 +44,45 @@ function ProfileHoverCardSkeleton() {
 
 export function ProfileHoverCard({ children, userId }: ProfileHoverCardProps) {
   const { user: currentUser } = useAuth();
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
+  const [followOverride, setFollowOverride] = useState<boolean | null>(null);
 
   const isMyProfile = currentUser?.id === userId;
 
-  const fetchProfile = useCallback(async () => {
-    if (!isOpen || profile) return; // Don't fetch if already loaded or not open
-    setLoading(true);
-    try {
-      const fetchedProfile = await getUserProfile(userId);
-      if (fetchedProfile) {
-        setProfile(fetchedProfile);
-        if (currentUser && currentUser.id !== userId) {
-          const followStatus = await getIsFollowing(currentUser.id, userId);
-          setIsFollowing(followStatus);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch profile for hover card', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, isOpen, profile, currentUser]);
+  // Same cache the profile page reads (queryKeys.profile) — hover someone
+  // whose page you've already opened, or whose card is already open
+  // elsewhere in the feed, and this resolves from cache with no request at
+  // all, instead of every card instance paying its own round trip.
+  const { data: profile, isLoading: profileLoading } = useQuery({
+    queryKey: queryKeys.profile(userId),
+    queryFn: () => getUserProfile(userId),
+    enabled: isOpen,
+  });
 
-  useEffect(() => {
-    if (isOpen) {
-      // Use a small delay to avoid fetching on accidental mouse-overs
-      const timer = setTimeout(() => {
-        fetchProfile();
-      }, 150);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen, fetchProfile]);
+  const { data: fetchedIsFollowing = false } = useQuery({
+    queryKey: ['profile', userId, 'is-following', currentUser?.id ?? 'anon'],
+    queryFn: () => getIsFollowing(currentUser!.id, userId),
+    enabled: isOpen && !!currentUser && !isMyProfile,
+  });
+
+  const isFollowing = followOverride ?? fetchedIsFollowing;
+
+  // Fires on pointer-in, well before the card's own openDelay below elapses
+  // — so on a cache miss, the request is already in flight by the time the
+  // card is visible rather than starting only once it opens.
+  const prefetch = () => {
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.profile(userId),
+      queryFn: () => getUserProfile(userId),
+    });
+  };
 
   return (
-    <HoverCard open={isOpen} onOpenChange={setIsOpen}>
-      <HoverCardTrigger asChild>{children}</HoverCardTrigger>
+    <HoverCard open={isOpen} onOpenChange={setIsOpen} openDelay={150}>
+      <HoverCardTrigger asChild onMouseEnter={prefetch}>{children}</HoverCardTrigger>
       <HoverCardContent className="w-80" side="top" onClick={(e) => e.stopPropagation()}>
-        {loading || !profile ? (
+        {profileLoading || !profile ? (
           <ProfileHoverCardSkeleton />
         ) : (
           <div className="flex flex-col gap-4">
@@ -104,7 +102,7 @@ export function ProfileHoverCard({ children, userId }: ProfileHoverCardProps) {
                 <FollowButton
                   profileId={profile.uid}
                   isFollowing={isFollowing}
-                  onToggleFollow={setIsFollowing}
+                  onToggleFollow={setFollowOverride}
                 />
               )}
             </div>
