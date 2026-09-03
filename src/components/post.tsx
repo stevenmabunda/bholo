@@ -738,6 +738,12 @@ function PostComponent(props: PostProps) {
   const singleAnimated = !isVideo && mediaExists && media.length === 1
     && (media[0].type === 'gif' || media[0].type === 'sticker');
 
+  // A link card, from pasting a publisher's URL into the composer. Its own
+  // branch for the same reason as GIFs/stickers — it is not something the
+  // photo viewer opens — and its click goes to the linked article rather
+  // than falling through to the post, unlike every other media type here.
+  const singleLink = !isVideo && mediaExists && media.length === 1 && media[0].type === 'link';
+
   /**
    * Where a piece of media sits among the things the viewer can show.
    *
@@ -1030,6 +1036,40 @@ function PostComponent(props: PostProps) {
                   className="w-full h-auto max-h-[500px] object-contain bg-black"
                   data-ai-hint={media[0].hint}
               />
+            ) : singleLink ? (
+              <div
+                className="cursor-pointer"
+                onClick={(e) => {
+                  // The linked article, not the post — matches how the card
+                  // behaves everywhere it originated (X, the publisher's own
+                  // share button), and is why this is the one media type that
+                  // doesn't fall through to handlePostClick above.
+                  e.stopPropagation();
+                  window.open(media[0].linkUrl, '_blank', 'noopener,noreferrer');
+                }}
+              >
+                {media[0].url && (
+                  <div className="relative aspect-video bg-black">
+                    <Image
+                      src={media[0].url}
+                      alt={media[0].title || 'Link preview'}
+                      fill
+                      unoptimized
+                      sizes="(max-width: 768px) 100vw, 532px"
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+                <div className="p-3 bg-card">
+                  {media[0].siteName && (
+                    <p className="text-xs text-muted-foreground uppercase">{media[0].siteName}</p>
+                  )}
+                  <p className="font-semibold line-clamp-2">{media[0].title}</p>
+                  {media[0].description && (
+                    <p className="text-sm text-muted-foreground line-clamp-2">{media[0].description}</p>
+                  )}
+                </div>
+              </div>
             ) : imageCount > 1 ? (
               /* Two at a time, sharing the width, scrolling to the rest.
                  The old grid crammed every picture into one fixed block, and

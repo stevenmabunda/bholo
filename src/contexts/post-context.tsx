@@ -507,7 +507,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
         throw error ?? new Error('Failed to create post');
     }
 
-    const optimisticPost = mapRow({ ...inserted, media: media.map(m => ({ url: m.previewUrl, type: m.type, hint: 'user uploaded content' })) });
+    const optimisticPost = mapRow({ ...inserted, media: media.map(m => m.type === 'link'
+      ? { url: m.url, type: m.type, linkUrl: m.linkUrl, title: m.title, description: m.description, siteName: m.siteName, hint: 'link preview' }
+      : { url: m.previewUrl, type: m.type, hint: 'user uploaded content' }) });
     // A scheduled post isn't live yet, so it must not be dropped into the
     // feed optimistically — it would show at the top until the next refetch.
     if (!scheduledFor) {
@@ -517,6 +519,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const uploadPromises = media.map(async (m) => {
         if (m.type === 'gif' || m.type === 'sticker') {
             return { url: m.url ?? '', type: m.type, width: m.width, height: m.height, hint: 'giphy content' };
+        }
+        if (m.type === 'link') {
+            // Already-fetched metadata, not a file — nothing to upload.
+            return { url: m.url ?? '', type: m.type, linkUrl: m.linkUrl, title: m.title, description: m.description, siteName: m.siteName, hint: 'link preview' };
         }
         const fileName = `${Date.now()}-${m.file.name}`;
         const storagePath = `${user.id}/${fileName}`;

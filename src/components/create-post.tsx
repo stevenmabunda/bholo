@@ -3,8 +3,8 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Image as ImageIcon, X, Smile, MapPin, Loader2, Trash2, Clapperboard, CalendarClock } from "lucide-react";
-import React, { useState, useRef } from "react";
+import { Image as ImageIcon, X, Smile, MapPin, Loader2, Trash2, Clapperboard, CalendarClock, Link2 } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -15,7 +15,13 @@ import type { PostType } from "@/lib/data";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { SchedulePicker } from "./schedule-picker";
 import { reverseGeocode } from "@/lib/geocode";
+import { getLinkPreview, type LinkPreviewData } from "@/lib/link-preview";
 import dynamic from 'next/dynamic';
+
+// The first http(s) URL in the text — same shape linkify() turns into a
+// clickable link, so what triggers a card is what would otherwise render as
+// a bare link in the final post.
+const URL_REGEX = /https?:\/\/[^\s]+/;
 
 // Fetched the first time the picker opens rather than shipped to everyone on
 // first paint. ssr:false because it measures the DOM to size its grid.
@@ -31,10 +37,16 @@ const GiphyPanel = dynamic(() => import('@/components/giphy-panel'), {
 export type Media = {
   file: File;
   previewUrl: string;
-  type: 'image' | 'video' | 'gif' | 'sticker';
+  type: 'image' | 'video' | 'gif' | 'sticker' | 'link';
   url?: string;
   width?: number;
   height?: number;
+  /** 'link' only — the article/page this card points to, distinct from
+   *  `url`/`previewUrl`, which hold the card's own preview image. */
+  linkUrl?: string;
+  title?: string;
+  description?: string;
+  siteName?: string;
 };
 
 const EMOJI_GROUPS = [
@@ -80,7 +92,42 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
   const [locating, setLocating] = useState(false);
   const [scheduledFor, setScheduledFor] = useState<string>('');
 
-  
+  const [linkPreview, setLinkPreview] = useState<LinkPreviewData | null>(null);
+  const [fetchingLinkPreview, setFetchingLinkPreview] = useState(false);
+  const lastAttemptedUrlRef = useRef<string | null>(null);
+
+  // Debounced so a link isn't fetched on every keystroke while someone is
+  // still typing or pasting. A photo/video already attached wins the visual
+  // slot — a card competing with it would be a second, unrelated image.
+  useEffect(() => {
+    if (media.length > 0) return;
+    const match = text.match(URL_REGEX);
+    const url = match?.[0] ?? null;
+
+    if (!url) {
+      lastAttemptedUrlRef.current = null;
+      setLinkPreview(null);
+      return;
+    }
+    if (url === lastAttemptedUrlRef.current) return;
+
+    const timer = setTimeout(async () => {
+      lastAttemptedUrlRef.current = url;
+      setFetchingLinkPreview(true);
+      const result = await getLinkPreview(url);
+      setFetchingLinkPreview(false);
+      if ('error' in result) return;
+
+      setLinkPreview(result);
+      // The card now carries the link — the bare URL text would just be a
+      // second, redundant way of saying the same thing.
+      setText(prev => prev.replace(url, '').replace(/\s{2,}/g, ' ').trim());
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [text, media.length]);
+
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
@@ -152,10 +199,23 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
         return;
     }
 
+    const mediaToPost = linkPreview
+        ? [...media, {
+            file: new File([], ''),
+            previewUrl: linkPreview.image ?? '',
+            type: 'link' as const,
+            url: linkPreview.image,
+            linkUrl: linkPreview.url,
+            title: linkPreview.title,
+            description: linkPreview.description,
+            siteName: linkPreview.siteName,
+          }]
+        : media;
+
     try {
         await onPost({
             text,
-            media,
+            media: mediaToPost,
             poll: pollData,
             location,
             // datetime-local has no timezone; convert from the user's wall
@@ -171,6 +231,8 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
 
         setText("");
         setMedia([]);
+        setLinkPreview(null);
+        lastAttemptedUrlRef.current = null;
         setShowPoll(false);
         setPollChoices(['', '']);
         setLocation(null);
@@ -292,7 +354,7 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
     setIsGifPopoverOpen(false);
   };
 
-  const isPostable = text.trim().length > 0 || media.length > 0 || (showPoll && pollChoices.some(c => c.trim()));
+  const isPostable = text.trim().length > 0 || media.length > 0 || !!linkPreview || (showPoll && pollChoices.some(c => c.trim()));
   // Asked of the whole selection, not of media[0]. A mixed post begins with
   // whichever file was picked first, so reading only the first item decided the
   // shape of everything from an accident of ordering.
@@ -360,6 +422,38 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
                         <Trash2 className="mr-2 h-4 w-4" /> Remove poll
                     </Button>
                 </div>
+            </div>
+          )}
+
+          {fetchingLinkPreview && (
+            <div className="mt-3 flex items-center gap-2 rounded-2xl border p-3 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Fetching preview…
+            </div>
+          )}
+
+          {linkPreview && !fetchingLinkPreview && (
+            <div className="relative mt-3 overflow-hidden rounded-2xl border">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-2 right-2 z-10 h-8 w-8 rounded-full bg-black/50 hover:bg-black/75 text-white hover:text-white"
+                onClick={() => setLinkPreview(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              {linkPreview.image && (
+                <div className="relative aspect-video bg-black">
+                  <Image src={linkPreview.image} alt={linkPreview.title} fill className="object-cover" unoptimized />
+                </div>
+              )}
+              <div className="p-3">
+                <p className="text-xs text-muted-foreground uppercase">{linkPreview.siteName}</p>
+                <p className="font-semibold line-clamp-2">{linkPreview.title}</p>
+                {linkPreview.description && (
+                  <p className="text-sm text-muted-foreground line-clamp-2">{linkPreview.description}</p>
+                )}
+              </div>
             </div>
           )}
 

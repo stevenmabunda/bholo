@@ -14,7 +14,7 @@ export type PostType = {
   createdAt?: string; // Changed to string to be serializable
   media?: Array<{
     url: string;
-    type: 'image' | 'video' | 'gif' | 'sticker';
+    type: 'image' | 'video' | 'gif' | 'sticker' | 'link';
     width?: number;
     height?: number;
     hint?: string;
@@ -22,6 +22,12 @@ export type PostType = {
      *  link-preview thumbnail — a video URL is not something a crawler can
      *  render. Absent on videos posted before this existed. */
     posterUrl?: string;
+    /** 'link' only — the article/page this card points to. `url` above
+     *  holds the card's own preview image, same as every other media type. */
+    linkUrl?: string;
+    title?: string;
+    description?: string;
+    siteName?: string;
   }>;
   poll?: {
     choices: { text: string; votes: number }[];
