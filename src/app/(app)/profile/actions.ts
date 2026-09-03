@@ -123,6 +123,60 @@ export async function toggleFollow(
   }
 }
 
+export async function getIsBlocked(
+  currentUserId: string,
+  profileId: string
+): Promise<boolean> {
+  if (!currentUserId || !profileId || currentUserId === profileId) return false;
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from('blocks')
+    .select('blocker_id')
+    .eq('blocker_id', currentUserId)
+    .eq('blocked_id', profileId)
+    .maybeSingle();
+
+  return !!data;
+}
+
+/** Runs as block_user() (025_reports_and_blocks.sql) rather than a plain
+ *  insert — it also has to remove any follow between the two people in
+ *  either direction, and deleting the OTHER person's follow row needs to
+ *  bypass RLS, which only a SECURITY DEFINER function can do from here. */
+export async function blockUser(blockedId: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  try {
+    const { error } = await supabase.rpc('block_user', { p_blocked_id: blockedId });
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    console.error('blockUser failed:', error);
+    return { success: false, error: 'Something went wrong. Please try again.' };
+  }
+}
+
+export async function unblockUser(
+  currentUserId: string,
+  blockedId: string
+): Promise<{ success: boolean }> {
+  const supabase = await createClient();
+
+  try {
+    const { error } = await supabase
+      .from('blocks')
+      .delete()
+      .eq('blocker_id', currentUserId)
+      .eq('blocked_id', blockedId);
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    console.error('unblockUser failed:', error);
+    return { success: false };
+  }
+}
+
 export async function getLikedPosts(userId: string): Promise<PostType[]> {
   if (!userId) return [];
   const supabase = await createClient();

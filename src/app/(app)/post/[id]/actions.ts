@@ -31,6 +31,35 @@ export async function getPost(postId: string): Promise<PostType | null> {
     };
 }
 
+// The report menu item existed with no onClick behind it since it was
+// built — this is the first thing that actually records one anywhere.
+// No admin queue reads post_reports yet (025_reports_and_blocks.sql); that
+// is real follow-up work, not silently skipped.
+export async function reportPost(
+  postId: string,
+  reporterId: string,
+  reason?: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  try {
+    const { error } = await supabase
+      .from('post_reports')
+      .insert({ post_id: postId, reporter_id: reporterId, reason: reason ?? null });
+
+    if (error) {
+      // unique(reporter_id, post_id) — reporting it again isn't a stronger
+      // signal, and the user already got their "thanks, received" toast.
+      if (error.code === '23505') return { success: true };
+      throw error;
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('reportPost failed:', error);
+    return { success: false, error: 'Something went wrong. Please try again.' };
+  }
+}
+
 // "Ask BHOLO AI" — answers a user's question with the post as context.
 export async function askAboutPost(input: {
   postContent: string;

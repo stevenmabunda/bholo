@@ -3,7 +3,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { MessageCircle, Repeat, Heart, Share2, MoreHorizontal, Edit, Trash2, Bookmark, Copy, X, ChevronLeft, ChevronRight, Check, Play, Pause, Volume2, VolumeX, Sparkles } from "lucide-react";
+import { MessageCircle, Repeat, Heart, Share2, MoreHorizontal, Edit, Trash2, Bookmark, Copy, X, ChevronLeft, ChevronRight, Check, Play, Pause, Volume2, VolumeX, Sparkles, Loader2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect, useCallback, memo } from "react";
@@ -12,7 +12,8 @@ import { findFirstYoutubeVideoId } from "@/lib/youtube";
 import { YoutubeEmbed } from "@/components/youtube-embed";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import { getPost } from "@/app/(app)/post/[id]/actions";
+import { getPost, reportPost } from "@/app/(app)/post/[id]/actions";
+import { blockUser } from "@/app/(app)/profile/actions";
 import {
   Dialog,
   DialogContent,
@@ -371,6 +372,10 @@ function PostComponent(props: PostProps) {
   const [isAskAiOpen, setIsAskAiOpen] = useState(false);
   const [isShareSheetOpen, setShareSheetOpen] = useState(false);
   const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [isReporting, setIsReporting] = useState(false);
+  const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
 
 
   const [isExpanded, setIsExpanded] = useState(false);
@@ -644,6 +649,45 @@ function PostComponent(props: PostProps) {
     toast({ description: "Link copied to clipboard!" });
   };
 
+  // "Report post" existed as a menu item since it was built with nothing
+  // behind it — no onClick at all. This is that.
+  const handleReport = async () => {
+    if (!user) return;
+    setIsReporting(true);
+    try {
+      const result = await reportPost(id, user.id);
+      if (!result.success) throw new Error(result.error);
+      toast({ description: "Thanks — we've received your report." });
+      setIsReportDialogOpen(false);
+    } catch (error) {
+      console.error('Report failed:', error);
+      toast({ variant: 'destructive', description: "Couldn't send that report. Please try again." });
+    } finally {
+      setIsReporting(false);
+    }
+  };
+
+  // Runs block_user() server-side, which also drops any follow between the
+  // two of you in either direction. Their posts/comments stop being visible
+  // to you (and yours to them) once posts_select/comments_select re-evaluate
+  // — this view doesn't remove the post it was opened from immediately, so
+  // it can still sit on screen until the next refetch.
+  const handleBlock = async () => {
+    if (!user) return;
+    setIsBlocking(true);
+    try {
+      const result = await blockUser(authorId);
+      if (!result.success) throw new Error(result.error);
+      toast({ description: `You won't see posts from @${authorHandle} anymore.` });
+      setIsBlockDialogOpen(false);
+    } catch (error) {
+      console.error('Block failed:', error);
+      toast({ variant: 'destructive', description: "Couldn't block that account. Please try again." });
+    } finally {
+      setIsBlocking(false);
+    }
+  };
+
   const getShareUrl = (platform: 'twitter' | 'facebook' | 'whatsapp') => {
     // Always the configured site URL, never window.location.origin — a post
     // opened from the Vercel domain must still share the custom domain.
@@ -836,8 +880,14 @@ function PostComponent(props: PostProps) {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setIsReportDialogOpen(true)}>
                                 Report post
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                onSelect={() => setIsBlockDialogOpen(true)}
+                            >
+                                Block @{authorHandle}
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -852,14 +902,22 @@ function PostComponent(props: PostProps) {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenuItem>
-                                Not interested in this post
-                            </DropdownMenuItem>
-                             <DropdownMenuItem>
-                                Unfollow @{authorHandle}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem
+                                onSelect={() => {
+                                    if (!user) { setIsLoginDialogOpen(true); return; }
+                                    setIsReportDialogOpen(true);
+                                }}
+                            >
                                 Report post
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                onSelect={() => {
+                                    if (!user) { setIsLoginDialogOpen(true); return; }
+                                    setIsBlockDialogOpen(true);
+                                }}
+                            >
+                                Block @{authorHandle}
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -1286,6 +1344,44 @@ function PostComponent(props: PostProps) {
                           onClick={handleDelete}
                       >
                           Delete
+                      </AlertDialogAction>
+                  </AlertDialogFooter>
+              </AlertDialogContent>
+          </AlertDialog>
+          <AlertDialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
+              <AlertDialogContent onClick={e => e.stopPropagation()}>
+                  <AlertDialogHeader>
+                      <AlertDialogTitle>Report this post?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                          We'll take a look. This won't notify @{authorHandle}.
+                      </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                      <AlertDialogCancel disabled={isReporting}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={(e) => { e.preventDefault(); handleReport(); }} disabled={isReporting}>
+                          {isReporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Report
+                      </AlertDialogAction>
+                  </AlertDialogFooter>
+              </AlertDialogContent>
+          </AlertDialog>
+          <AlertDialog open={isBlockDialogOpen} onOpenChange={setIsBlockDialogOpen}>
+              <AlertDialogContent onClick={e => e.stopPropagation()}>
+                  <AlertDialogHeader>
+                      <AlertDialogTitle>Block @{authorHandle}?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                          You won't see their posts or replies, and they won't see yours. Any follow between you is removed. They won't be notified.
+                      </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                      <AlertDialogCancel disabled={isBlocking}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                          className={buttonVariants({ variant: "destructive" })}
+                          onClick={(e) => { e.preventDefault(); handleBlock(); }}
+                          disabled={isBlocking}
+                      >
+                          {isBlocking && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Block
                       </AlertDialogAction>
                   </AlertDialogFooter>
               </AlertDialogContent>
