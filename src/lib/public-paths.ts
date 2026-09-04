@@ -15,7 +15,7 @@ export const PUBLIC_PATHS = [
   // gating it behind having a session bounces every new signup to /login
   // before its handler ever runs.
   '/login', '/signup', '/forgot-password', '/auth/callback', '/auth/confirm',
-  '/terms', '/privacy', '/help', '/feedback',
+  '/terms', '/privacy', '/help', '/feedback', '/delete-account',
   // A single shared post, the way X and Instagram let you read one without an
   // account. Individual actions on it still prompt for sign-in.
   '/post',

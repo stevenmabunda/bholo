@@ -19,6 +19,8 @@ export default function LegalLayout({ children }: { children: ReactNode }) {
         return 'Help Center';
       case '/feedback':
         return 'Feedback';
+      case '/delete-account':
+        return 'Delete Account';
       default:
         return 'BHOLO';
     }
