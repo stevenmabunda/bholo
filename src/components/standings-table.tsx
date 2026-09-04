@@ -56,7 +56,7 @@ export function StandingsTable() {
                                     <TableCell>{standing.rank}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
-                                            <Image src={standing.team.logo} alt={standing.team.name} width={24} height={24} className="h-6 w-6" />
+                                            <Image src={standing.team.logo} alt={standing.team.name} width={24} height={24} unoptimized className="h-6 w-6" />
                                             <span className="font-semibold">{standing.team.name}</span>
                                         </div>
                                     </TableCell>

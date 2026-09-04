@@ -39,7 +39,7 @@ export function TrendAd() {
     <div className="flex items-start gap-3">
       {ad.mediaUrl && (
         <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg border">
-          <Image src={ad.mediaUrl} alt="" fill sizes="44px" className="object-cover" />
+          <Image src={ad.mediaUrl} alt="" fill unoptimized sizes="44px" className="object-cover" />
         </div>
       )}
       <div className="min-w-0 flex-1">

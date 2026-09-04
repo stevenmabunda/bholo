@@ -80,6 +80,7 @@ export function DiscoverFeed() {
                 src={heroPost.media?.[0]?.url || 'https://placehold.co/600x300.png'}
                 alt={heroPost.content}
                 fill
+                unoptimized
                 sizes="(max-width: 767px) 100vw, 624px"
                 className="object-cover object-center group-hover:opacity-90 transition-opacity"
                 data-ai-hint={heroPost.media?.[0]?.hint || 'stadium lights'}
@@ -123,11 +124,12 @@ export function DiscoverFeed() {
             </div>
           </div>
           {post.media?.[0]?.url &&
-            <Image 
-                src={post.media[0].url} 
-                alt={post.content} 
+            <Image
+                src={post.media[0].url}
+                alt={post.content}
                 width={64}
                 height={64}
+                unoptimized
                 className="w-16 h-16 rounded-lg object-cover" 
                 data-ai-hint={post.media[0].hint || 'football action'} />
           }

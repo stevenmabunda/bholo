@@ -48,6 +48,7 @@ export function PinnedContent() {
                   src={item.imageUrl}
                   alt={item.title}
                   fill
+                  unoptimized
                   sizes="(max-width: 767px) 60vw, 160px"
                   objectFit="cover"
                   data-ai-hint={item.hint}

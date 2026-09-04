@@ -75,7 +75,7 @@ export function GameweekFixtures() {
                         <div key={index} className="p-4 grid grid-cols-[1fr_auto_1fr] items-center gap-4 text-center text-sm even:bg-secondary/50">
                             <div className="flex items-center justify-end gap-2">
                                 <span className="hidden sm:inline font-semibold">{match.team1}</span>
-                                <Image src={match.team1Logo} alt={match.team1} width={28} height={28} className="h-7 w-7" />
+                                <Image src={match.team1Logo} alt={match.team1} width={28} height={28} unoptimized className="h-7 w-7" />
                             </div>
                             {match.status === 'Postponed' ? (
                                 <div className="font-bold text-destructive text-xs">Postponed</div>
@@ -83,7 +83,7 @@ export function GameweekFixtures() {
                                 <div className="font-bold text-lg">VS</div>
                             )}
                             <div className="flex items-center justify-start gap-2">
-                                <Image src={match.team2Logo} alt={match.team2} width={28} height={28} className="h-7 w-7" />
+                                <Image src={match.team2Logo} alt={match.team2} width={28} height={28} unoptimized className="h-7 w-7" />
                                 <span className="hidden sm:inline font-semibold">{match.team2}</span>
                             </div>
                             {match.status !== 'Postponed' && (

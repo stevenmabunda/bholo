@@ -84,6 +84,7 @@ export function DiscoverHeadlines() {
             src="https://placehold.co/600x300.png"
             alt={heroHeadline.topic}
             fill
+            unoptimized
             sizes="(max-width: 767px) 100vw, 624px"
             objectFit="cover"
             className="group-hover:opacity-90 transition-opacity"
@@ -106,7 +107,7 @@ export function DiscoverHeadlines() {
             <p className="font-bold text-base group-hover:underline">{item.topic}</p>
             <p className="text-sm text-muted-foreground">{item.postCount}</p>
           </div>
-          <Image src="https://placehold.co/100x100.png" alt={item.topic} width={40} height={40} className="w-10 h-10 rounded-lg object-cover" data-ai-hint={item.imageHint || 'football action'} />
+          <Image src="https://placehold.co/100x100.png" alt={item.topic} width={40} height={40} unoptimized className="w-10 h-10 rounded-lg object-cover" data-ai-hint={item.imageHint || 'football action'} />
         </div>
       ))}
       <div className="p-4 hover:bg-accent cursor-pointer border-t">

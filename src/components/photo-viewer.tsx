@@ -403,6 +403,7 @@ export function PhotoViewer({ post, startIndex }: { post: PostType; startIndex: 
                       alt={`Item ${i + 1} of ${slides.length}`}
                       width={slide.width || 1200}
                       height={slide.height || 1200}
+                      unoptimized
                       className="h-full w-full object-contain"
                       priority={i === startIndex}
                     />

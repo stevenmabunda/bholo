@@ -56,7 +56,7 @@ export function FixturesWidget({ isPage = false, matches: propMatches, loading: 
                         <p className="text-xs text-muted-foreground font-semibold">{match.league}</p>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 w-2/5 truncate">
-                                <Image src={match.team1.logo || 'https://placehold.co/20x20.png'} alt={match.team1.name} width={20} height={20} className="rounded-full" />
+                                <Image src={match.team1.logo || 'https://placehold.co/20x20.png'} alt={match.team1.name} width={20} height={20} unoptimized className="rounded-full" />
                                 <span className="font-bold truncate">{match.team1.name}</span>
                             </div>
                             <div className="flex items-center gap-2 font-mono text-base">
@@ -72,7 +72,7 @@ export function FixturesWidget({ isPage = false, matches: propMatches, loading: 
                             </div>
                             <div className="flex items-center gap-2 justify-end w-2/5 truncate">
                                 <span className="font-bold truncate text-right">{match.team2.name}</span>
-                                <Image src={match.team2.logo || 'https://placehold.co/20x20.png'} alt={match.team2.name} width={20} height={20} className="rounded-full" />
+                                <Image src={match.team2.logo || 'https://placehold.co/20x20.png'} alt={match.team2.name} width={20} height={20} unoptimized className="rounded-full" />
                             </div>
                         </div>
                     </Link>

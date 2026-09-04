@@ -415,6 +415,7 @@ export function CreativeManager({
                       src={creative.mediaUrl}
                       alt=""
                       fill
+                      unoptimized
                       sizes="64px"
                       className="object-cover"
                     />

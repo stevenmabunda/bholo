@@ -75,7 +75,7 @@ export function MatchThreadView({ fixtureId }: { fixtureId: string }) {
         ) : match ? (
           <div className="flex items-center gap-2 min-w-0 flex-1 justify-center text-sm">
             <div className="flex items-center gap-1.5 min-w-0">
-              <Image src={match.team1.logo || 'https://placehold.co/20x20.png'} alt={match.team1.name} width={20} height={20} className="rounded-full flex-shrink-0" />
+              <Image src={match.team1.logo || 'https://placehold.co/20x20.png'} alt={match.team1.name} width={20} height={20} unoptimized className="rounded-full flex-shrink-0" />
               <span className="font-bold truncate">{match.team1.name}</span>
             </div>
             <div className="flex items-center gap-1.5 font-mono flex-shrink-0 px-1">
@@ -91,7 +91,7 @@ export function MatchThreadView({ fixtureId }: { fixtureId: string }) {
             </div>
             <div className="flex items-center gap-1.5 min-w-0">
               <span className="font-bold truncate">{match.team2.name}</span>
-              <Image src={match.team2.logo || 'https://placehold.co/20x20.png'} alt={match.team2.name} width={20} height={20} className="rounded-full flex-shrink-0" />
+              <Image src={match.team2.logo || 'https://placehold.co/20x20.png'} alt={match.team2.name} width={20} height={20} unoptimized className="rounded-full flex-shrink-0" />
             </div>
           </div>
         ) : (

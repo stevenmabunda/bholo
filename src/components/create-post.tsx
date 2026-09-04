@@ -472,7 +472,7 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
                     </div>
                 ) : singleImage || hasGif || hasSticker ? (
                     <div className="relative">
-                        <Image src={media[0].previewUrl} alt="Preview 1" width={500} height={500} className="w-full h-auto object-contain bg-black" />
+                        <Image src={media[0].previewUrl} alt="Preview 1" width={500} height={500} unoptimized className="w-full h-auto object-contain bg-black" />
                         <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8 rounded-full bg-black/50 hover:bg-black/75 text-white hover:text-white" onClick={() => removeMedia(0)}>
                             <X className="h-4 w-4" />
                         </Button>
@@ -486,7 +486,7 @@ export function CreatePost({ onPost }: { onPost: (data: { text: string; media: M
                                 {item.type === 'video' ? (
                                     <video src={item.previewUrl} muted playsInline className="h-full w-full object-cover" />
                                 ) : (
-                                    <Image src={item.previewUrl} alt={`Preview ${index + 1}`} fill className="object-cover" />
+                                    <Image src={item.previewUrl} alt={`Preview ${index + 1}`} fill unoptimized className="object-cover" />
                                 )}
                                 <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8 rounded-full bg-black/50 hover:bg-black/75 text-white hover:text-white" onClick={() => removeMedia(index)}>
                                     <X className="h-4 w-4" />

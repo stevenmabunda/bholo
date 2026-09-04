@@ -206,6 +206,7 @@ export function ProfileView() {
           src={profile.bannerUrl}
           alt="Profile banner"
           fill
+          unoptimized
           sizes="(max-width: 767px) 100vw, 624px"
           className="object-cover"
           style={{ objectPosition: `center ${profile.bannerPosition || 50}%` }}
@@ -370,6 +371,7 @@ export function ProfileView() {
                                         src={media.url}
                                         alt={`Media from post ${post.id}`}
                                         fill
+                                        unoptimized
                                         sizes="(max-width: 767px) 33vw, 208px"
                                         className="object-cover"
                                         data-ai-hint={media.hint || 'user content'}
@@ -593,10 +595,11 @@ function EditProfileDialog({ isOpen, onOpenChange, profile, onProfileUpdate }: {
                             className={cn("relative h-32 w-full bg-muted sm:h-40 rounded-md overflow-hidden", isDragging ? "cursor-grabbing" : "cursor-grab")}
                             onMouseDown={handleMouseDown}
                         >
-                            <Image 
-                                src={bannerPreview} 
+                            <Image
+                                src={bannerPreview}
                                 alt="Banner preview"
                                 fill
+                                unoptimized
                                 sizes="(max-width: 640px) 100vw, 512px"
                                 className="object-cover"
                                 style={{ objectPosition: `center ${bannerPosition}%` }}

@@ -68,6 +68,7 @@ export function PromotedPost({ ad }: { ad: ServableAd }) {
             src={ad.mediaUrl}
             alt={ad.headline || ad.advertiserName}
             fill
+            unoptimized
             sizes="(max-width: 767px) 100vw, 600px"
             className="object-cover"
           />

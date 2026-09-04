@@ -308,6 +308,7 @@ function Comment({ comment, parentPostId, onReplyClick }: { comment: CommentType
                       alt={`Comment image`}
                       width={comment.media![0].width || 500}
                       height={comment.media![0].height || 500}
+                      unoptimized
                       className="w-full h-auto max-h-[400px] object-contain"
                       data-ai-hint={comment.media![0].hint}
                     />
@@ -1065,6 +1066,7 @@ function PostComponent(props: PostProps) {
                       alt={media[0].hint || `Post image 1`}
                       width={media[0].width || 500}
                       height={media[0].height || 500}
+                      unoptimized
                       sizes="(max-width: 768px) 100vw, 532px"
                       className={cn(
                         'w-full',
@@ -1156,7 +1158,7 @@ function PostComponent(props: PostProps) {
                           aria-label="Play video"
                         >
                           {item.posterUrl ? (
-                            <Image src={item.posterUrl} alt={item.hint || 'Video'} fill sizes="(max-width: 768px) 45vw, 300px" className="object-cover" />
+                            <Image src={item.posterUrl} alt={item.hint || 'Video'} fill unoptimized sizes="(max-width: 768px) 45vw, 300px" className="object-cover" />
                           ) : (
                             /* No still was captured for this one — older posts,
                                and any upload where the capture failed. */
@@ -1183,6 +1185,7 @@ function PostComponent(props: PostProps) {
                             src={item.url}
                             alt={item.hint || `Post image ${index + 1}`}
                             fill
+                            unoptimized
                             sizes="(max-width: 768px) 45vw, 300px"
                             className="object-cover"
                             data-ai-hint={item.hint}

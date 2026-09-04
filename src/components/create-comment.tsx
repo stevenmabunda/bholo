@@ -191,7 +191,7 @@ export function CreateComment({ onComment, isDialog = false }: { onComment: (dat
                     {hasVideo ? (
                         <video src={media[0].previewUrl} controls className="w-full h-auto max-h-96 object-contain" />
                     ) : (hasImage || hasGif || hasSticker) ? (
-                         <Image src={media[0].previewUrl} alt="Preview 1" width={500} height={500} className="w-full h-auto object-contain bg-black" />
+                         <Image src={media[0].previewUrl} alt="Preview 1" width={500} height={500} unoptimized className="w-full h-auto object-contain bg-black" />
                     ) : null}
                     <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8 rounded-full bg-black/50 hover:bg-black/75 text-white hover:text-white" onClick={() => removeMedia(0)}>
                         <X className="h-4 w-4" />

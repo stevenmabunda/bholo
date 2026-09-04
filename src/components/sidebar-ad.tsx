@@ -47,6 +47,7 @@ export function SidebarAd() {
             src={ad.mediaUrl}
             alt={ad.headline || ad.advertiserName}
             fill
+            unoptimized
             sizes="320px"
             className="object-cover"
           />

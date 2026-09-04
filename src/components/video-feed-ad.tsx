@@ -39,7 +39,7 @@ export function VideoFeedAd({ ad, isActive }: { ad: ServableAd; isActive: boolea
             preload={isActive ? 'auto' : 'none'}
           />
         ) : (
-          <Image src={ad.mediaUrl} alt={ad.headline || ad.advertiserName} fill sizes="100vw" className="object-contain" />
+          <Image src={ad.mediaUrl} alt={ad.headline || ad.advertiserName} fill unoptimized sizes="100vw" className="object-contain" />
         )
       )}
 
