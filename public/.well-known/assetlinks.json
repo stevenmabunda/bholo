@@ -3,6 +3,9 @@
       "target": {
         "namespace": "android_app",
         "package_name": "za.co.bholofootball.www.twa",
-        "sha256_cert_fingerprints": ["9E:24:1D:E0:6A:33:7C:B2:43:EC:FD:C0:52:44:B9:13:3A:F6:E3:8D:64:7D:56:5C:7B:44:F6:1F:AA:C1:A2:4D"]
+        "sha256_cert_fingerprints": [
+          "9E:24:1D:E0:6A:33:7C:B2:43:EC:FD:C0:52:44:B9:13:3A:F6:E3:8D:64:7D:56:5C:7B:44:F6:1F:AA:C1:A2:4D",
+          "D3:41:C4:C8:C6:21:3D:AF:26:48:0F:4F:3D:70:36:50:64:D7:D9:93:F6:E4:61:67:92:D1:ED:9C:69:A9:85:D0"
+        ]
       }
     }]
