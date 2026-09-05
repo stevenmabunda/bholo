@@ -34,12 +34,16 @@ export function AuthProvider({
 }) {
   const [session, setSession] = useState<Session | null>(null);
   // The server already resolved the session from cookies (see the root
-  // layout). When it hands us a user, we know who this is on the very
-  // first render — no loading gate, and every child (PostProvider, the
-  // query cache) mounts and starts fetching immediately instead of
-  // waiting on a client-side round trip we didn't need.
+  // layout) — for every request, not just the ones with a user. A null
+  // initialUser isn't "we don't know yet", it's "the server checked and
+  // there wasn't one", which is exactly as resolved as finding one. This
+  // used to gate on `!!initialUser`, so every logged-out visit — which is
+  // the entire population of search crawlers and link-preview bots, none
+  // of which carry a session cookie or run past the first paint — hit the
+  // loading branch below and got a bare spinner as its indexable content
+  // instead of the actual page, on every public route including this one.
   const [user, setUser] = useState<User | null>(initialUser);
-  const [resolved, setResolved] = useState(!!initialUser);
+  const [resolved, setResolved] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
