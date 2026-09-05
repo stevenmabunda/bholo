@@ -34,6 +34,11 @@ export const PUBLIC_PATHS = [
   // other page did before "/" itself was made public.
   '/opengraph-image', '/twitter-image', '/manifest.webmanifest',
   '/sitemap.xml', '/robots.txt',
+  // Google Search Console's ownership-verification file. Fetched
+  // unauthenticated, exactly once, by Google's own verifier — if this
+  // 307s to /login like everything else did, verification just fails
+  // silently with no error pointing back here.
+  '/googleb440ec1ed05372bf.html',
 ];
 
 export function isPublicPath(pathname: string): boolean {
