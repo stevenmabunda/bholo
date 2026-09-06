@@ -30,7 +30,7 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 
-export function SignupForm() {
+export function SignupForm({ onSwitchToLogin }: { onSwitchToLogin?: () => void } = {}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -113,7 +113,7 @@ export function SignupForm() {
                    Your account has been created. We've sent a verification link to your email address. Please click the link to continue.
                 </AlertDescription>
             </Alert>
-             <Button onClick={() => router.push('/login')} className="w-full">
+             <Button onClick={onSwitchToLogin ?? (() => router.push('/login'))} className="w-full">
                 Back to Log In
             </Button>
         </div>
@@ -202,9 +202,19 @@ export function SignupForm() {
 
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{' '}
-        <Link href="/login" className="font-semibold text-primary hover:underline">
-          Log in
-        </Link>
+        {onSwitchToLogin ? (
+          <button
+            type="button"
+            onClick={onSwitchToLogin}
+            className="font-semibold text-primary hover:underline"
+          >
+            Log in
+          </button>
+        ) : (
+          <Link href="/login" className="font-semibold text-primary hover:underline">
+            Log in
+          </Link>
+        )}
       </p>
     </div>
   );

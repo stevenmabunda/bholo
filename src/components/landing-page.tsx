@@ -1,10 +1,12 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
 import { PSL_TEAMS } from '@/lib/psl-teams';
 import { absoluteUrl } from '@/lib/site';
 import { Zap, FileText, Users, MessageCircle, Twitter, Instagram, Facebook, Youtube } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AuthModalProvider } from '@/contexts/auth-modal-context';
+import { AuthModal } from '@/components/auth/auth-modal';
+import { AuthTriggerButton } from '@/components/auth/auth-trigger-button';
 
 /**
  * The public homepage — what a logged-out visitor and every search crawler
@@ -157,11 +159,13 @@ export function LandingPage() {
   };
 
   return (
+    <AuthModalProvider>
     <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      <AuthModal />
 
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-white/10 bg-background/90 backdrop-blur-sm">
@@ -192,12 +196,12 @@ export function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <Button asChild variant="outline" className="rounded-full">
-              <Link href="/login">Log in</Link>
-            </Button>
-            <Button asChild className="rounded-full">
-              <Link href="/signup">Create account</Link>
-            </Button>
+            <AuthTriggerButton mode="login" variant="outline" className="rounded-full">
+              Log in
+            </AuthTriggerButton>
+            <AuthTriggerButton mode="signup" className="rounded-full">
+              Create account
+            </AuthTriggerButton>
           </div>
         </div>
       </header>
@@ -217,12 +221,12 @@ export function LandingPage() {
                 the football, stay for the banter.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                <Button asChild size="lg" className="rounded-full">
-                  <Link href="/signup">Join BHOLO free</Link>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="rounded-full">
-                  <Link href="/login">Log in</Link>
-                </Button>
+                <AuthTriggerButton mode="signup" size="lg" className="rounded-full">
+                  Join BHOLO free
+                </AuthTriggerButton>
+                <AuthTriggerButton mode="login" size="lg" variant="outline" className="rounded-full">
+                  Log in
+                </AuthTriggerButton>
               </div>
 
               <dl className="mt-12 flex max-w-lg items-start gap-6 border-t border-white/10 pt-8">
@@ -363,12 +367,12 @@ export function LandingPage() {
                 gets it.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                <Button asChild size="lg" className="rounded-full">
-                  <Link href="/signup">Join BHOLO free</Link>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="rounded-full">
-                  <Link href="/login">Log in</Link>
-                </Button>
+                <AuthTriggerButton mode="signup" size="lg" className="rounded-full">
+                  Join BHOLO free
+                </AuthTriggerButton>
+                <AuthTriggerButton mode="login" size="lg" variant="outline" className="rounded-full">
+                  Log in
+                </AuthTriggerButton>
               </div>
             </div>
 
@@ -422,5 +426,6 @@ export function LandingPage() {
         </div>
       </footer>
     </div>
+    </AuthModalProvider>
   );
 }

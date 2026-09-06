@@ -28,7 +28,7 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 
-export function LoginForm() {
+export function LoginForm({ onSwitchToSignup }: { onSwitchToSignup?: () => void } = {}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -121,9 +121,20 @@ export function LoginForm() {
             Verified against the live project. Kept visible deliberately while
             in development; it starts working the moment custom SMTP is wired,
             or immediately if email confirmation is switched off. */}
-        <Button asChild variant="outline" className="w-full h-11 text-base">
-          <Link href="/signup">Create an account with email</Link>
-        </Button>
+        {onSwitchToSignup ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-11 text-base"
+            onClick={onSwitchToSignup}
+          >
+            Create an account with email
+          </Button>
+        ) : (
+          <Button asChild variant="outline" className="w-full h-11 text-base">
+            <Link href="/signup">Create an account with email</Link>
+          </Button>
+        )}
 
        <div className="flex items-center gap-4">
             <div className="h-px bg-border flex-1" />
