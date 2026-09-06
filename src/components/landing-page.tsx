@@ -57,6 +57,7 @@ function HeroPhoto({
             alt={alt}
             fill
             priority
+            unoptimized
             className="object-cover"
             style={{ objectPosition }}
           />
