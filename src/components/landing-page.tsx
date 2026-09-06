@@ -178,9 +178,9 @@ export function LandingPage() {
           <Link href="/" aria-label="BHOLO home" className="flex items-center gap-2">
             <span className="h-6 w-1.5 shrink-0 -skew-x-12 rounded-sm bg-primary" aria-hidden />
             <span className="flex flex-col leading-none">
-              <span className="text-xl font-extrabold tracking-tight">BHOLO</span>
-              <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Football lives here
+              <Image src="/officialogo.png" alt="BHOLO" width={893} height={272} unoptimized className="h-6 w-auto self-start" />
+              <span className="mt-1 text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                South Africa&apos;s Football Timeline
               </span>
             </span>
           </Link>
@@ -396,9 +396,9 @@ export function LandingPage() {
             <Link href="/" className="flex items-center gap-2">
               <span className="h-5 w-1.5 shrink-0 -skew-x-12 rounded-sm bg-primary" aria-hidden />
               <span className="flex flex-col leading-none">
-                <span className="text-lg font-extrabold tracking-tight">BHOLO</span>
-                <span className="text-[8px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Football lives here
+                <Image src="/officialogo.png" alt="BHOLO" width={893} height={272} unoptimized className="h-5 w-auto self-start" />
+                <span className="mt-1 text-[8px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  South Africa&apos;s Football Timeline
                 </span>
               </span>
             </Link>
