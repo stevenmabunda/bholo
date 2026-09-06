@@ -29,8 +29,6 @@ import { AuthTriggerButton } from '@/components/auth/auth-trigger-button';
  * execute JS to see.
  */
 
-const FALLBACK_PHOTO = '/og-stadium-bg.png';
-
 function HeroPhoto({
   src,
   alt,
@@ -377,7 +375,7 @@ export function LandingPage() {
             </div>
 
             <HeroPhoto
-              src={FALLBACK_PHOTO}
+              src="/homepage/homepage_03.jpg"
               alt="A fan celebrating at sunset with the South African flag"
               caption={'Same passion.\nBigger conversations.'}
             />

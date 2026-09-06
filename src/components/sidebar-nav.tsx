@@ -71,8 +71,10 @@ export function SidebarNav() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    // Force a full page reload to ensure all state is cleared.
-    window.location.href = '/login';
+    // Force a full page reload to ensure all state is cleared. Back to the
+    // homepage (not /login) so a logged-out user lands on the real landing
+    // page, with the login/signup modal a click away.
+    window.location.href = '/';
   };
 
   const userHandle = profile?.handle || user?.email?.split('@')[0] || 'user';
