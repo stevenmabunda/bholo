@@ -313,8 +313,8 @@ export function LandingPage() {
             </div>
 
             <HeroPhoto
-              src={FALLBACK_PHOTO}
-              alt="Fans in the stands at a South African derby"
+              src="/homepage/homepage_02.jpg"
+              alt="BHOLO fans in branded jerseys outside a spaza shop"
               caption={'Soweto is\nfootball'}
             />
           </div>
