@@ -35,6 +35,7 @@ function HeroPhoto({
   caption,
   className,
   objectPosition = '50% 50%',
+  heading,
 }: {
   src: string;
   alt: string;
@@ -44,6 +45,10 @@ function HeroPhoto({
    *  someone right at the edge of frame, and centring the crop cut most of
    *  her out — shifting the anchor right keeps her in view instead. */
   objectPosition?: string;
+  /** Mobile only — the hero's own H1 rendered on top of the photo instead
+   *  of above it. Desktop keeps its own inline heading beside the photo,
+   *  so this is hidden from lg up. */
+  heading?: React.ReactNode;
 }) {
   return (
     <div className={cn('relative', className)}>
@@ -62,8 +67,12 @@ function HeroPhoto({
             style={{ objectPosition }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent lg:bg-gradient-to-l lg:from-transparent lg:via-transparent lg:to-black/10" />
+          {heading && (
+            <div className="absolute inset-x-0 top-0 h-3/5 bg-gradient-to-b from-black/75 via-black/40 to-transparent lg:hidden" aria-hidden />
+          )}
         </div>
       </div>
+      {heading && <div className="absolute left-4 right-4 top-4 lg:hidden">{heading}</div>}
       <p className="absolute bottom-4 right-4 max-w-[10rem] -rotate-3 text-right text-sm font-bold uppercase leading-tight text-white drop-shadow-lg sm:bottom-6 sm:right-6">
         {caption.split('\n').map((line, i) => (
           <span key={i} className="block">
@@ -200,7 +209,10 @@ export function LandingPage() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Repeats the hero's own Log in / Create account buttons one
+              scroll away — only worth the header space once there's room
+              for a nav row alongside it. */}
+          <div className="hidden items-center gap-2 sm:gap-3 md:flex">
             <AuthTriggerButton mode="login" variant="outline" className="rounded-full">
               Log in
             </AuthTriggerButton>
@@ -215,8 +227,12 @@ export function LandingPage() {
         {/* Hero */}
         <section className="border-b border-white/10">
           <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-8 sm:py-16 lg:grid-cols-2 lg:items-center lg:gap-0 lg:py-0">
-            <div className="lg:py-16">
-              <h1 className="text-5xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+            {/* Below lg, none of this renders here at all — heading,
+                copy and CTAs move onto the photo instead (HeroPhoto's
+                `heading` prop below), so mobile doesn't carry a second,
+                hidden copy of the same buttons sitting in dead space. */}
+            <div className="hidden lg:block lg:py-16">
+              <h1 className="text-5xl font-extrabold leading-[1.05] tracking-tight lg:text-7xl">
                 Football,
                 <br />
                 <span className="text-primary">Uninterrupted.</span>
@@ -227,7 +243,7 @@ export function LandingPage() {
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <AuthTriggerButton mode="signup" size="lg" className="rounded-full">
-                  Join BHOLO free
+                  Create account
                 </AuthTriggerButton>
                 <AuthTriggerButton mode="login" size="lg" variant="outline" className="rounded-full">
                   Log in
@@ -253,6 +269,32 @@ export function LandingPage() {
               alt="A group of BHOLO fans in branded jerseys on the stadium steps"
               caption={'More than\na game'}
               objectPosition="78% 50%"
+              heading={
+                <div>
+                  <h1 className="text-4xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-5xl">
+                    Football,
+                    <br />
+                    <span className="text-primary">Uninterrupted.</span>
+                  </h1>
+                  <p className="mt-4 max-w-xs text-base text-white/85">
+                    South Africa&apos;s football-exclusive social network.
+                    Come for the football, stay for the banter.
+                  </p>
+                  <div className="mt-5 flex flex-wrap items-center gap-3">
+                    <AuthTriggerButton mode="signup" size="lg" className="rounded-full">
+                      Create account
+                    </AuthTriggerButton>
+                    <AuthTriggerButton
+                      mode="login"
+                      size="lg"
+                      variant="outline"
+                      className="rounded-full border-white/40 bg-transparent text-white hover:bg-white/10"
+                    >
+                      Log in
+                    </AuthTriggerButton>
+                  </div>
+                </div>
+              }
             />
           </div>
         </section>
