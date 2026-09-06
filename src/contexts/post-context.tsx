@@ -2,7 +2,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PostType } from '@/lib/data';
 import type { Media } from '@/components/create-post';
@@ -11,6 +11,7 @@ import { useProfile } from '@/hooks/use-profile';
 import { supabase } from '@/lib/supabase/client';
 import { formatTimestamp } from '@/lib/utils';
 import { queryKeys } from '@/lib/query-keys';
+import { getFeedScroller } from '@/lib/scroll-container';
 import type { ReplyMedia } from '@/components/create-comment';
 import { getRecentPosts } from '@/app/(app)/home/actions';
 import { usePathname } from 'next/navigation';
@@ -26,6 +27,21 @@ const MEDIA_RECONCILE_DELAY_MS = 1500;
 
 /** How many unseen posts to hold for the "new posts" banner. */
 const NEW_POSTS_BUFFER_LIMIT = 50;
+
+/**
+ * How long the tab has to sit hidden before a return counts as a new
+ * session rather than a quick app-switch.
+ *
+ * Below this, the existing banner is the right call: buffer what arrived
+ * and let the person choose when to see it, so a five-second glance at
+ * WhatsApp doesn't yank their reading position out from under them. Above
+ * it — someone back from lunch, or from Friday to Monday — nothing about
+ * "tap a toast to catch up" makes sense; the feed just was not built to
+ * hold a reading position across that gap in the first place, and trying
+ * to is what left people staring at a stale post from days ago with a
+ * notification they had to notice and click before anything moved.
+ */
+const NEW_SESSION_AFTER_MS = 15 * 60_000;
 
 type PostContextType = {
   forYouPosts: PostType[];
@@ -436,9 +452,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
      * when they switch apps and come back.
      *
      * So on arriving, and on every return to the foreground, we ask for posts
-     * newer than the newest one on screen and buffer those.
+     * newer than the newest one on screen. `autoShow` decides what happens
+     * with them: buffered for the banner on a quick return, or dropped
+     * straight into the feed with the page snapped to top on a real one —
+     * see NEW_SESSION_AFTER_MS. A tab that was never hidden (the very first
+     * connection, right after mount) has nothing to auto-show; there is no
+     * stale scroll position yet to rescue anyone from.
      */
-    const catchUp = async () => {
+    const catchUp = async (autoShow: boolean) => {
       const cached = queryClient.getQueryData<PostType[]>(queryKeys.feed(user.id)) ?? [];
       const newest = cached.find(p => p.createdAt)?.createdAt;
       if (!newest) return;
@@ -456,8 +477,31 @@ export function PostProvider({ children }: { children: ReactNode }) {
         .limit(NEW_POSTS_BUFFER_LIMIT);
 
       if (error || !data) return;
-      // Oldest first, so the newest ends up at the head of the buffer.
-      [...data].reverse().forEach(row => buffer(mapRow(row)));
+      const fresh = [...data].reverse().map(row => mapRow(row));
+      if (fresh.length === 0) return;
+
+      if (!autoShow) {
+        // Oldest first, so the newest ends up at the head of the buffer.
+        fresh.forEach(buffer);
+        return;
+      }
+
+      // Same merge showNewForYouPosts does on a manual click — prepend,
+      // deduped, then chase down media for any post the INSERT trigger beat
+      // the upload to. There is nothing to click here; a return this long
+      // stops being "catch me up on a few posts" and starts being "just
+      // give me the feed", so it happens without asking.
+      updateFeed(prev => {
+        const existingIds = new Set(prev.map(p => p.id));
+        return [...fresh.filter(p => !existingIds.has(p.id)), ...prev];
+      });
+      void reconcileMedia(fresh.filter(p => !Array.isArray(p.media) || p.media.length === 0).map(p => p.id));
+      // Whatever the realtime socket already buffered while we were away is
+      // now part of the feed itself, not pending — otherwise the banner
+      // could still pop up a moment later offering to show posts that are
+      // already on screen.
+      setNewForYouPosts([]);
+      (getFeedScroller() ?? window).scrollTo({ top: 0, behavior: 'auto' });
     };
 
     const channel = supabase
@@ -467,22 +511,46 @@ export function PostProvider({ children }: { children: ReactNode }) {
       })
       .subscribe(status => {
         // Covers the first connection and every reconnect after a phone wakes
-        // the socket back up.
-        if (status === 'SUBSCRIBED') void catchUp();
+        // the socket back up. Never the auto-show path — nothing has gone
+        // stale yet at the moment this first subscribes.
+        if (status === 'SUBSCRIBED') void catchUp(false);
       });
 
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') void catchUp();
+    // When the tab was last hidden, so a later return can tell a five-second
+    // glance at another app from an actual new session. Null while visible.
+    const hiddenAt = { current: null as number | null };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt.current = Date.now();
+        return;
+      }
+      const awayMs = hiddenAt.current === null ? 0 : Date.now() - hiddenAt.current;
+      hiddenAt.current = null;
+      void catchUp(awayMs >= NEW_SESSION_AFTER_MS);
     };
-    document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener('focus', onVisible);
+    // Desktop tab-switching fires focus/blur without ever touching
+    // visibilitychange, so away-time tracked only through the latter would
+    // read as zero every time and this could never fire there at all.
+    const onWindowBlur = () => { hiddenAt.current = Date.now(); };
+    const onWindowFocus = () => {
+      if (document.visibilityState !== 'visible') return;
+      const awayMs = hiddenAt.current === null ? 0 : Date.now() - hiddenAt.current;
+      hiddenAt.current = null;
+      void catchUp(awayMs >= NEW_SESSION_AFTER_MS);
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('blur', onWindowBlur);
+    window.addEventListener('focus', onWindowFocus);
 
     return () => {
-      document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('blur', onWindowBlur);
+      window.removeEventListener('focus', onWindowFocus);
       supabase.removeChannel(channel);
     };
-  }, [user, queryClient, onFeed]);
+  }, [user, queryClient, onFeed, updateFeed, reconcileMedia]);
 
 
   const addPost = async ({ text, media, poll, location, scheduledFor }: { text: string; media: Media[]; poll?: PostType['poll'], location?: string | null, scheduledFor?: string | null }): Promise<PostType | null> => {
