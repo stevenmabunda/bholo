@@ -227,8 +227,8 @@ export function LandingPage() {
             </div>
 
             <HeroPhoto
-              src={FALLBACK_PHOTO}
-              alt="BHOLO fans at a Betway Premiership match"
+              src="/homepage/homepage_01.jpg"
+              alt="A group of BHOLO fans in branded jerseys on the stadium steps"
               caption={'More than\na game'}
             />
           </div>
