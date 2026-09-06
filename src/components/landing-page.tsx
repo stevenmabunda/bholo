@@ -280,12 +280,22 @@ export function LandingPage() {
                 Built for the heart of South African football
               </h2>
               <p className="mt-4 text-muted-foreground">
-                From the roar in the stands eKasi to the heated arguments in
-                local taverns and living rooms, BHOLO is designed around the
-                way South Africans talk, celebrate and argue about football —
-                whether that&apos;s the Soweto derby, a{' '}
-                <strong className="text-foreground">Betway Premiership</strong>{' '}
-                squad selection, or a South African star shining abroad.
+                South African football has a rhythm, a banter, and a pride
+                that belongs entirely to us. BHOLO puts the{' '}
+                <strong className="text-foreground">PSL</strong> and local
+                teams where they truly belong — right at the very center.
+              </p>
+              <p className="mt-4 text-muted-foreground">
+                From the high-stakes drama of the{' '}
+                <strong className="text-foreground">Soweto Derby</strong> to
+                the knockout magic of the{' '}
+                <strong className="text-foreground">
+                  MTN8, Carling Knockout, and Nedbank Cup
+                </strong>
+                , this is where we celebrate what makes our game special. No
+                foreign noise — just pure local pride, tavern debates, and
+                fans who love the local game as much as you do. Rep your
+                club, stand your ground, and reclaim the narrative.
               </p>
             </div>
 
