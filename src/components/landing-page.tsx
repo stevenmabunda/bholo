@@ -34,11 +34,16 @@ function HeroPhoto({
   alt,
   caption,
   className,
+  objectPosition = '50% 50%',
 }: {
   src: string;
   alt: string;
   caption: string;
   className?: string;
+  /** Where object-cover anchors its crop. The group shot in the hero has
+   *  someone right at the edge of frame, and centring the crop cut most of
+   *  her out — shifting the anchor right keeps her in view instead. */
+  objectPosition?: string;
 }) {
   return (
     <div className={cn('relative', className)}>
@@ -47,7 +52,14 @@ function HeroPhoto({
             past the point content stacks, so mobile keeps a plain rounded
             photo instead of a tight, ugly crop. */}
         <div className="h-full w-full lg:[clip-path:polygon(12%_0,100%_0,100%_100%,0_100%)]">
-          <Image src={src} alt={alt} fill priority className="object-cover" />
+          <Image
+            src={src}
+            alt={alt}
+            fill
+            priority
+            className="object-cover"
+            style={{ objectPosition }}
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent lg:bg-gradient-to-l lg:from-transparent lg:via-transparent lg:to-black/10" />
         </div>
       </div>
@@ -230,6 +242,7 @@ export function LandingPage() {
               src="/homepage/homepage_01.jpg"
               alt="A group of BHOLO fans in branded jerseys on the stadium steps"
               caption={'More than\na game'}
+              objectPosition="78% 50%"
             />
           </div>
         </section>
