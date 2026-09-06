@@ -2,7 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { PSL_TEAMS } from '@/lib/psl-teams';
 import { absoluteUrl } from '@/lib/site';
-import { Zap, FileText, Users, MessageCircle, Twitter, Facebook, Youtube } from 'lucide-react';
+import { Zap, FileText, Users, MessageCircle, Twitter, Instagram, Facebook, Youtube } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AuthModalProvider } from '@/contexts/auth-modal-context';
 import { AuthModal } from '@/components/auth/auth-modal';
@@ -126,6 +126,7 @@ function TikTokIcon(props: React.SVGProps<SVGSVGElement>) {
 
 const SOCIAL_LINKS = [
   { icon: Twitter, label: 'X (Twitter)', href: 'https://x.com/BHOLOapp' },
+  { icon: Instagram, label: 'Instagram', href: 'https://www.instagram.com/bholoapp/' },
   { icon: Facebook, label: 'Facebook', href: 'https://www.facebook.com/bholoapp' },
   { icon: Youtube, label: 'YouTube', href: 'https://www.youtube.com/@BHOLOapp' },
   { icon: TikTokIcon, label: 'TikTok', href: 'https://www.tiktok.com/@bholofootball' },
