@@ -36,19 +36,25 @@ function HeroPhoto({
   className,
   objectPosition = '50% 50%',
   heading,
+  actions,
 }: {
   src: string;
   alt: string;
-  caption: string;
+  /** Omit to skip the rotated corner caption entirely (the hero photo has
+   *  no room for one once `heading`/`actions` are covering it). */
+  caption?: string;
   className?: string;
   /** Where object-cover anchors its crop. The group shot in the hero has
    *  someone right at the edge of frame, and centring the crop cut most of
    *  her out — shifting the anchor right keeps her in view instead. */
   objectPosition?: string;
-  /** Mobile only — the hero's own H1 rendered on top of the photo instead
-   *  of above it. Desktop keeps its own inline heading beside the photo,
-   *  so this is hidden from lg up. */
+  /** Mobile only — the hero's own heading + copy rendered on top of the
+   *  photo instead of above it. Desktop keeps its own inline copy beside
+   *  the photo, so this is hidden from lg up. */
   heading?: React.ReactNode;
+  /** Mobile only — pinned to the bottom of the photo instead, e.g. the
+   *  hero's CTA buttons. Same lg:hidden treatment as `heading`. */
+  actions?: React.ReactNode;
 }) {
   return (
     <div className={cn('relative', className)}>
@@ -73,14 +79,17 @@ function HeroPhoto({
         </div>
       </div>
       {heading && <div className="absolute left-4 right-4 top-4 lg:hidden">{heading}</div>}
-      <p className="absolute bottom-4 right-4 max-w-[10rem] -rotate-3 text-right text-sm font-bold uppercase leading-tight text-white drop-shadow-lg sm:bottom-6 sm:right-6">
-        {caption.split('\n').map((line, i) => (
-          <span key={i} className="block">
-            {line}
-          </span>
-        ))}
-        <span className="mt-1 block h-1 w-12 rounded-full bg-primary" aria-hidden />
-      </p>
+      {actions && <div className="absolute inset-x-4 bottom-4 lg:hidden">{actions}</div>}
+      {caption && (
+        <p className="absolute bottom-4 right-4 max-w-[10rem] -rotate-3 text-right text-sm font-bold uppercase leading-tight text-white drop-shadow-lg sm:bottom-6 sm:right-6">
+          {caption.split('\n').map((line, i) => (
+            <span key={i} className="block">
+              {line}
+            </span>
+          ))}
+          <span className="mt-1 block h-1 w-12 rounded-full bg-primary" aria-hidden />
+        </p>
+      )}
     </div>
   );
 }
@@ -99,7 +108,7 @@ const FEATURES = [
   {
     icon: Users,
     title: 'Pure Diski culture',
-    body: 'Local derby drama, tavern debates, and the biggest European leagues — all covered.',
+    body: 'Local diski drama, culture defining memes, trolling, soccer jerseys, stats, nerds, die-hards and more — all found here.',
   },
   {
     icon: MessageCircle,
@@ -140,6 +149,45 @@ const SOCIAL_LINKS = [
   { icon: Youtube, label: 'YouTube', href: 'https://www.youtube.com/@BHOLOapp' },
   { icon: TikTokIcon, label: 'TikTok', href: 'https://www.tiktok.com/@bholofootball' },
 ];
+
+/**
+ * No live store links yet — App Store and Play Store URLs go here the
+ * moment BHOLO's listings exist. Placeholder hrefs until then.
+ */
+const STORE_LINKS = {
+  appStore: '#',
+  playStore: '#',
+};
+
+// Official Apple/Google badge artwork (sourced from Apple's and Google's own
+// badge-generator endpoints) — not a redrawn approximation, so their brand
+// guidelines on it staying unmodified hold.
+function StoreBadges({ className }: { className?: string }) {
+  return (
+    <div className={cn('flex flex-wrap items-center gap-3', className)}>
+      <a href={STORE_LINKS.appStore} className="transition-opacity hover:opacity-80">
+        <Image
+          src="/app-store-badge.svg"
+          alt="Download on the App Store"
+          width={120}
+          height={40}
+          unoptimized
+          className="h-10 w-auto"
+        />
+      </a>
+      <a href={STORE_LINKS.playStore} className="transition-opacity hover:opacity-80">
+        <Image
+          src="/google-play-badge.png"
+          alt="Get it on Google Play"
+          width={646}
+          height={250}
+          unoptimized
+          className="h-14 w-auto"
+        />
+      </a>
+    </div>
+  );
+}
 
 export function LandingPage() {
   const jsonLd = {
@@ -226,19 +274,26 @@ export function LandingPage() {
       <main>
         {/* Hero */}
         <section className="border-b border-white/10">
-          <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-8 sm:py-16 lg:grid-cols-2 lg:items-center lg:gap-0 lg:py-0">
-            {/* Below lg, none of this renders here at all — heading,
-                copy and CTAs move onto the photo instead (HeroPhoto's
-                `heading` prop below), so mobile doesn't carry a second,
-                hidden copy of the same buttons sitting in dead space. */}
+          {/* Mobile only — sits right below the header, above the photo.
+              The real H1 now lives inside the photo (HeroPhoto's `heading`
+              below); this is just the lead-in line above it. */}
+          <p className="px-4 pt-8 text-lg font-semibold text-muted-foreground sm:px-8 lg:hidden">
+            Join Mzansi&apos;s football-exclusive social network.
+          </p>
+
+          <div className="mx-auto grid max-w-7xl gap-10 px-4 py-4 sm:px-8 sm:py-16 lg:grid-cols-2 lg:items-center lg:gap-0 lg:py-0">
+            {/* Below lg, none of this renders here at all — copy and CTAs
+                move onto the photo instead (HeroPhoto's `heading`/`actions`
+                props below), so mobile doesn't carry a second, hidden copy
+                of the same buttons sitting in dead space. */}
             <div className="hidden lg:block lg:py-16">
               <h1 className="text-5xl font-extrabold leading-[1.05] tracking-tight lg:text-7xl">
-                Football,
+                It&apos;s Football,
                 <br />
                 <span className="text-primary">Uninterrupted.</span>
               </h1>
               <p className="mt-6 max-w-md text-lg text-muted-foreground">
-                South Africa&apos;s football-exclusive social network. Come for
+                Join Mzansi&apos;s football-exclusive social network. Come for
                 the football, stay for the banter.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -250,53 +305,40 @@ export function LandingPage() {
                 </AuthTriggerButton>
               </div>
 
-              <dl className="mt-12 flex max-w-lg items-start gap-6 border-t border-white/10 pt-8">
-                {[
-                  { value: '20M+', label: 'Fans' },
-                  { value: 'All Leagues', label: 'Local & International' },
-                  { value: 'One Community', label: 'Football Lives Here' },
-                ].map((stat, i) => (
-                  <div key={stat.label} className={cn('flex-1', i > 0 && 'border-l border-white/10 pl-6')}>
-                    <dt className="text-xl font-extrabold sm:text-2xl">{stat.value}</dt>
-                    <dd className="mt-0.5 text-xs text-muted-foreground">{stat.label}</dd>
-                  </div>
-                ))}
-              </dl>
+              <StoreBadges className="mt-12 border-t border-white/10 pt-8" />
             </div>
 
             <HeroPhoto
               src="/homepage/homepage_01.jpg"
               alt="A group of BHOLO fans in branded jerseys on the stadium steps"
-              caption={'More than\na game'}
               objectPosition="78% 50%"
               heading={
-                <div>
-                  <h1 className="text-4xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-5xl">
-                    Football,
-                    <br />
-                    <span className="text-primary">Uninterrupted.</span>
-                  </h1>
-                  <p className="mt-4 max-w-xs text-base text-white/85">
-                    South Africa&apos;s football-exclusive social network.
-                    Come for the football, stay for the banter.
-                  </p>
-                  <div className="mt-5 flex flex-wrap items-center gap-3">
-                    <AuthTriggerButton mode="signup" size="lg" className="rounded-full">
-                      Create account
-                    </AuthTriggerButton>
-                    <AuthTriggerButton
-                      mode="login"
-                      size="lg"
-                      variant="outline"
-                      className="rounded-full border-white/40 bg-transparent text-white hover:bg-white/10"
-                    >
-                      Log in
-                    </AuthTriggerButton>
-                  </div>
+                <h1 className="text-4xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-5xl">
+                  It&apos;s Football,
+                  <br />
+                  <span className="text-primary">Uninterrupted.</span>
+                </h1>
+              }
+              actions={
+                <div className="flex flex-wrap items-center gap-3">
+                  <AuthTriggerButton mode="signup" size="lg" className="rounded-full">
+                    Create account
+                  </AuthTriggerButton>
+                  <AuthTriggerButton
+                    mode="login"
+                    size="lg"
+                    variant="outline"
+                    className="rounded-full border-white/40 bg-transparent text-white hover:bg-white/10"
+                  >
+                    Log in
+                  </AuthTriggerButton>
                 </div>
               }
             />
           </div>
+
+          {/* Mobile only — badges sit below the photo, not on top of it. */}
+          <StoreBadges className="justify-center px-4 pb-12 sm:px-8 lg:hidden" />
         </section>
 
         {/* Features / Banter */}
@@ -338,10 +380,7 @@ export function LandingPage() {
         <section id="clubs" className="border-b border-white/10">
           <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-8 sm:py-24 lg:grid-cols-2 lg:items-center lg:gap-0">
             <div className="lg:pr-16">
-              <p className="text-sm font-bold uppercase tracking-[0.2em] text-primary">
-                Clubs. Cities. Culture.
-              </p>
-              <h2 className="mt-3 text-3xl font-extrabold leading-tight sm:text-4xl">
+              <h2 className="text-3xl font-extrabold leading-tight text-primary sm:text-4xl">
                 Built for the heart of South African football
               </h2>
               <p className="mt-4 text-muted-foreground">
@@ -394,24 +433,31 @@ export function LandingPage() {
         <section id="community">
           <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-8 sm:py-24 lg:grid-cols-2 lg:items-center lg:gap-0">
             <div className="lg:pr-16">
-              <p className="text-sm font-bold uppercase tracking-[0.2em] text-primary">
-                Join the movement
-              </p>
-              <h2 className="mt-3 text-3xl font-extrabold leading-tight sm:text-4xl">
-                South Africa&apos;s home for <span className="text-primary">football banter</span>
+              <h2 className="text-3xl font-extrabold leading-tight text-primary sm:text-4xl">
+                Join Mzansi&apos;s official football timeline.
               </h2>
+              <p className="mt-4 text-lg font-semibold text-foreground">
+                You came for football. Get the football.
+              </p>
               <p className="mt-4 text-muted-foreground">
-                BHOLO is a football-exclusive social network built ground-up
-                for fans who live, breathe and bleed the beautiful game. No
-                unrelated trending topics, no algorithm burying the sport you
-                actually came for — every post on your timeline is about the
-                match, the players, the managers and the fans.{' '}
-                <strong className="text-foreground">
-                  Track live Betway Premiership
-                </strong>{' '}
-                fixtures and standings, follow the biggest European leagues,
-                and drop your own match analysis alongside a community that
-                gets it.
+                Other platforms give you everything. News, celebrities,
+                memes, politics, food, whatever the algorithm feels like
+                serving you.
+              </p>
+              <p className="mt-4 text-muted-foreground">
+                BHOLO gives you the one thing you actually came for: football.
+              </p>
+              <p className="mt-4 text-muted-foreground">
+                Built for Mzansi&apos;s football community, BHOLO puts South
+                African football at the centre — get Betway Premiership
+                banter in all its glory. The clubs, players, managers and
+                crazy fans who make the game what it is.
+              </p>
+              <p className="mt-4 text-muted-foreground">
+                Follow your teams. Track live fixtures and standings. Share
+                your match analysis. Debate the big moments and make us
+                laugh. This is the only football timeline that gets it, and
+                will proudly tolerate your obsession with the game.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <AuthTriggerButton mode="signup" size="lg" className="rounded-full">
