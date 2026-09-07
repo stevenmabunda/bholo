@@ -31,7 +31,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
               <Image src="/mobile-hero2.png" alt="BHOLO mobile hero" layout="fill" objectFit="contain" priority />
             </div>
             <Image src="/bholo_logo.png" alt="BHOLO Logo" width={120} height={48} priority />
-            <p className={cn("mt-2 text-xl text-foreground")}>Welcome to the football banter app.</p>
+            <p className={cn("mt-2 text-xl text-foreground")}>South Africa&apos;s football-exclusive social network.</p>
         </div>
         <div className="w-full max-w-sm">
             {children}
