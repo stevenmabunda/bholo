@@ -39,7 +39,7 @@ export function AuthSidebar() {
                     </Button>
                     <p className="px-4 py-2">or</p>
                     <Button asChild variant="secondary" className="w-full max-w-[200px] text-lg h-12 rounded-full">
-                         <Link href="/login">Sign in</Link>
+                         <Link href="/">Sign in</Link>
                     </Button>
                 </div>
             </div>

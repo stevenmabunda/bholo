@@ -3,11 +3,13 @@ import { updateSession } from '@/lib/supabase/middleware';
 import { isPublicPath } from '@/lib/public-paths';
 
 // Routes reachable without an authenticated session. Anything else
-// belongs to the (app) route group and redirects to /login here, at the
+// belongs to the (app) route group and redirects to / here, at the
 // edge, before that route's JS bundle is ever fetched — previously an
 // unauthenticated visitor downloaded the whole authenticated app shell
 // (sidebar, Radix, framer-motion, Supabase auth-js) client-side first,
-// then bounced to /login after the fact.
+// then bounced to /login after the fact. /login itself no longer exists
+// as a page — login is a modal on the landing page now — so this sends
+// people to / instead, where "Log in" is one click away.
 //
 // /post/[id] is deliberately public too, matching how X/Instagram let
 // you view a single shared post without an account — post.tsx already
@@ -38,11 +40,17 @@ export async function middleware(request: NextRequest) {
   const { response, user } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
-  if (!user && !isPublicPath(pathname)) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  // /login is gone — anyone still hitting it (an old bookmark, a stale
+  // link) lands on the real homepage instead of a 404.
+  if (pathname === '/login') {
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
-  if (user && (pathname === '/login' || pathname === '/signup')) {
+  if (!user && !isPublicPath(pathname)) {
+    return NextResponse.redirect(new URL('/', request.url));
+  }
+
+  if (user && pathname === '/signup') {
     return NextResponse.redirect(new URL('/home', request.url));
   }
 

@@ -32,7 +32,7 @@ export function LoginOrSignupDialog({ isOpen, onOpenChange }: LoginOrSignupDialo
                 <Link href="/signup" onClick={() => onOpenChange(false)}>Create account</Link>
             </Button>
             <Button asChild variant="secondary" className="w-full">
-                <Link href="/login" onClick={() => onOpenChange(false)}>Sign in</Link>
+                <Link href="/" onClick={() => onOpenChange(false)}>Sign in</Link>
             </Button>
         </DialogFooter>
       </DialogContent>

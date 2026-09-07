@@ -113,7 +113,7 @@ export function SignupForm({ onSwitchToLogin }: { onSwitchToLogin?: () => void }
                    Your account has been created. We've sent a verification link to your email address. Please click the link to continue.
                 </AlertDescription>
             </Alert>
-             <Button onClick={onSwitchToLogin ?? (() => router.push('/login'))} className="w-full">
+             <Button onClick={onSwitchToLogin ?? (() => router.push('/'))} className="w-full">
                 Back to Log In
             </Button>
         </div>
@@ -211,7 +211,7 @@ export function SignupForm({ onSwitchToLogin }: { onSwitchToLogin?: () => void }
             Log in
           </button>
         ) : (
-          <Link href="/login" className="font-semibold text-primary hover:underline">
+          <Link href="/" className="font-semibold text-primary hover:underline">
             Log in
           </Link>
         )}

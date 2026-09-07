@@ -11,8 +11,9 @@ export default function MyProfilePage() {
       if (user) {
         redirect(`/profile/${user.id}`);
       } else {
-        // If for some reason user is not logged in, redirect to login
-        redirect('/login');
+        // If for some reason user is not logged in, send them home —
+        // login is a modal there now, not a standalone page.
+        redirect('/');
       }
     }
   }, [user, loading]);

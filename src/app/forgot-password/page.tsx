@@ -65,7 +65,7 @@ export default function ForgotPasswordPage() {
                     </AlertDescription>
                 </Alert>
                 <Button asChild className="w-full">
-                    <Link href="/login">Back to Log In</Link>
+                    <Link href="/">Back to Log In</Link>
                 </Button>
             </div>
         ) : (
@@ -97,7 +97,7 @@ export default function ForgotPasswordPage() {
                     </form>
                 </Form>
                  <p className="text-center text-sm">
-                    <Link href="/login" className="font-semibold text-primary hover:underline">
+                    <Link href="/" className="font-semibold text-primary hover:underline">
                         Back to Log in
                     </Link>
                 </p>

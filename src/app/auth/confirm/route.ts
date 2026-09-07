@@ -44,5 +44,5 @@ export async function GET(request: Request) {
     console.error('verifyOtp failed:', error.message);
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth-confirm-failed`);
+  return NextResponse.redirect(`${origin}/?error=auth-confirm-failed`);
 }

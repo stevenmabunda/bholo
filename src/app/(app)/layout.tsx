@@ -20,12 +20,12 @@ export default function AppLayout({ children, modal }: { children: ReactNode; mo
   const router = useRouter();
   // The middleware has already turned away anyone who should not be here. This
   // is the client-side backstop — and it must agree with the middleware about
-  // which routes are open, or a shared post link bounces its reader to /login.
+  // which routes are open, or a shared post link bounces its reader to /.
   const isPublic = isPublicPath(usePathname());
 
   useEffect(() => {
     if (!loading && !user && !isPublic) {
-      router.replace('/login');
+      router.replace('/');
     }
   }, [user, loading, router, isPublic]);
 

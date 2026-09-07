@@ -94,14 +94,22 @@ export function LoginForm({ onSwitchToSignup }: { onSwitchToSignup?: () => void 
         <div className="text-left">
           <h1 className="text-2xl font-bold">Join BHOLO</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            South Africa&apos;s home for football banter.
+            South Africa&apos;s football-exclusive social network.
           </p>
         </div>
 
         {/* Google leads because it is what almost everyone actually uses, and
             because one button covers both signing up and coming back — a new
-            visitor never has to work out which they are. */}
-        <Button className="w-full h-11 text-base" onClick={handleGoogleSignIn} disabled={loading || googleLoading}>
+            visitor never has to work out which they are. Black, not the
+            default orange — the brand color drowned out Google's own
+            multi-color "G" instead of framing it. The modal itself is just
+            as black, so a border is what actually makes this read as a
+            button rather than disappearing into the background. */}
+        <Button
+          className="w-full h-11 text-base bg-black text-white border border-white/20 hover:bg-white/10"
+          onClick={handleGoogleSignIn}
+          disabled={loading || googleLoading}
+        >
             {googleLoading ? (
                  <>
                     <Loader2 className="mr-2 animate-spin" />

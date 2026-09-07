@@ -10,8 +10,8 @@ export default async function Image() {
   const logoData = readFileSync(join(process.cwd(), 'public', 'officialogo.png'));
   const logoSrc = `data:image/png;base64,${logoData.toString('base64')}`;
 
-  const bgData = readFileSync(join(process.cwd(), 'public', 'og-stadium-bg.png'));
-  const bgSrc = `data:image/png;base64,${bgData.toString('base64')}`;
+  const bgData = readFileSync(join(process.cwd(), 'public', 'homepage', 'homepage_01.jpg'));
+  const bgSrc = `data:image/jpeg;base64,${bgData.toString('base64')}`;
 
   return new ImageResponse(
     (
@@ -27,7 +27,7 @@ export default async function Image() {
           src={bgSrc}
           width={1200}
           height={630}
-          style={{ position: 'absolute', top: 0, left: 0, objectFit: 'cover' }}
+          style={{ position: 'absolute', top: 0, left: 0, objectFit: 'cover', objectPosition: '50% 25%' }}
         />
         <div
           style={{

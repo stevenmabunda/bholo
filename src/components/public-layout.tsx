@@ -48,7 +48,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
                 <div className="md:hidden fixed bottom-0 left-0 right-0 h-20 bg-primary/95 backdrop-blur-sm p-4 z-40">
                     <div className="flex justify-around items-center h-full gap-4">
                         <Button asChild className="flex-1 rounded-full text-base font-bold" variant="secondary">
-                        <Link href="/login">Sign in</Link>
+                        <Link href="/">Sign in</Link>
                         </Button>
                         <Button asChild className="flex-1 rounded-full text-base font-bold text-white bg-foreground text-background hover:bg-foreground/90">
                             <Link href="/signup">Create account</Link>

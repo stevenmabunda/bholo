@@ -14,7 +14,7 @@ export function SignupPrompt() {
                     <Link href="/signup">Create account</Link>
                 </Button>
                 <Button variant="secondary" asChild>
-                    <Link href="/login">Sign In</Link>
+                    <Link href="/">Sign In</Link>
                 </Button>
             </div>
         </div>

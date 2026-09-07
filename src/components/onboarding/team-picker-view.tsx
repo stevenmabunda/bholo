@@ -22,7 +22,7 @@ export function TeamPickerView() {
   // logged-out visitor off this page, this just covers the render before
   // the auth check resolves client-side.
   if (!loading && !user) {
-    router.replace('/login');
+    router.replace('/');
     return null;
   }
 

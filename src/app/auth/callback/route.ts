@@ -22,5 +22,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth-callback-failed`);
+  return NextResponse.redirect(`${origin}/?error=auth-callback-failed`);
 }
