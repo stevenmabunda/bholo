@@ -13,19 +13,21 @@ import { siteUrl } from '@/lib/site';
 import Script from 'next/script';
 
 const siteDescription =
-  'BHOLO is South Africa\'s home for football banter — where Chiefs, Pirates, Sundowns and Betway Premiership fans clash, roast and hype every matchday. Post your hot takes, react with GIFs, track live PSL fixtures and standings, and join the conversation South African football deserves.';
+  "BHOLO is South Africa's football-exclusive social network. No news, no celebrities, no algorithm distractions — just Betway Premiership banter, PSL fixtures and standings, transfer news, and Mzansi's biggest football fanbases, all in one timeline.";
 
 export const metadata: Metadata = {
   // Without this, relative image and canonical paths never resolve to absolute
   // URLs, and every shared link degrades to plain text with no card.
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'BHOLO — South African Football Banter',
+    default: "BHOLO — South Africa's Football-Exclusive Social Network",
     template: '%s | BHOLO',
   },
   description: siteDescription,
   keywords: [
     'South African football',
+    'football-exclusive social network',
+    'Mzansi football',
     'PSL banter',
     'Betway Premiership',
     'Kaizer Chiefs',
@@ -35,7 +37,7 @@ export const metadata: Metadata = {
     'soccer banter South Africa',
   ],
   openGraph: {
-    title: 'BHOLO — South African Football Banter',
+    title: "BHOLO — South Africa's Football-Exclusive Social Network",
     description: siteDescription,
     siteName: 'BHOLO',
     locale: 'en_ZA',
@@ -43,7 +45,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'BHOLO — South African Football Banter',
+    title: "BHOLO — South Africa's Football-Exclusive Social Network",
     description: siteDescription,
   },
 };

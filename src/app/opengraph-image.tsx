@@ -2,12 +2,12 @@ import { ImageResponse } from 'next/og';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-export const alt = 'BHOLO — South African Football Banter';
+export const alt = "BHOLO — South Africa's Football-Exclusive Social Network";
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
 export default async function Image() {
-  const logoData = readFileSync(join(process.cwd(), 'public', 'bholo_logo.png'));
+  const logoData = readFileSync(join(process.cwd(), 'public', 'officialogo.png'));
   const logoSrc = `data:image/png;base64,${logoData.toString('base64')}`;
 
   const bgData = readFileSync(join(process.cwd(), 'public', 'og-stadium-bg.png'));
@@ -59,13 +59,14 @@ export default async function Image() {
           <div
             style={{
               marginTop: 28,
-              fontSize: 38,
+              fontSize: 30,
               color: '#F5F5F5',
               fontWeight: 600,
               textAlign: 'center',
+              maxWidth: 820,
             }}
           >
-            South African Football Banter
+            South Africa&apos;s Football-Exclusive Social Network
           </div>
         </div>
       </div>

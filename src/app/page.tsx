@@ -8,7 +8,9 @@ import { siteUrl } from '@/lib/site';
 // other page gets "X | BHOLO", but the homepage itself should read as the
 // plain brand name search results actually get typed against.
 export const metadata: Metadata = {
-  title: 'BHOLO — South African Football Banter',
+  title: "BHOLO — South Africa's Football-Exclusive Social Network",
+  description:
+    "Join Mzansi's official football timeline. BHOLO is South Africa's football-exclusive social network — Betway Premiership banter, PSL fixtures and standings, and the clubs, players and fans who make the game what it is.",
   alternates: { canonical: siteUrl },
 };
 

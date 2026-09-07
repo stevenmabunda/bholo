@@ -196,19 +196,19 @@ export function LandingPage() {
       {
         '@type': 'WebSite',
         name: 'BHOLO',
-        alternateName: 'BHOLO Football',
+        alternateName: "Mzansi's Official Football Timeline",
         url: absoluteUrl('/'),
         description:
-          "South Africa's football-exclusive social network. Come for the football, stay for the banter.",
+          "South Africa's football-exclusive social network. You came for football — BHOLO gives you the one thing you actually came for.",
         inLanguage: 'en-ZA',
       },
       {
         '@type': 'MobileApplication',
-        name: 'BHOLO: Football, Uninterrupted',
+        name: "BHOLO: It's Football, Uninterrupted",
         applicationCategory: 'SocialNetworkingApplication',
         operatingSystem: 'Android, Web',
         description:
-          "South Africa's premier football-exclusive social network — Betway Premiership fixtures, transfer news, and matchday banter for Kaizer Chiefs, Orlando Pirates, Mamelodi Sundowns and every PSL club.",
+          "South Africa's football-exclusive social network — Betway Premiership banter, PSL fixtures and standings, transfer news, and every club from Kaizer Chiefs to Orlando Pirates to Mamelodi Sundowns, all in one timeline.",
         url: absoluteUrl('/'),
       },
       {

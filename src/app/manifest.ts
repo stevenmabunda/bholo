@@ -19,10 +19,10 @@ type ManifestWithLegacyFields = MetadataRoute.Manifest & {
 export default function manifest(): ManifestWithLegacyFields {
   return {
     id: '/',
-    name: 'BHOLO — South African Football Banter',
+    name: "BHOLO — South Africa's Football-Exclusive Social Network",
     short_name: 'BHOLO',
     description:
-      "South Africa's home for football banter — Chiefs, Pirates, Sundowns and Betway Premiership fans, live match threads, hot takes and fixtures.",
+      "Join Mzansi's official football timeline. Betway Premiership banter, PSL fixtures and standings, and every club from Chiefs to Pirates to Sundowns — no noise, just football.",
     start_url: '/home',
     scope: '/',
     display: 'standalone',
