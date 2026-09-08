@@ -32,6 +32,10 @@ export type PostType = {
   poll?: {
     choices: { text: string; votes: number }[];
   };
+  /** Set only on the /home feed's first page, only for posts in the
+   *  reserved "Following your team" block — see getRecentPosts. Never
+   *  present on paginated, realtime, or any other post. */
+  isTeamHighlight?: boolean;
 };
 
 export type MatchType = {

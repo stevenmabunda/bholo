@@ -92,30 +92,43 @@ export async function getFollowingPosts(userId: string): Promise<PostType[]> {
 }
 
 /**
- * Team-first, with a fallback to the plain chronological feed — this is
- * what a viewer sees when they land on /home, per the onboarding team
- * picker. Only applies to the very first page: "run a quick check when
+ * How many slots the "Following your team" block reserves at the top of the
+ * first page, whenever the viewer's club has anything recent to show.
+ *
+ * Fixed, not proportional to `limit`: capping it here is what keeps the
+ * block reading as a highlight reel rather than however much of the page a
+ * busy week happens to fill. Uncapped, a club having a huge week could push
+ * every other post off the first page again — the exact shape of the bug
+ * this replaced, just re-triggered by volume instead of by the check
+ * existing at all.
+ */
+const TEAM_HIGHLIGHT_SLOTS = 5;
+
+/**
+ * Team-first: up to TEAM_HIGHLIGHT_SLOTS posts about the viewer's favourite
+ * club lead the first page, per the onboarding team picker, labelled
+ * "Following your team" so the prioritisation is a visible feature rather
+ * than an invisible reorder — ahead of the plain chronological feed, which
+ * always fills the rest of that page too. It used to return the team feed
+ * outright (no cap, no label) when one existed, so a club with a single
+ * mention in the last week made every other post on the platform invisible
+ * to that viewer's first page, silently and for as long as the mentions
+ * kept coming. Only applies to the very first page: "run a quick check when
  * they log in" is a login-time decision, not a mode that has to be
  * maintained through infinite scroll, so a `before` cursor (pagination)
  * always continues in the plain feed regardless of how the first page
- * was decided. Someone whose team has a good week doesn't get a feed
- * that quietly stays team-only forever, and pagination logic doesn't
- * need to smuggle a "which mode was page one in" flag through the client.
+ * was decided.
  */
 export async function getRecentPosts(options: { limit?: number; before?: string } = {}): Promise<PostType[]> {
   const supabase = await createClient();
+  const limit = options.limit || 20;
 
   try {
-    if (!options.before) {
-      const teamPosts = await getTeamFeedIfAny(supabase, options.limit || 20);
-      if (teamPosts) return teamPosts;
-    }
-
     let query = supabase
       .from('posts')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(options.limit || 20);
+      .limit(limit);
 
     // The caller already holds the last post it rendered, timestamp included,
     // so the cursor comes in directly. Taking an id instead meant looking that
@@ -126,8 +139,16 @@ export async function getRecentPosts(options: { limit?: number; before?: string 
 
     const { data, error } = await query;
     if (error) throw error;
+    const generic = (data ?? []).map(mapRow);
 
-    return (data ?? []).map(mapRow);
+    if (options.before) return generic;
+
+    const teamPosts = await getTeamFeedIfAny(supabase, TEAM_HIGHLIGHT_SLOTS);
+    if (!teamPosts || teamPosts.length === 0) return generic;
+
+    const highlighted = teamPosts.map((p) => ({ ...p, isTeamHighlight: true }));
+    const teamIds = new Set(highlighted.map((p) => p.id));
+    return [...highlighted, ...generic.filter((p) => !teamIds.has(p.id))].slice(0, limit);
   } catch (error) {
     console.error("Error fetching recent posts:", error);
     return [];

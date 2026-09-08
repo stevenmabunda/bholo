@@ -212,6 +212,42 @@ function mapRow(row: any): PostType {
   } as PostType;
 }
 
+/**
+ * When this viewer was last actually watching the feed, persisted across
+ * whatever tears the subscription down — not just backgrounding the tab.
+ *
+ * The blur/focus/visibilitychange tracking below only measures elapsed time
+ * within one continuously-mounted subscription. But that subscription is
+ * recreated from scratch both by a full page reload/app reopen AND by simply
+ * navigating off /home and back (the effect is gated on `onFeed`, so leaving
+ * the feed unsubscribes it) — and either way, the fresh subscribe used to
+ * call `catchUp(false)` unconditionally, no matter how long the viewer had
+ * actually been gone. That is why someone back from two hours away, or just
+ * back from their own profile, still got the "tap to see new posts" banner
+ * instead of the feed simply being caught up already: the code had no memory
+ * of when it was last watching, only of transitions it happened to witness.
+ * localStorage survives both a remount and a real reload, so it does.
+ */
+const LAST_ACTIVE_ON_FEED_PREFIX = 'bholo:feed:lastActiveAt:';
+
+function getLastActiveOnFeed(userId: string): number | null {
+  try {
+    const raw = localStorage.getItem(LAST_ACTIVE_ON_FEED_PREFIX + userId);
+    return raw ? Number(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function markActiveOnFeedNow(userId: string): void {
+  try {
+    localStorage.setItem(LAST_ACTIVE_ON_FEED_PREFIX + userId, String(Date.now()));
+  } catch {
+    // Private mode, or storage full. Worst case this falls back to the old
+    // "nothing has gone stale yet" behaviour for this one subscribe.
+  }
+}
+
 export function PostProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -511,9 +547,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
       })
       .subscribe(status => {
         // Covers the first connection and every reconnect after a phone wakes
-        // the socket back up. Never the auto-show path — nothing has gone
-        // stale yet at the moment this first subscribes.
-        if (status === 'SUBSCRIBED') void catchUp(false);
+        // the socket back up — and also a fresh page load/app reopen, or
+        // simply navigating back to /home after a while elsewhere, both of
+        // which tear this whole subscription down and recreate it. Whether
+        // that counts as "nothing stale yet" or "gone long enough to just
+        // refresh the feed" depends on when this viewer was last actually
+        // watching it, not on whether this particular subscription is new.
+        if (status !== 'SUBSCRIBED') return;
+        const lastActive = getLastActiveOnFeed(user.id);
+        const awayMs = lastActive === null ? 0 : Date.now() - lastActive;
+        void catchUp(awayMs >= NEW_SESSION_AFTER_MS);
       });
 
     // When the tab was last hidden, so a later return can tell a five-second
@@ -523,6 +566,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const onVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         hiddenAt.current = Date.now();
+        markActiveOnFeedNow(user.id);
         return;
       }
       const awayMs = hiddenAt.current === null ? 0 : Date.now() - hiddenAt.current;
@@ -532,7 +576,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
     // Desktop tab-switching fires focus/blur without ever touching
     // visibilitychange, so away-time tracked only through the latter would
     // read as zero every time and this could never fire there at all.
-    const onWindowBlur = () => { hiddenAt.current = Date.now(); };
+    const onWindowBlur = () => {
+      hiddenAt.current = Date.now();
+      markActiveOnFeedNow(user.id);
+    };
     const onWindowFocus = () => {
       if (document.visibilityState !== 'visible') return;
       const awayMs = hiddenAt.current === null ? 0 : Date.now() - hiddenAt.current;
@@ -545,6 +592,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
     window.addEventListener('focus', onWindowFocus);
 
     return () => {
+      // Covers the other half of "torn down": navigating off /home, or
+      // unmounting outright. Without this, leaving /home for anything
+      // shorter than a full blur/hide cycle left the timestamp stale, so
+      // coming back still looked like "just connected" to the next subscribe.
+      markActiveOnFeedNow(user.id);
       document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('blur', onWindowBlur);
       window.removeEventListener('focus', onWindowFocus);

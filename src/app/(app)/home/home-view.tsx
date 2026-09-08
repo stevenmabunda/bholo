@@ -18,7 +18,7 @@ import { NewPostsNotification } from '@/components/new-posts-notification';
 import { useAuth } from '@/hooks/use-auth';
 import { useProfile } from '@/hooks/use-profile';
 import { Button } from '@/components/ui/button';
-import { Loader2, Bell } from 'lucide-react';
+import { Loader2, Bell, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import Image from "next/image";
@@ -274,6 +274,10 @@ export function HomeView() {
               ) : postsToShow.length > 0 ? (
                 postsToShow.map((post, index) => {
                     if (!post) return null;
+                    // Team-highlighted posts are always contiguous at the
+                    // front (see getRecentPosts), so the label only needs to
+                    // render once, right before the block starts.
+                    const isFirstTeamHighlight = post.isTeamHighlight && !postsToShow[index - 1]?.isTeamHighlight;
                     // Ads sit in slots in the rendered feed, never as rows in
                     // posts — otherwise they leak into search, profiles and
                     // trending, and start counting as somebody's content.
@@ -283,6 +287,14 @@ export function HomeView() {
                     const ad = slot !== null && ads.length ? ads[slot % ads.length] : undefined;
                     return (
                       <Fragment key={post.id}>
+                        {isFirstTeamHighlight && (
+                          <div className="flex items-center gap-2 border-b bg-secondary/40 px-4 py-2.5">
+                            <Shield className="h-4 w-4 text-primary" />
+                            <span className="text-xs font-bold uppercase tracking-wide text-primary">
+                              Following your team
+                            </span>
+                          </div>
+                        )}
                         <Post {...post} />
                         {ad && <PromotedPost ad={ad} />}
                       </Fragment>
