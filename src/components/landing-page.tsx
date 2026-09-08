@@ -313,10 +313,8 @@ export function LandingPage() {
               alt="A group of BHOLO fans in branded jerseys on the stadium steps"
               objectPosition="78% 50%"
               heading={
-                <h1 className="text-4xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-5xl">
-                  It&apos;s Football,
-                  <br />
-                  <span className="text-primary">Uninterrupted.</span>
+                <h1 className="text-2xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-4xl">
+                  Football, <span className="text-primary">Uninterrupted.</span>
                 </h1>
               }
               actions={
