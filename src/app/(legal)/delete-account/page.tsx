@@ -1,3 +1,13 @@
+import type { Metadata } from 'next';
+import { siteUrl } from '@/lib/site';
+
+// See help/page.tsx for why this needs its own metadata.
+export const metadata: Metadata = {
+  title: 'Delete Account',
+  description: 'How to request deletion of your BHOLO account and associated data.',
+  alternates: { canonical: `${siteUrl}/delete-account` },
+};
+
 export default function DeleteAccountPage() {
   return (
     <div className="prose dark:prose-invert max-w-none">

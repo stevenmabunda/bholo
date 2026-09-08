@@ -1,3 +1,12 @@
+import type { Metadata } from 'next';
+import { siteUrl } from '@/lib/site';
+
+// See help/page.tsx for why this needs its own metadata.
+export const metadata: Metadata = {
+  title: 'Feedback',
+  description: 'Share feedback or report an issue with BHOLO.',
+  alternates: { canonical: `${siteUrl}/feedback` },
+};
 
 export default function FeedbackPage() {
   return (

@@ -1,3 +1,15 @@
+import type { Metadata } from 'next';
+import { siteUrl } from '@/lib/site';
+
+// See help/page.tsx — every page in this (legal) group used to inherit the
+// homepage's title/description verbatim, which is why /privacy and /help
+// were competing with the homepage in search instead of the homepage
+// always winning.
+export const metadata: Metadata = {
+  title: 'Privacy Policy',
+  description: 'How BHOLO collects, uses, and protects your personal information.',
+  alternates: { canonical: `${siteUrl}/privacy` },
+};
 
 export default function PrivacyPage() {
   return (

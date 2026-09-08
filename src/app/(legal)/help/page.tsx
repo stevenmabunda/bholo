@@ -1,3 +1,18 @@
+import type { Metadata } from 'next';
+import { siteUrl } from '@/lib/site';
+
+// Without this, this page inherited the root layout's default title and
+// description verbatim — byte-identical to the homepage's, and to every
+// other page in this same (legal) group. Google saw duplicate metadata
+// across the site and had to guess which page was the real one to surface
+// for a given query, which is exactly how a search for "bholofootball"
+// ended up citing/linking the Help Center instead of the homepage.
+export const metadata: Metadata = {
+  title: 'Help Center',
+  description:
+    "Get help with your BHOLO account — creating a profile, posting content, following your favourite PSL clubs, and more.",
+  alternates: { canonical: `${siteUrl}/help` },
+};
 
 export default function HelpPage() {
   return (

@@ -1,3 +1,12 @@
+import type { Metadata } from 'next';
+import { siteUrl } from '@/lib/site';
+
+// See help/page.tsx for why this needs its own metadata.
+export const metadata: Metadata = {
+  title: 'Terms of Service',
+  description: 'The terms that govern using BHOLO, South Africa\'s football-exclusive social network.',
+  alternates: { canonical: `${siteUrl}/terms` },
+};
 
 export default function TermsPage() {
   return (
