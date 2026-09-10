@@ -17,7 +17,7 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: '*',
         allow: '/',
         // Nothing behind a login wall is worth a crawl budget — every one
-        // of these redirects to /login for a session-less request anyway.
+        // of these redirects to / for a session-less request anyway.
         disallow: ['/home', '/profile', '/messages', '/notifications', '/bookmarks', '/explore', '/search', '/onboarding', '/admin', '/creators', '/video', '/live', '/fixtures'],
       },
     ],
