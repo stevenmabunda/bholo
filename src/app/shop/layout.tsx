@@ -1,15 +1,43 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { siteUrl } from '@/lib/site';
+import { absoluteUrl, siteUrl } from '@/lib/site';
 import { CartProvider } from '@/contexts/cart-context';
 import { ShopHeader } from '@/components/shop/shop-header';
 
+const SHOP_DESCRIPTION =
+  'Official BHOLO merch: the 26/27 jersey in 6 colourways (Black, Blue, Green, Red, White, Yellow). Made for matchday, the tavern, and repping the timeline. Free-standing South African football streetwear.';
+
+// Individual product pages (generateMetadata in [slug]/page.tsx) override
+// title/description/openGraph/twitter per colourway; keywords and the rest
+// of this only ever surface on /shop itself, since Next doesn't merge a
+// child's metadata into a parent's — it replaces whatever the child sets.
 export const metadata: Metadata = {
   title: 'Shop',
-  description:
-    'Official BHOLO merch: jerseys made for matchday, the tavern, and repping the timeline.',
+  description: SHOP_DESCRIPTION,
+  keywords: [
+    'BHOLO jersey',
+    'South African football jersey',
+    'BHOLO merch',
+    'football streetwear South Africa',
+    'Mzansi football merch',
+    'BHOLO shop',
+    'diski jersey',
+    'South African football fan gear',
+  ],
   alternates: { canonical: `${siteUrl}/shop` },
+  openGraph: {
+    title: 'Shop | BHOLO',
+    description: SHOP_DESCRIPTION,
+    url: `${siteUrl}/shop`,
+    images: [{ url: absoluteUrl('/shop/STOREFRONT_HERO.jpg'), width: 1672, height: 941 }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Shop | BHOLO',
+    description: SHOP_DESCRIPTION,
+    images: [absoluteUrl('/shop/STOREFRONT_HERO.jpg')],
+  },
 };
 
 export default function ShopLayout({ children }: { children: ReactNode }) {

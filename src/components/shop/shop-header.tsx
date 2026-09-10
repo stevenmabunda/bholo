@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ShoppingBag } from 'lucide-react';
+import { ArrowLeft, ShoppingBag } from 'lucide-react';
 import { useCart } from '@/contexts/cart-context';
 
 /**
@@ -17,20 +17,29 @@ export function ShopHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-white/10 bg-background/95 backdrop-blur-sm">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-8">
-        <Link href="/shop" aria-label="BHOLO Shop home" className="flex items-center gap-2">
-          <span className="h-6 w-1.5 shrink-0 -skew-x-12 rounded-sm bg-primary" aria-hidden />
-          <Image
-            src="/officialogo.png"
-            alt="BHOLO"
-            width={893}
-            height={272}
-            unoptimized
-            className="h-6 w-auto self-start"
-          />
-          <span className="ml-1 text-xs font-bold uppercase tracking-[0.25em] text-muted-foreground">
-            Shop
-          </span>
-        </Link>
+        <div className="flex items-center gap-3">
+          {/* Desktop has the "Back to BHOLO" text link further along the
+              header; on mobile that's hidden for space and nothing else
+              took its place, so there was no way back to the main site
+              short of the browser's own back button. */}
+          <Link href="/" aria-label="Back to BHOLO" className="text-foreground sm:hidden">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <Link href="/shop" aria-label="BHOLO Shop home" className="flex items-center gap-2">
+            <span className="h-6 w-1.5 shrink-0 -skew-x-12 rounded-sm bg-primary" aria-hidden />
+            <Image
+              src="/officialogo.png"
+              alt="BHOLO"
+              width={893}
+              height={272}
+              unoptimized
+              className="h-6 w-auto self-start"
+            />
+            <span className="ml-1 text-xs font-bold uppercase tracking-[0.25em] text-muted-foreground">
+              Shop
+            </span>
+          </Link>
+        </div>
 
         <div className="flex items-center gap-5">
           <Link

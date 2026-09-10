@@ -2,6 +2,38 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 import { SHOP_PRODUCTS, formatShopPrice } from '@/lib/shop-products';
+import { absoluteUrl, siteUrl } from '@/lib/site';
+
+/** schema.org ItemList — gives Google a structured read of the whole
+ *  range (name, image, price, url per colourway) instead of just the
+ *  rendered HTML, same idea as the Product schema on each PDP. */
+const SHOP_ITEM_LIST_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: 'BHOLO Shop',
+  description: 'Official BHOLO merch: the 26/27 jersey in 6 colourways.',
+  url: `${siteUrl}/shop`,
+  mainEntity: {
+    '@type': 'ItemList',
+    itemListElement: SHOP_PRODUCTS.map((product, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      url: `${siteUrl}/shop/${product.slug}`,
+      item: {
+        '@type': 'Product',
+        name: product.name,
+        image: absoluteUrl(product.images[0]),
+        color: product.colorway,
+        offers: {
+          '@type': 'Offer',
+          priceCurrency: 'ZAR',
+          price: product.price,
+          availability: 'https://schema.org/InStock',
+        },
+      },
+    })),
+  },
+};
 
 /**
  * Promo strip — all three cards matched to a lifestyle photo (women's
@@ -37,6 +69,10 @@ const PROMO_BANNERS: { eyebrow: string; title: string; href: string; tone: strin
 export default function ShopPage() {
   return (
     <div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(SHOP_ITEM_LIST_JSON_LD) }}
+      />
       {/* Hero — real 26/27 kit-shoot group photo behind the gradient.
           A plain height (not aspect-ratio) so the box always fills the
           full viewport width — aspect-ratio + max-height was shrinking the
