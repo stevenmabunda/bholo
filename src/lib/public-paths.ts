@@ -27,9 +27,6 @@ export const PUBLIC_PATHS = [
   // handler ever runs.
   '/signup', '/forgot-password', '/auth/callback', '/auth/confirm',
   '/terms', '/privacy', '/help', '/feedback', '/delete-account',
-  // The merch shop — browsing and checkout don't need a BHOLO account,
-  // same as any other storefront.
-  '/shop',
   // A single shared post, the way X and Instagram let you read one without an
   // account. Individual actions on it still prompt for sign-in.
   '/post',
