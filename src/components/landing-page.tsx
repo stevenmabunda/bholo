@@ -2,7 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { PSL_TEAMS } from '@/lib/psl-teams';
 import { absoluteUrl } from '@/lib/site';
-import { Zap, FileText, Users, MessageCircle, Twitter, Instagram, Facebook, Youtube } from 'lucide-react';
+import { Zap, FileText, Users, MessageCircle, Twitter, Instagram, Facebook, Youtube, ShoppingBag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AuthModalProvider } from '@/contexts/auth-modal-context';
 import { AuthModal } from '@/components/auth/auth-modal';
@@ -116,6 +116,33 @@ const FEATURES = [
     body: 'Hot takes, legendary post-match reactions, and fans who actually understand the assignment.',
   },
 ];
+
+const SHOP_URL = 'https://www.bholofootball.co.za/shop';
+
+/**
+ * Black-on-white, uppercase, no rounded-pill softness — deliberately reads
+ * differently from every other button on the page (all warm orange, all
+ * rounded-full) so the merch shop feels like its own premium destination
+ * rather than another in-app action. Opens in a new tab: leaving the app to
+ * buy something shouldn't cost the visitor their place in the feed/landing
+ * page they were on.
+ */
+function ShopButton({ className }: { className?: string }) {
+  return (
+    <a
+      href={SHOP_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn(
+        'inline-flex items-center gap-2 border border-foreground bg-foreground px-5 py-2 text-xs font-bold uppercase tracking-[0.15em] text-background transition-colors hover:bg-transparent hover:text-foreground',
+        className
+      )}
+    >
+      <ShoppingBag className="h-4 w-4" />
+      Shop
+    </a>
+  );
+}
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
@@ -242,6 +269,19 @@ export function LandingPage() {
             </span>
           </Link>
 
+          {/* Mobile only — the same shop link the desktop header gets, just
+              too tight on space for the full ShopButton treatment here. */}
+          <a
+            href={SHOP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Shop BHOLO merch"
+            className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.15em] text-foreground md:hidden"
+          >
+            <ShoppingBag className="h-4 w-4" />
+            Shop
+          </a>
+
           <nav className="hidden items-center gap-8 text-sm font-semibold md:flex">
             {NAV_LINKS.map((link, i) => (
               <a
@@ -260,7 +300,9 @@ export function LandingPage() {
           {/* Repeats the hero's own Log in / Create account buttons one
               scroll away — only worth the header space once there's room
               for a nav row alongside it. */}
-          <div className="hidden items-center gap-2 sm:gap-3 md:flex">
+          <div className="hidden items-center gap-3 md:flex">
+            <ShopButton />
+            <div className="h-5 w-px bg-white/10" aria-hidden />
             <AuthTriggerButton mode="login" variant="outline" className="rounded-full">
               Log in
             </AuthTriggerButton>
