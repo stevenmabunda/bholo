@@ -44,9 +44,11 @@ function kitImages(color: string, masterExt = 'jpg'): string[] {
 
 /** Same copy structure for every colourway, with the opening tuned to what
  *  that colour actually says — red reads as intensity, black as stealth,
- *  and so on — rather than one generic paragraph repeated six times. */
+ *  and so on — rather than one generic paragraph repeated six times. Kept
+ *  to two short sentences; the original ran to five and read as a wall of
+ *  text next to the product photo. */
 function kitDescription(hook: string): string {
-  return `Built for the terrace, styled for the culture. ${hook} Featuring a classic V-neck cut and custom "Diski Lives Here" collar tape, this jersey bridges matchday passion with everyday street fashion. Lightweight, versatile, and tailored to turn heads, whether you're repping at the stadium, hanging out on the weekend, or dropping a fit on the feed.`;
+  return `${hook} Classic V-neck cut, "Diski Lives Here" collar tape. Built for matchday, the weekend, or the feed.`;
 }
 
 const KIT_DETAILS = [
@@ -61,9 +63,7 @@ export const SHOP_PRODUCTS: ShopProduct[] = [
     name: 'BHOLO Jersey: Red',
     price: 599,
     colorway: 'Red',
-    description: kitDescription(
-      "In red, there's no hiding. It's the colour of matchday nerves and full-throated celebrations, the one you reach for when you want the terrace to know exactly where you stand."
-    ),
+    description: kitDescription("In red, there's no hiding. It's matchday nerves and full-throated celebrations."),
     details: KIT_DETAILS,
     images: kitImages('RED'),
     sizes: SHOP_SIZES,
@@ -73,9 +73,7 @@ export const SHOP_PRODUCTS: ShopProduct[] = [
     name: 'BHOLO Jersey: Blue',
     price: 599,
     colorway: 'Blue',
-    description: kitDescription(
-      'The blue runs cool and confident, an easy colour to build a whole week of fits around, on the terrace or off it.'
-    ),
+    description: kitDescription('The blue runs cool and confident, easy to build a whole week of fits around.'),
     details: KIT_DETAILS,
     images: kitImages('BLUE'),
     sizes: SHOP_SIZES,
@@ -85,9 +83,7 @@ export const SHOP_PRODUCTS: ShopProduct[] = [
     name: 'BHOLO Jersey: Black',
     price: 599,
     colorway: 'Black',
-    description: kitDescription(
-      'Black keeps it understated. It\'s the colourway for when you want the badge to do the talking, not the jersey.'
-    ),
+    description: kitDescription("Black keeps it understated. Let the badge do the talking, not the jersey."),
     details: KIT_DETAILS,
     images: kitImages('BLACK'),
     sizes: SHOP_SIZES,
@@ -97,9 +93,7 @@ export const SHOP_PRODUCTS: ShopProduct[] = [
     name: 'BHOLO Jersey: White',
     price: 599,
     colorway: 'White',
-    description: kitDescription(
-      'Clean, crisp white. It\'s the colourway that looks as sharp fresh off the rail as it does three washes in, built to be worn on repeat.'
-    ),
+    description: kitDescription('Clean, crisp white. Sharp fresh off the rail, sharp three washes in.'),
     details: KIT_DETAILS,
     images: kitImages('WHITE'),
     sizes: SHOP_SIZES,
@@ -109,9 +103,7 @@ export const SHOP_PRODUCTS: ShopProduct[] = [
     name: 'BHOLO Jersey: Green',
     price: 599,
     colorway: 'Green',
-    description: kitDescription(
-      "Green ties it back to home soil. It's the colour of the pitch itself, for the ones who never left the terrace in spirit."
-    ),
+    description: kitDescription('Green ties it back to home soil, the colour of the pitch itself.'),
     details: KIT_DETAILS,
     images: kitImages('GREEN'),
     sizes: SHOP_SIZES,
@@ -121,9 +113,7 @@ export const SHOP_PRODUCTS: ShopProduct[] = [
     name: 'BHOLO Jersey: Yellow',
     price: 599,
     colorway: 'Yellow',
-    description: kitDescription(
-      "Yellow doesn't blend in. It's the colourway for the ones who want to be seen from the last row of the stand, in the queue, or on the feed."
-    ),
+    description: kitDescription("Yellow doesn't blend in. Made to be seen from the last row of the stand."),
     details: KIT_DETAILS,
     // File on disk is a double-extension export (`.png.jpg`) from the shoot.
     images: kitImages('YELLOW', 'png.jpg'),
