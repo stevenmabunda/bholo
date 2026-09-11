@@ -40,13 +40,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function ShopLayout({
-  children,
-  modal,
-}: {
-  children: ReactNode;
-  modal: ReactNode;
-}) {
+export default function ShopLayout({ children }: { children: ReactNode }) {
   return (
     <CartProvider>
       <div className="flex min-h-screen flex-col bg-background text-foreground">
@@ -63,10 +57,6 @@ export default function ShopLayout({
           </div>
         </footer>
       </div>
-      {/* Filled by @modal/(.)[slug]/page.tsx when a jersey's opened from
-          the grid via client-side navigation; empty (default.tsx) on a
-          cold load, which renders shop/[slug]/page.tsx instead. */}
-      {modal}
     </CartProvider>
   );
 }
