@@ -30,6 +30,10 @@ export const PUBLIC_PATHS = [
   // The merch shop — browsing and checkout don't need a BHOLO account,
   // same as any other storefront.
   '/shop',
+  // Guest checkout has no session by design: the checkout API, the
+  // iKhokha webhook (called server-to-server, never with a cookie), and
+  // the order-status lookup must all pass the middleware logged-out.
+  '/api/shop',
   // A single shared post, the way X and Instagram let you read one without an
   // account. Individual actions on it still prompt for sign-in.
   '/post',

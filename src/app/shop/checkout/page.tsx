@@ -13,19 +13,24 @@ const PROVINCES = [
 ];
 
 /**
- * No payment gateway is wired in yet (see shop-products.ts) — this collects
- * everything a real checkout would need (contact + shipping details) and
- * stops one step short of actually charging anyone, rather than faking a
- * successful order. The honest state to show is "here's what's missing",
- * not a confirmation screen for a purchase that never happened.
- *
- * Wiring a gateway later means replacing handleSubmit's body with a real
- * call (e.g. creating a Payfast/Paystack/Yoco payment session with these
- * same field values) — the form and its validation don't need to change.
+ * Collects contact + shipping, creates a pending order + iKhokha payment
+ * link server-side (POST /api/shop/checkout), then hands the shopper to
+ * iKhokha to pay. Amounts are re-resolved from the catalog on the server —
+ * this form sends slugs/sizes/quantities only, never prices.
  */
 export default function CheckoutPage() {
   const { lines } = useCart();
-  const [submitted, setSubmitted] = useState(false);
+  const [field, setField] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    street: '',
+    city: '',
+    postal: '',
+    province: '',
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const rows = lines
     .map((line) => {
@@ -36,9 +41,40 @@ export default function CheckoutPage() {
 
   const subtotal = rows.reduce((sum, { line, product }) => sum + product.price * line.quantity, 0);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const set = (key: keyof typeof field) => (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => setField((prev) => ({ ...prev, [key]: e.target.value }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    if (submitting) return;
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/shop/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lines: lines.map((l) => ({ slug: l.slug, size: l.size, quantity: l.quantity })),
+          contact: { name: field.name, email: field.email, phone: field.phone },
+          shipping: {
+            street: field.street,
+            city: field.city,
+            postal: field.postal,
+            province: field.province,
+          },
+        }),
+      });
+      const data = (await res.json()) as { paylinkUrl?: string; error?: string };
+      if (!res.ok || !data.paylinkUrl) {
+        throw new Error(data.error ?? 'Checkout failed. Try again.');
+      }
+      window.location.href = data.paylinkUrl;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Checkout failed. Try again.');
+      setSubmitting(false);
+    }
   };
 
   if (rows.length === 0) {
@@ -56,6 +92,9 @@ export default function CheckoutPage() {
     );
   }
 
+  const inputClass =
+    'h-11 w-full border border-white/20 bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none';
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-8 sm:py-16">
       <h1 className="text-3xl font-extrabold tracking-tight">Checkout</h1>
@@ -64,53 +103,19 @@ export default function CheckoutPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <fieldset className="space-y-4">
             <legend className="text-xs font-bold uppercase tracking-wide">Contact</legend>
-            <input
-              required
-              type="text"
-              placeholder="Full name"
-              className="h-11 w-full border border-white/20 bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none"
-            />
-            <input
-              required
-              type="email"
-              placeholder="Email"
-              className="h-11 w-full border border-white/20 bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none"
-            />
-            <input
-              required
-              type="tel"
-              placeholder="Phone number"
-              className="h-11 w-full border border-white/20 bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none"
-            />
+            <input required type="text" placeholder="Full name" value={field.name} onChange={set('name')} className={inputClass} />
+            <input required type="email" placeholder="Email" value={field.email} onChange={set('email')} className={inputClass} />
+            <input required type="tel" placeholder="Phone number" value={field.phone} onChange={set('phone')} className={inputClass} />
           </fieldset>
 
           <fieldset className="space-y-4">
             <legend className="text-xs font-bold uppercase tracking-wide">Shipping address</legend>
-            <input
-              required
-              type="text"
-              placeholder="Street address"
-              className="h-11 w-full border border-white/20 bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none"
-            />
+            <input required type="text" placeholder="Street address" value={field.street} onChange={set('street')} className={inputClass} />
             <div className="grid grid-cols-2 gap-3">
-              <input
-                required
-                type="text"
-                placeholder="City"
-                className="h-11 w-full border border-white/20 bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none"
-              />
-              <input
-                required
-                type="text"
-                placeholder="Postal code"
-                className="h-11 w-full border border-white/20 bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none"
-              />
+              <input required type="text" placeholder="City" value={field.city} onChange={set('city')} className={inputClass} />
+              <input required type="text" placeholder="Postal code" value={field.postal} onChange={set('postal')} className={inputClass} />
             </div>
-            <select
-              required
-              defaultValue=""
-              className="h-11 w-full border border-white/20 bg-transparent px-3 text-sm text-foreground focus:border-foreground focus:outline-none"
-            >
+            <select required value={field.province} onChange={set('province')} className={`${inputClass} text-foreground`}>
               <option value="" disabled className="bg-background">
                 Province
               </option>
@@ -122,23 +127,23 @@ export default function CheckoutPage() {
             </select>
           </fieldset>
 
-          {submitted ? (
-            <div className="flex items-start gap-3 border border-primary/40 bg-primary/10 p-4 text-sm">
-              <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <p>
-                Payment isn&apos;t connected yet. Your details are ready, but there&apos;s
-                nowhere to actually send this order to. Checkout will go live here the
-                moment a payment gateway is wired in. Nothing has been charged.
-              </p>
+          {error && (
+            <div className="flex items-start gap-3 border border-destructive/40 bg-destructive/10 p-4 text-sm">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+              <p>{error}</p>
             </div>
-          ) : (
-            <button
-              type="submit"
-              className="flex h-12 w-full items-center justify-center border border-foreground bg-foreground text-xs font-bold uppercase tracking-[0.15em] text-background transition-colors hover:bg-transparent hover:text-foreground"
-            >
-              Continue to Payment
-            </button>
           )}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="flex h-12 w-full items-center justify-center border border-foreground bg-foreground text-xs font-bold uppercase tracking-[0.15em] text-background transition-colors hover:bg-transparent hover:text-foreground disabled:opacity-60"
+          >
+            {submitting ? 'Talking to the payment provider…' : 'Continue to Payment'}
+          </button>
+          <p className="text-xs text-muted-foreground">
+            You&apos;ll pay securely on iKhokha — card payment, then back here for confirmation.
+          </p>
         </form>
 
         <div className="border border-white/10 p-6">

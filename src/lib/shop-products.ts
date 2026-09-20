@@ -1,11 +1,11 @@
 /**
  * BHOLO merch catalog.
  *
- * Static for now — no product/inventory backend exists yet, and the
- * checkout flow this feeds has nowhere real to submit an order to until a
- * payment gateway is wired in (see /shop/checkout). Once that groundwork
- * exists, this is the natural place to swap a database/CMS query in
- * without touching any of the pages that read it.
+ * Static for now — no product/inventory backend exists yet. Checkout
+ * submits to POST /api/shop/checkout, which prices server-side from this
+ * catalog and creates an iKhokha payment link (see src/lib/ikhokha.ts and
+ * supabase/sql/027_shop_orders.sql). Once a database/CMS replaces this,
+ * that route is the seam to swap it in without touching the pages.
  *
  * Pricing is still a placeholder (R599 across the board) — real product
  * photography is in from the 26/27 kit shoot (`/public/shop/BHOLO_26-27_*`):

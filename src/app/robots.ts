@@ -18,9 +18,9 @@ export default function robots(): MetadataRoute.Robots {
         allow: '/',
         // Nothing behind a login wall is worth a crawl budget — every one
         // of these redirects to / for a session-less request anyway.
-        // /shop/cart and /shop/checkout are public but per-visitor and
-        // transient — nothing there is ever the same page twice.
-        disallow: ['/home', '/profile', '/messages', '/notifications', '/bookmarks', '/explore', '/search', '/onboarding', '/admin', '/creators', '/video', '/live', '/fixtures', '/shop/cart', '/shop/checkout'],
+        // /shop/cart, /shop/checkout and /shop/order/* are public but
+        // per-visitor and transient — nothing there is ever the same page twice.
+        disallow: ['/home', '/profile', '/messages', '/notifications', '/bookmarks', '/explore', '/search', '/onboarding', '/admin', '/creators', '/video', '/live', '/fixtures', '/shop/cart', '/shop/checkout', '/shop/order'],
       },
     ],
     sitemap: `${siteUrl}/sitemap.xml`,
