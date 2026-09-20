@@ -123,13 +123,17 @@ const SHOP_URL = '/shop';
  * Black-on-white, uppercase, no rounded-pill softness — deliberately reads
  * differently from every other button on the page (all warm orange, all
  * rounded-full) so the merch shop feels like its own premium destination
- * rather than another in-app action. Internal link: the shop (with
- * iKhokha checkout) lives in this app now, so it opens in the same tab.
+ * rather than another in-app action. Opens in a new tab (the old
+ * behaviour): leaving the page to shop shouldn't cost the visitor their
+ * place on the landing page they were on. Destination is the in-app
+ * /shop with iKhokha checkout, not the old external store.
  */
 function ShopButton({ className }: { className?: string }) {
   return (
     <Link
       href={SHOP_URL}
+      target="_blank"
+      rel="noopener noreferrer"
       className={cn(
         'inline-flex items-center gap-2 border border-foreground bg-foreground px-5 py-2 text-xs font-bold uppercase tracking-[0.15em] text-background transition-colors hover:bg-transparent hover:text-foreground',
         className
@@ -270,6 +274,8 @@ export function LandingPage() {
               too tight on space for the full ShopButton treatment here. */}
           <Link
             href={SHOP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             aria-label="Shop BHOLO merch"
             className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.15em] text-foreground md:hidden"
           >
