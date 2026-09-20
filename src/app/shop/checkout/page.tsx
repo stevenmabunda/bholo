@@ -13,6 +13,21 @@ const PROVINCES = [
 ];
 
 /**
+ * Response bodies aren't guaranteed JSON (proxies, edge errors) — parse
+ * defensively so a transport failure shows its status, not a JSON
+ * SyntaxError that hides what actually happened.
+ */
+async function readJson(res: Response): Promise<unknown> {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
+}
+
+/**
  * Collects contact + shipping, creates a pending order + iKhokha payment
  * link server-side (POST /api/shop/checkout), then hands the shopper to
  * iKhokha to pay. Amounts are re-resolved from the catalog on the server —
@@ -66,9 +81,9 @@ export default function CheckoutPage() {
           },
         }),
       });
-      const data = (await res.json()) as { paylinkUrl?: string; error?: string };
+      const data = (await readJson(res)) as { paylinkUrl?: string; error?: string };
       if (!res.ok || !data.paylinkUrl) {
-        throw new Error(data.error ?? 'Checkout failed. Try again.');
+        throw new Error(data.error ?? `Checkout failed (HTTP ${res.status}). Try again.`);
       }
       window.location.href = data.paylinkUrl;
     } catch (err) {

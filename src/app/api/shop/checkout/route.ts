@@ -39,6 +39,21 @@ const bodySchema = z.object({
  * paylinkUrl; the order flips to paid/failed when iKhokha calls the webhook.
  */
 export async function POST(request: Request) {
+  try {
+    return await handleCheckout(request);
+  } catch (e) {
+    // Nothing in here may ever leak an empty-body 500: the checkout page
+    // parses every response as JSON, and an unparsable response masks the
+    // real failure behind "Unexpected end of JSON input".
+    console.error('[shop/checkout] unhandled error', e);
+    return NextResponse.json(
+      { error: 'Checkout failed unexpectedly. Nothing was charged — try again.' },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleCheckout(request: Request) {
   let parsed: z.infer<typeof bodySchema>;
   try {
     parsed = bodySchema.parse(await request.json());
