@@ -30,6 +30,21 @@ export const SHOP_CURRENCY = 'ZAR';
 
 export const SHOP_SIZES: ShopSize[] = ['S', 'M', 'L', 'XL', 'XXL'];
 
+/** Native dimensions of each colourway's images[0] (the OG/social thumbnail).
+ *  Declared in metadata so scrapers (Facebook, WhatsApp, X) don't have to
+ *  fetch the file to lay out the preview — but they must match the real
+ *  files: wrong numbers here render a stretched or cropped thumbnail.
+ *  Everything from the 26/27 shoot is 1024x1536 except RED_MODEL_01. */
+const OG_IMAGE_DIMS: Record<string, { width: number; height: number }> = {
+  'bholo-jersey-red': { width: 1122, height: 1402 },
+};
+
+const DEFAULT_OG_DIMS = { width: 1024, height: 1536 };
+
+export function shopOgImage(product: ShopProduct): { src: string; width: number; height: number } {
+  return { src: product.images[0], ...(OG_IMAGE_DIMS[product.slug] ?? DEFAULT_OG_DIMS) };
+}
+
 /** One jersey colorway's photo set: on-model shots first (what a shopper
  *  should see first is someone wearing it), flat product shot last as the
  *  detail/reference image. */

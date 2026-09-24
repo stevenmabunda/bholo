@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Check } from 'lucide-react';
 import { useCart } from '@/contexts/cart-context';
+import { ShareButtons } from '@/components/shop/share-buttons';
 import { formatShopPrice, SHOP_PRODUCTS, type ShopProduct, type ShopSize } from '@/lib/shop-products';
 import { cn } from '@/lib/utils';
 
@@ -158,6 +159,8 @@ export function ProductDetail({ product }: { product: ShopProduct }) {
               Buy Now
             </button>
           </div>
+
+          <ShareButtons product={product} />
 
           {/* Thumbnails live here, not under the (tall, 2:3) main image — that
               pushed them below the fold on shorter windows. Desktop only —

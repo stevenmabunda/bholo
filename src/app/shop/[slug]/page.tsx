@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { getShopProduct, SHOP_PRODUCTS, type ShopProduct } from '@/lib/shop-products';
+import { getShopProduct, SHOP_PRODUCTS, shopOgImage, type ShopProduct } from '@/lib/shop-products';
 import { absoluteUrl, siteUrl } from '@/lib/site';
 import { ProductDetail } from '@/components/shop/product-detail';
 
@@ -18,7 +18,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const product = getShopProduct(slug);
   if (!product) return {};
 
-  const image = absoluteUrl(product.images[0]);
+  const ogImage = shopOgImage(product);
+  const image = absoluteUrl(ogImage.src);
 
   return {
     title: product.name,
@@ -35,7 +36,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: product.name,
       description: product.description,
       url: `${siteUrl}/shop/${product.slug}`,
-      images: [{ url: image, width: 1024, height: 1536 }],
+      siteName: 'BHOLO',
+      images: [{ url: image, width: ogImage.width, height: ogImage.height }],
     },
     twitter: {
       card: 'summary_large_image',
