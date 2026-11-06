@@ -15,14 +15,12 @@ import { AuthTriggerButton } from '@/components/auth/auth-trigger-button';
  * index the site under. Rebuilt to match the approved marketing mockup —
  * see the PR/commit this shipped in for the reference image.
  *
- * The three hero/section photos (a Kaizer Chiefs supporter, an Orlando
- * Pirates fan with a "Soweto is football" banner, someone blowing a
- * vuvuzela at sunset) aren't in this repo — /public has no matching
- * photography, and fabricating stand-ins of real people or specific club
- * imagery isn't something to do quietly. All three currently fall back to
- * the existing stadium-crowd photo already licensed for this site (it's
- * the OG-image background). Drop the real three into /public and swap the
- * `src` on each <HeroPhoto> below to finish this exactly as designed.
+ * The hero now uses the approved "Gameday Shock and Celebration Collage"
+ * artwork (/homepage/hero-gameday-collage.jpg). The two section photos below
+ * still fall back to the existing site photography; if the designed shots
+ * from the mockup (a Kaizer Chiefs supporter, an Orlando Pirates fan with a
+ * "Soweto is football" banner, someone blowing a vuvuzela at sunset) turn
+ * up, drop them into /public and swap the `src` on each <HeroPhoto> below.
  *
  * Deliberately a plain server component — no 'use client' — so the full
  * content is in the initial HTML response, not something a crawler has to
@@ -44,9 +42,7 @@ function HeroPhoto({
    *  no room for one once `heading`/`actions` are covering it). */
   caption?: string;
   className?: string;
-  /** Where object-cover anchors its crop. The group shot in the hero has
-   *  someone right at the edge of frame, and centring the crop cut most of
-   *  her out — shifting the anchor right keeps her in view instead. */
+  /** Where object-cover anchors its crop. */
   objectPosition?: string;
   /** Mobile only — the hero's own heading + copy rendered on top of the
    *  photo instead of above it. Desktop keeps its own inline copy beside
@@ -352,9 +348,8 @@ export function LandingPage() {
             </div>
 
             <HeroPhoto
-              src="/homepage/homepage_01.jpg"
-              alt="A group of BHOLO fans in branded jerseys on the stadium steps"
-              objectPosition="78% 50%"
+              src="/homepage/hero-gameday-collage.jpg"
+              alt="Three panels of football fans reacting in shock and celebration while watching a match on their phones"
               heading={
                 <h1 className="text-2xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-4xl">
                   Football, <span className="text-primary">Uninterrupted.</span>
