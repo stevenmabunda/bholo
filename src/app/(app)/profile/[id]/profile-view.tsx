@@ -47,8 +47,7 @@ const profileFormSchema = z.object({
     country: z.string().max(50, "Country must not exceed 50 characters.").optional(),
     // favouriteClub is deliberately not editable here — it's chosen once,
     // from the fixed list of 16 PSL clubs, on the onboarding team picker.
-    // A free-text field here let it drift from that list, which the feed's
-    // team-first matching (getRecentPosts) depends on staying exact.
+    // A free-text field here let it drift from that list.
     // Handles, not links. Anything paste-shaped is reduced to a handle on save,
     // so the URL is ours to build rather than theirs to supply.
     x: z.string().max(60).optional(),

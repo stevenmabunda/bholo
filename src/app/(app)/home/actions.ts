@@ -10,12 +10,6 @@ import { getFixturesByDateFromApi, getLiveMatches as getLiveMatchesFromApi } fro
 import type { MatchType, PostType } from '@/lib/data';
 import { createClient } from '@/lib/supabase/server';
 import { formatTimestamp } from '@/lib/utils';
-import { getTeamByName } from '@/lib/psl-teams';
-
-/** How far back "recent" reaches when deciding whether a viewer's team has
- *  enough going on to lead their feed with it. A club that last got a
- *  mention three weeks ago isn't "recent" even if it's the only match. */
-const TEAM_FEED_WINDOW_DAYS = 7;
 
 export async function getTrendingHashtags(
   input: GenerateTrendingHashtagsInput
@@ -92,32 +86,12 @@ export async function getFollowingPosts(userId: string): Promise<PostType[]> {
 }
 
 /**
- * How many slots the "Following your team" block reserves at the top of the
- * first page, whenever the viewer's club has anything recent to show.
+ * The main feed: newest first, plain chronological order.
  *
- * Fixed, not proportional to `limit`: capping it here is what keeps the
- * block reading as a highlight reel rather than however much of the page a
- * busy week happens to fill. Uncapped, a club having a huge week could push
- * every other post off the first page again — the exact shape of the bug
- * this replaced, just re-triggered by volume instead of by the check
- * existing at all.
- */
-const TEAM_HIGHLIGHT_SLOTS = 5;
-
-/**
- * Team-first: up to TEAM_HIGHLIGHT_SLOTS posts about the viewer's favourite
- * club lead the first page, per the onboarding team picker, labelled
- * "Following your team" so the prioritisation is a visible feature rather
- * than an invisible reorder — ahead of the plain chronological feed, which
- * always fills the rest of that page too. It used to return the team feed
- * outright (no cap, no label) when one existed, so a club with a single
- * mention in the last week made every other post on the platform invisible
- * to that viewer's first page, silently and for as long as the mentions
- * kept coming. Only applies to the very first page: "run a quick check when
- * they log in" is a login-time decision, not a mode that has to be
- * maintained through infinite scroll, so a `before` cursor (pagination)
- * always continues in the plain feed regardless of how the first page
- * was decided.
+ * It used to reserve the first few slots for posts mentioning the viewer's
+ * favourite club, ahead of everything else. That made a club having a busy
+ * week drown out fresher posts from people the viewer actually follows, so
+ * recency is now the only ordering rule.
  */
 export async function getRecentPosts(options: { limit?: number; before?: string } = {}): Promise<PostType[]> {
   const supabase = await createClient();
@@ -139,70 +113,11 @@ export async function getRecentPosts(options: { limit?: number; before?: string 
 
     const { data, error } = await query;
     if (error) throw error;
-    const generic = (data ?? []).map(mapRow);
-
-    if (options.before) return generic;
-
-    const teamPosts = await getTeamFeedIfAny(supabase, TEAM_HIGHLIGHT_SLOTS);
-    if (!teamPosts || teamPosts.length === 0) return generic;
-
-    const highlighted = teamPosts.map((p) => ({ ...p, isTeamHighlight: true }));
-    const teamIds = new Set(highlighted.map((p) => p.id));
-    return [...highlighted, ...generic.filter((p) => !teamIds.has(p.id))].slice(0, limit);
+    return (data ?? []).map(mapRow);
   } catch (error) {
     console.error("Error fetching recent posts:", error);
     return [];
   }
-}
-
-/**
- * Null means "no team feed to show" — either the viewer is logged out,
- * hasn't onboarded (favourite_club empty; shouldn't happen once onboarded,
- * but this runs for every visitor, onboarded or not), or their team simply
- * has nothing recent. All three cases fall through to the same generic feed
- * in the caller, which is the actual "if not, generic content" behaviour —
- * there's no separate "team feed but it's empty" state to render.
- */
-async function getTeamFeedIfAny(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  limit: number
-): Promise<PostType[] | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('favourite_club')
-    .eq('id', user.id)
-    .single();
-
-  const team = getTeamByName(profile?.favourite_club);
-  if (!team) return null;
-
-  const windowStart = new Date();
-  windowStart.setDate(windowStart.getDate() - TEAM_FEED_WINDOW_DAYS);
-
-  // .or() takes one comma-joined expression, not an array — each alias
-  // becomes its own ilike clause. Aliases never contain a comma or a `%`
-  // themselves (see psl-teams.ts), so there's nothing to escape here.
-  const aliasFilter = team.aliases.map((alias) => `content.ilike.%${alias}%`).join(',');
-
-  const { data, error } = await supabase
-    .from('posts')
-    .select('*')
-    .gte('created_at', windowStart.toISOString())
-    .or(aliasFilter)
-    .order('created_at', { ascending: false })
-    .limit(limit);
-
-  if (error) {
-    console.error('Error fetching team feed, falling back to generic:', error);
-    return null;
-  }
-
-  if (!data || data.length === 0) return null;
-
-  return data.map(mapRow);
 }
 
 export async function getVideoPosts(options: { limit?: number; before?: string } = {}): Promise<PostType[]> {

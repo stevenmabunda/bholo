@@ -2,9 +2,8 @@
 // consistently from anywhere (e.g. seeding a post-detail query from the
 // feed's already-cached data, or invalidating bookmarks after a mutation).
 export const queryKeys = {
-  // Keyed by viewer: the feed's first page now depends on their favourite
-  // club (see getRecentPosts's team-first-with-fallback), so two different
-  // viewers in the same browser session must not share a cache entry.
+  // Keyed by viewer so a cached feed is never shared across accounts in the
+  // same browser session (e.g. after signing out and back in as someone else).
   feed: (userId: string) => ['posts', 'feed', userId] as const,
   post: (id: string) => ['posts', 'detail', id] as const,
   bookmarks: (userId: string) => ['bookmarks', userId] as const,
