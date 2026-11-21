@@ -52,7 +52,11 @@ function stateFor(match: MatchType): MatchState['status'] {
 }
 
 function audienceClub(match: MatchType): string[] {
-  return [match.team1.name, match.team2.name];
+  // TheSportsDB spells it "Amazulu"; onboarding stores "AmaZulu". Compare
+  // case-insensitively (and ignore a trailing FC) or that club never gets a
+  // notification.
+  const normalise = (name: string) => name.toLowerCase().replace(/\s+fc$/, '').trim();
+  return [normalise(match.team1.name), normalise(match.team2.name)];
 }
 
 function goalScorer(match: MatchType, previous: MatchState, home: number, away: number): string {
@@ -226,7 +230,9 @@ export async function POST(request: Request) {
       rows
         .filter((row) => {
           const club = clubByUser.get(row.user_id);
-          if (!club || !audienceClub(item.match).includes(club)) return false;
+          if (!club || !audienceClub(item.match).includes(
+            club.toLowerCase().replace(/\s+fc$/, '').trim()
+          )) return false;
           const pref = prefsByUser.get(row.user_id);
           if (!pref) return true;
           return item.kind === 'goal' ? pref.goals : pref[item.kind];
