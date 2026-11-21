@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
-import webpush from 'web-push';
+import * as webPushModule from 'web-push';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { getFixturesByDateFromApi } from '@/services/thesportsdb-service';
 import type { MatchType } from '@/lib/data';
+
+// web-push is CommonJS (`export =`). A default import type-checks but bundlers
+// disagree about whether it lands on module.exports or on a `.default`
+// wrapper — in the Vercel build it was undefined. Read both shapes.
+const webpush = ((webPushModule as unknown as { default?: typeof webPushModule }).default
+  ?? webPushModule);
 
 /**
  * Match notifications for the clubs a person follows.
@@ -38,7 +44,10 @@ function scores(score: string | undefined): { home: number | null; away: number 
 
 function stateFor(match: MatchType): MatchState['status'] {
   if (match.isLive) return 'LIVE';
-  if (match.isUpcoming) return 'NS';
+  // No score means the fixture never kicked off (postponed, cancelled, or a
+  // TBD that TheSportsDB hasn't resolved). Treat it as not-started rather
+  // than as a 0-0 full-time result.
+  if (match.isUpcoming || !match.score) return 'NS';
   return 'FT';
 }
 
@@ -83,10 +92,20 @@ export async function POST(request: Request) {
   }
 
   const ids = fixtures.map((match) => String(match.id));
-  const { data: existingRows } = await supabase
+  const { data: existingRows, error: stateError } = await supabase
     .from('match_notification_state')
     .select('*')
     .in('event_id', ids);
+
+  if (stateError) {
+    // Almost always 029_push_notifications.sql not having been run. Failing
+    // loudly is better than a 200 with sent: 0 every five minutes.
+    console.error('[push] could not read match_notification_state', stateError);
+    return NextResponse.json(
+      { error: 'match_notification_state is unavailable — run supabase/sql/029_push_notifications.sql.' },
+      { status: 500 }
+    );
+  }
 
   const previous = new Map<string, MatchState>(
     ((existingRows ?? []) as MatchState[]).map((row) => [row.event_id, row])
@@ -166,9 +185,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, fixtures: fixtures.length, sent: 0 });
   }
 
-  const { data: subscriptions } = await supabase
+  const { data: subscriptions, error: subscriptionError } = await supabase
     .from('push_subscriptions')
     .select('endpoint, p256dh, auth, user_id');
+
+  if (subscriptionError) {
+    console.error('[push] could not read push_subscriptions', subscriptionError);
+    return NextResponse.json(
+      { error: 'push_subscriptions is unavailable — run supabase/sql/029_push_notifications.sql.' },
+      { status: 500 }
+    );
+  }
 
   const rows = (subscriptions ?? []) as PushRow[];
   if (rows.length === 0) {
