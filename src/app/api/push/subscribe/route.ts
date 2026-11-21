@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/service-role';
 
 /**
  * Stores this browser's Web Push subscription against the signed-in account.
@@ -29,8 +30,20 @@ export async function POST(request: Request) {
   }
 
   // The unique endpoint means the same browser re-subscribing updates the
-  // keys in place rather than adding a second row.
-  const { error } = await supabase
+  // keys in place rather than adding a second row. Use the service role when
+  // it is configured: on a shared phone the row may still belong to the
+  // previous account, and RLS would otherwise reject this user's update and
+  // leave them silently unsubscribed. The caller is already authenticated
+  // above, and only their own user_id is written.
+  let writer = supabase;
+  try {
+    writer = createServiceRoleClient();
+  } catch {
+    // Local development has no service-role key; RLS still covers the normal
+    // single-account case.
+  }
+
+  const { error } = await writer
     .from('push_subscriptions')
     .upsert(
       {
