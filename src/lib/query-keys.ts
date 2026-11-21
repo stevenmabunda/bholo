@@ -38,5 +38,6 @@ export const queryKeys = {
 
   // Sports data (external API, already cached server-side)
   fixtures: () => ['sports', 'fixtures'] as const,
+  gameweek: (offsetWeeks: number) => ['sports', 'fixtures', 'gameweek', offsetWeeks] as const,
   standings: () => ['sports', 'standings'] as const,
 };
