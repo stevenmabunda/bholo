@@ -60,15 +60,21 @@ export interface LeagueStanding {
   all: { played: number; win: number; draw: number; lose: number };
 }
 
-async function fetchFromTheSportsDb<T>(endpoint: string, params: Record<string, string>): Promise<T | null> {
+async function fetchFromTheSportsDb<T>(
+  endpoint: string,
+  params: Record<string, string>,
+  revalidate = 300
+): Promise<T | null> {
   const url = `https://www.thesportsdb.com/api/v1/json/${FREE_KEY}/${endpoint}?${new URLSearchParams(params).toString()}`;
 
   try {
     const response = await fetch(url, {
       // Next.js Data Cache — persists across serverless invocations on
       // Vercel, unlike an in-memory Map. Keeps us well under the shared
-      // free key's 30 req/min limit under normal traffic.
-      next: { revalidate: 300 },
+      // free key's 30 req/min limit under normal traffic. The notification
+      // cron passes 0 because a goal that happened four minutes ago is not
+      // worth pushing.
+      next: { revalidate },
     });
 
     if (!response.ok) {
@@ -126,11 +132,17 @@ function mapEventToMatchType(event: TsdbEvent): MatchType {
   };
 }
 
-export async function getFixturesByDateFromApi(): Promise<MatchType[]> {
-  const data = await fetchFromTheSportsDb<{ events: TsdbEvent[] | null }>('eventsday.php', {
-    d: getTodayDateString(),
-    l: PSL_LEAGUE_ID,
-  });
+export async function getFixturesByDateFromApi(
+  options: { fresh?: boolean } = {}
+): Promise<MatchType[]> {
+  const data = await fetchFromTheSportsDb<{ events: TsdbEvent[] | null }>(
+    'eventsday.php',
+    {
+      d: getTodayDateString(),
+      l: PSL_LEAGUE_ID,
+    },
+    options.fresh ? 0 : 300
+  );
 
   return (data?.events ?? []).map(mapEventToMatchType);
 }

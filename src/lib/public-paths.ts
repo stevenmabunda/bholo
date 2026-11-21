@@ -34,6 +34,9 @@ export const PUBLIC_PATHS = [
   // iKhokha webhook (called server-to-server, never with a cookie), and
   // the order-status lookup must all pass the middleware logged-out.
   '/api/shop',
+  // Vercel Cron calls the match-notification route server-to-server, with no
+  // session cookie. It authenticates with CRON_SECRET inside the route.
+  '/api/cron',
   // A single shared post, the way X and Instagram let you read one without an
   // account. Individual actions on it still prompt for sign-in.
   '/post',

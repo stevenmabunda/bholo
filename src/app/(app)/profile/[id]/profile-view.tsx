@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Post } from "@/components/post";
 import Image from "next/image";
-import { MapPin, Link as LinkIcon, CalendarDays, Camera, Loader2, ArrowLeft, Heart, Globe, RefreshCw, PlayCircle, Move } from "lucide-react";
+import { MapPin, Link as LinkIcon, CalendarDays, Camera, Loader2, ArrowLeft, Heart, Globe, RefreshCw, PlayCircle, Move, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { PostSkeleton } from "@/components/post-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -199,6 +199,11 @@ export function ProfileView() {
                 <h1 className="text-xl font-bold">{profile.displayName}</h1>
                 <p className="text-sm text-muted-foreground">{userPosts.length} posts</p>
             </div>
+            {isMyProfile && (
+                <Button variant="ghost" size="icon" className="ml-auto h-8 w-8" onClick={() => router.push('/settings')} aria-label="Settings">
+                    <Settings className="h-5 w-5" />
+                </Button>
+            )}
        </header>
       <div className="relative h-36 w-full bg-muted sm:h-48">
         <Image

@@ -16,7 +16,7 @@
 // own chunk-load-failure recovery ever getting a chance to run. Simplest
 // fix is to stop shadowing the browser cache at all — this worker now only
 // ever caches the tiny true-offline shell (icons + offline.html).
-const CACHE = 'bholo-shell-v2';
+const CACHE = 'bholo-shell-v3';
 const OFFLINE_URL = '/offline.html';
 const SHELL_ASSETS = [OFFLINE_URL, '/icon-192.png', '/icon-512.png'];
 
@@ -57,4 +57,43 @@ self.addEventListener('fetch', (event) => {
 
   // Everything else — /_next/static/ chunks included — falls through to
   // the browser's normal fetch handling. No respondWith here at all.
+});
+
+// ---------------------------------------------------------------------------
+// Web Push
+// ---------------------------------------------------------------------------
+// The cron route posts a small JSON payload: title, body, url, tag, icon.
+// `tag` lets a newer goal replace the previous one for the same match rather
+// than stacking a notification per goal; `renotify` would be noisier than it
+// is useful here.
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { body: event.data ? event.data.text() : '' };
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title || 'BHOLO', {
+      body: payload.body || '',
+      icon: payload.icon || '/icon-192.png',
+      badge: payload.badge || '/icon-192.png',
+      tag: payload.tag,
+      data: { url: payload.url || '/home' },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = new URL(event.notification.data?.url || '/home', self.location.origin).href;
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      const existing = windows.find((client) => client.url === target);
+      if (existing) return existing.focus();
+      return clients.openWindow(target);
+    })
+  );
 });

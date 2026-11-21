@@ -10,7 +10,7 @@ import {
   SidebarMenuButton,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Home, Hash, Bell, User, MessageSquare, LogOut, Bookmark, MoreHorizontal } from 'lucide-react';
+import { Home, Hash, Bell, User, MessageSquare, LogOut, Bookmark, MoreHorizontal, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -167,6 +167,10 @@ export function SidebarNav() {
                           <DropdownMenuItem onSelect={() => router.push(`/profile/${user.id}`)}>
                               <User className="mr-2 h-4 w-4" />
                               <span>My Account</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => router.push('/settings')}>
+                              <Settings className="mr-2 h-4 w-4" />
+                              <span>Settings</span>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={handleLogout}>
