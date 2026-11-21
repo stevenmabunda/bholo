@@ -74,10 +74,10 @@ const EMOJI_GROUPS = [
 /** Images and video together, up to this many, at most one of them a video. */
 const MAX_MEDIA_PER_POST = 4;
 
-export function CreatePost({ onPost }: { onPost: (data: { text: string; media: Media[], poll?: PostType['poll'], location?: string | null, scheduledFor?: string | null }) => Promise<any> }) {
+export function CreatePost({ onPost, initialText = '' }: { onPost: (data: { text: string; media: Media[], poll?: PostType['poll'], location?: string | null, scheduledFor?: string | null }) => Promise<any>; initialText?: string }) {
   const { user } = useAuth();
   const { profile } = useProfile();
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText);
   const [media, setMedia] = useState<Media[]>([]);
   const [posting, setPosting] = useState(false);
   const [isGifPopoverOpen, setIsGifPopoverOpen] = useState(false);
