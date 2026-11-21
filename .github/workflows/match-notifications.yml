@@ -1,0 +1,28 @@
+name: Match notifications
+
+# Vercel's Hobby plan refuses a sub-daily cron expression, so the minute-by-
+# minute trigger lives here until the project moves to Pro (at which point
+# this file can be deleted and the schedule restored in vercel.json — Pro
+# allows `* * * * *`).
+#
+# GitHub's scheduler is best-effort and its floor is five minutes, so goals
+# can arrive a few minutes late. For exact timing, point any 1-minute HTTP
+# cron (cron-job.org, Cloudflare, etc.) at the same URL with the same header.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: match-notifications
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call match-notifications
+        run: |
+          curl --fail --silent --show-error --max-time 55 \
+            -X POST "https://www.bholofootball.co.za/api/cron/match-notifications" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
