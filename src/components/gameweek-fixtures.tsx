@@ -133,7 +133,7 @@ function GroupedFixtures({
       {groups.map((group) => (
         <section key={group.date}>
           <h3 className="border-y border-border/60 bg-secondary/40 px-4 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-            {group.label}
+            {group.outsideWindow ? `Recent · ${group.label}` : group.label}
           </h3>
           {group.fixtures.map((fixture) => (
             <FixtureRow key={fixture.id} fixture={fixture} />

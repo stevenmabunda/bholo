@@ -15,6 +15,12 @@ export type FixtureGroup = {
   date: string;
   /** Human label, e.g. "Tue, 24 Nov". */
   label: string;
+  /**
+   * True for the provider's "next"/"past" edge fixtures that fall outside
+   * the selected week. They are still shown (the free key returns very few
+   * rows), but grouped after the week and labelled as recent.
+   */
+  outsideWindow: boolean;
   fixtures: FixtureEvent[];
 };
 
@@ -107,10 +113,15 @@ export async function getGameweekFixtures(offsetWeeks = 0): Promise<GameweekFixt
   }
 
   const groups: FixtureGroup[] = [...groupsByDate.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => {
+      const aOutside = a < start || a > end ? 1 : 0;
+      const bOutside = b < start || b > end ? 1 : 0;
+      return aOutside - bOutside || a.localeCompare(b);
+    })
     .map(([date, list]) => ({
       date,
       label: groupLabel(date),
+      outsideWindow: date < start || date > end,
       fixtures: list.sort(compareFixtures),
     }));
 
