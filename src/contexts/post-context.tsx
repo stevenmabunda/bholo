@@ -49,7 +49,7 @@ type PostContextType = {
   loadingForYou: boolean;
   showNewForYouPosts: () => void;
   addPost: (data: { text: string; media: Media[], poll?: PostType['poll'], location?: string | null, scheduledFor?: string | null }) => Promise<PostType | null>;
-  editPost: (postId: string, data: { text:string }) => Promise<void>;
+  editPost: (postId: string, data: { text: string; media?: PostType['media'] }) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
   addVote: (postId: string, choiceIndex: number) => Promise<void>;
   addComment: (postId: string, data: { text: string; media: ReplyMedia[]; parentCommentId?: string | null }) => Promise<boolean | null>;
@@ -106,7 +106,7 @@ function extractKeywords(text: string): string[] {
  * never fires for those, and with no onerror this used to hang forever,
  * leaving uploadPromises unresolved and the post permanently text-only.
  */
-const getImageDimensions = (file: File): Promise<{ width: number; height: number }> => {
+export const getImageDimensions = (file: File): Promise<{ width: number; height: number }> => {
   return new Promise((resolve) => {
     const img = document.createElement('img');
     const objectUrl = URL.createObjectURL(file);
@@ -703,16 +703,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
     return optimisticPost;
   };
 
-  const editPost = async (postId: string, data: { text: string }) => {
+  const editPost = async (postId: string, data: { text: string; media?: PostType['media'] }) => {
     if (!user) throw new Error("Not authorized");
-    const { error } = await supabase.from('posts').update({ content: data.text }).eq('id', postId);
+
+    // `media` is only sent when the caller actually changed it — an ordinary
+    // text edit must not round-trip the array and risk clobbering a concurrent
+    // media update. Admins get here through posts_update_admin; members only
+    // ever pass `text` for their own posts.
+    const patch: { content: string; media?: PostType['media'] } = { content: data.text };
+    if (data.media !== undefined) patch.media = data.media;
+
+    const { error } = await supabase.from('posts').update(patch).eq('id', postId);
     if (error) throw error;
 
-    const updater = (posts: PostType[]) => posts.map(p => p.id === postId ? { ...p, content: data.text } : p)
+    const updater = (posts: PostType[]) => posts.map(p => p.id === postId ? { ...p, ...patch } : p)
     updateFeed(updater);
     setNewForYouPosts(updater);
     queryClient.setQueryData<PostType>(queryKeys.post(postId), prev =>
-      prev ? { ...prev, content: data.text } : prev
+      prev ? { ...prev, ...patch } : prev
     );
   };
 

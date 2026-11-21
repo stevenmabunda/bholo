@@ -3,7 +3,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { MessageCircle, Repeat, Heart, Share2, MoreHorizontal, Edit, Trash2, Bookmark, Copy, X, ChevronLeft, ChevronRight, Check, Play, Pause, Volume2, VolumeX, Sparkles, Loader2 } from "lucide-react";
+import { MessageCircle, Repeat, Heart, Share2, MoreHorizontal, Edit, Trash2, Bookmark, Copy, X, ChevronLeft, ChevronRight, Check, Play, Pause, Volume2, VolumeX, Sparkles, Loader2, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect, useCallback, memo } from "react";
@@ -49,8 +49,27 @@ import {
 import { useRouter } from "next/navigation";
 import type { PostType } from "@/lib/data";
 import { Progress } from "./ui/progress";
-import { usePosts } from "@/contexts/post-context";
+import { usePosts, getImageDimensions } from "@/contexts/post-context";
+import { useProfile } from "@/hooks/use-profile";
+import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+
+/** Upload one replacement image for an edited post. Admins upload into their
+ *  own storage folder (the bucket policy keys on the first path segment), and
+ *  the resulting media object is the same shape addPost writes. */
+async function uploadEditedImage(
+  file: File,
+  userId: string
+): Promise<NonNullable<PostType['media']>[number]> {
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+  const storagePath = `${userId}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
+  const { error } = await supabase.storage.from('post-media').upload(storagePath, file);
+  if (error) throw error;
+
+  const { data: { publicUrl } } = supabase.storage.from('post-media').getPublicUrl(storagePath);
+  const { width, height } = await getImageDimensions(file);
+  return { url: publicUrl, type: 'image', width, height, hint: 'user uploaded content' };
+}
 import { Textarea } from "./ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { FollowButton } from "./follow-button";
@@ -352,6 +371,7 @@ function PostComponent(props: PostProps) {
   
   const router = useRouter();
   const { user } = useAuth();
+  const { profile } = useProfile();
   const { editPost, deletePost, likePost, repostPost, bookmarkPost, bookmarkedPostIds, addComment, addVote, likedPostIds, repostedPostIds } = usePosts();
   const { toast } = useToast();
   const { setActiveTab } = useTabContext();
@@ -369,6 +389,14 @@ function PostComponent(props: PostProps) {
   
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
+  // Admins may change a post's media as well as its text. Existing items are
+  // edited in place; newly picked files are held as object URLs until Save so
+  // a cancel leaves nothing orphaned in storage.
+  const [editedMedia, setEditedMedia] = useState<NonNullable<PostType['media']>>(media ?? []);
+  const [pendingEditMedia, setPendingEditMedia] = useState<{ file: File; previewUrl: string }[]>([]);
+  const [mediaDirty, setMediaDirty] = useState(false);
+  const [isUploadingEditMedia, setIsUploadingEditMedia] = useState(false);
+  const editMediaInputRef = useRef<HTMLInputElement>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isAskAiOpen, setIsAskAiOpen] = useState(false);
   const [isShareSheetOpen, setShareSheetOpen] = useState(false);
@@ -405,7 +433,8 @@ function PostComponent(props: PostProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
-  const isAuthor = user && user.id === authorId;
+  const isAdmin = profile?.role === 'admin';
+  const canManage = (!!user && user.id === authorId) || isAdmin;
 
   useEffect(() => {
     // Posts uploaded since poster capture landed already carry a still, so
@@ -612,17 +641,94 @@ function PostComponent(props: PostProps) {
     });
   };
   
+  const startEditing = () => {
+    setEditedContent(content);
+    setEditedMedia(media ?? []);
+    setPendingEditMedia([]);
+    setMediaDirty(false);
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    pendingEditMedia.forEach((m) => URL.revokeObjectURL(m.previewUrl));
+    setPendingEditMedia([]);
+    setEditedMedia(media ?? []);
+    setEditedContent(content);
+    setMediaDirty(false);
+    setIsEditing(false);
+  };
+
+  const handleEditMediaPick = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(event.target.files ?? [])
+      .filter((file) => file.type.startsWith('image/'))
+      .map((file) => ({ file, previewUrl: URL.createObjectURL(file) }));
+
+    if (picked.length === 0) {
+      if (editMediaInputRef.current) editMediaInputRef.current.value = '';
+      return;
+    }
+
+    if (editedMedia.length + pendingEditMedia.length + picked.length > 4) {
+      picked.forEach((m) => URL.revokeObjectURL(m.previewUrl));
+      toast({ variant: 'destructive', description: 'Up to 4 media items per post.' });
+      if (editMediaInputRef.current) editMediaInputRef.current.value = '';
+      return;
+    }
+
+    setPendingEditMedia((prev) => [...prev, ...picked]);
+    setMediaDirty(true);
+    if (editMediaInputRef.current) editMediaInputRef.current.value = '';
+  };
+
+  const removeEditedMedia = (index: number) => {
+    setEditedMedia((prev) => prev.filter((_, i) => i !== index));
+    setMediaDirty(true);
+  };
+
+  const removePendingEditMedia = (index: number) => {
+    setPendingEditMedia((prev) => {
+      const next = [...prev];
+      const [removed] = next.splice(index, 1);
+      if (removed) URL.revokeObjectURL(removed.previewUrl);
+      return next;
+    });
+    setMediaDirty(true);
+  };
+
   const handleEditSave = async () => {
-    if (editedContent.trim() === content.trim()) {
+    const textChanged = editedContent.trim() !== content.trim();
+    if (!textChanged && !mediaDirty) {
       setIsEditing(false);
       return;
     }
+    if (!user) return;
+
+    setIsUploadingEditMedia(true);
     try {
-      await editPost(id, { text: editedContent });
+      let nextMedia: PostType['media'] | undefined;
+      if (mediaDirty) {
+        const uploaded = await Promise.all(
+          pendingEditMedia.map((m) => uploadEditedImage(m.file, user.id))
+        );
+        nextMedia = [...editedMedia, ...uploaded];
+      }
+
+      await editPost(id, {
+        text: editedContent,
+        ...(nextMedia !== undefined ? { media: nextMedia } : {}),
+      });
+
+      pendingEditMedia.forEach((m) => URL.revokeObjectURL(m.previewUrl));
+      setPendingEditMedia([]);
+      setMediaDirty(false);
       toast({ description: "Post updated." });
       setIsEditing(false);
     } catch (error) {
-      toast({ variant: 'destructive', description: "Failed to update post." });
+      const reason = error instanceof Error ? error.message : String(error);
+      console.error('Edit post failed:', error);
+      toast({ variant: 'destructive', description: `Couldn't update that post — ${reason}` });
+    } finally {
+      setIsUploadingEditMedia(false);
     }
   };
 
@@ -840,7 +946,7 @@ function PostComponent(props: PostProps) {
                     <span className="text-muted-foreground flex-shrink-0">{timestamp}</span>
                 </div>
             </div>
-           {isAuthor ? (
+           {canManage ? (
                 <div className="flex-shrink-0 flex">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -850,7 +956,7 @@ function PostComponent(props: PostProps) {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenuItem onSelect={() => setIsEditing(true)}>
+                            <DropdownMenuItem onSelect={startEditing}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 <span>Edit</span>
                             </DropdownMenuItem>
@@ -927,16 +1033,90 @@ function PostComponent(props: PostProps) {
         </div>
         
         {isEditing ? (
-            <div className="mt-2">
+            <div className="mt-2" onClick={(e) => e.stopPropagation()}>
                 <Textarea
                     value={editedContent}
                     onChange={(e) => setEditedContent(e.target.value)}
                     className="min-h-[80px] text-base"
                     autoFocus
                 />
+
+                {isAdmin && (
+                    <div className="mt-2 space-y-2">
+                        {(editedMedia.length > 0 || pendingEditMedia.length > 0) && (
+                            <div className="flex flex-wrap gap-2">
+                                {editedMedia.map((item, index) => (
+                                    <div key={`${item.url}-${index}`} className="relative h-20 w-20 overflow-hidden rounded-md border bg-black">
+                                        {item.type === 'video' && !item.posterUrl ? (
+                                            <div className="flex h-full items-center justify-center text-white/70">
+                                                <Play className="h-6 w-6" />
+                                            </div>
+                                        ) : (
+                                            <Image
+                                                src={item.type === 'video' ? item.posterUrl! : item.url}
+                                                alt=""
+                                                fill
+                                                unoptimized
+                                                className="object-cover"
+                                            />
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => removeEditedMedia(index)}
+                                            aria-label="Remove media"
+                                            className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white hover:bg-black"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                                {pendingEditMedia.map((item, index) => (
+                                    <div key={item.previewUrl} className="relative h-20 w-20 overflow-hidden rounded-md border bg-black">
+                                        <Image src={item.previewUrl} alt="" fill unoptimized className="object-cover" />
+                                        <button
+                                            type="button"
+                                            onClick={() => removePendingEditMedia(index)}
+                                            aria-label="Remove image"
+                                            className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white hover:bg-black"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {editedMedia.length + pendingEditMedia.length < 4 && (
+                            <>
+                                <input
+                                    ref={editMediaInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    className="hidden"
+                                    onChange={handleEditMediaPick}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => editMediaInputRef.current?.click()}
+                                    disabled={isUploadingEditMedia}
+                                >
+                                    <ImageIcon className="mr-2 h-4 w-4" />
+                                    Add image
+                                </Button>
+                            </>
+                        )}
+                    </div>
+                )}
+
                 <div className="mt-2 flex justify-end gap-2">
-                    <Button variant="outline" size="sm" onClick={() => { setIsEditing(false); setEditedContent(content); }}>Cancel</Button>
-                    <Button size="sm" onClick={handleEditSave}>Save</Button>
+                    <Button variant="outline" size="sm" onClick={cancelEditing} disabled={isUploadingEditMedia}>Cancel</Button>
+                    <Button size="sm" onClick={handleEditSave} disabled={isUploadingEditMedia}>
+                        {isUploadingEditMedia && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Save
+                    </Button>
                 </div>
             </div>
         ) : (
@@ -1337,7 +1517,7 @@ function PostComponent(props: PostProps) {
                   <AlertDialogHeader>
                       <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                       <AlertDialogDescription>
-                          This action cannot be undone. This will permanently delete your post.
+                          This action cannot be undone. This will permanently delete this post.
                       </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
