@@ -19,6 +19,10 @@ export const PUBLIC_PATHS = [
   // Exact match only: '/'.startsWith('//') is never true for a real
   // pathname, so this can't accidentally make everything public.
   '/',
+  // The installed app's logged-out screen. It is public because the app
+  // redirects a logged-out launch here instead of to the marketing page;
+  // /signup, forgot-password and the shared-post routes below stay public too.
+  '/welcome',
   // /signup is still its own page (a direct link, or a slower connection,
   // shouldn't have to first load the whole landing page to reach it).
   // /auth/confirm and /auth/callback must be reachable logged-out too —

@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils';
 import { AuthModalProvider } from '@/contexts/auth-modal-context';
 import { AuthModal } from '@/components/auth/auth-modal';
 import { AuthTriggerButton } from '@/components/auth/auth-trigger-button';
+import { StoreBadges } from '@/components/store-badges';
+import { TwaRedirect } from '@/components/twa-redirect';
 
 /**
  * The public homepage — what a logged-out visitor and every search crawler
@@ -174,45 +176,6 @@ const SOCIAL_LINKS = [
   { icon: TikTokIcon, label: 'TikTok', href: 'https://www.tiktok.com/@bholofootball' },
 ];
 
-/**
- * No live store links yet — App Store and Play Store URLs go here the
- * moment BHOLO's listings exist. Placeholder hrefs until then.
- */
-const STORE_LINKS = {
-  appStore: '#',
-  playStore: '#',
-};
-
-// Official Apple/Google badge artwork (sourced from Apple's and Google's own
-// badge-generator endpoints) — not a redrawn approximation, so their brand
-// guidelines on it staying unmodified hold.
-function StoreBadges({ className }: { className?: string }) {
-  return (
-    <div className={cn('flex flex-wrap items-center gap-3', className)}>
-      <a href={STORE_LINKS.appStore} className="transition-opacity hover:opacity-80">
-        <Image
-          src="/app-store-badge.svg"
-          alt="Download on the App Store"
-          width={120}
-          height={40}
-          unoptimized
-          className="h-10 w-auto"
-        />
-      </a>
-      <a href={STORE_LINKS.playStore} className="transition-opacity hover:opacity-80">
-        <Image
-          src="/google-play-badge.png"
-          alt="Get it on Google Play"
-          width={646}
-          height={250}
-          unoptimized
-          className="h-14 w-auto"
-        />
-      </a>
-    </div>
-  );
-}
-
 export function LandingPage() {
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -247,6 +210,7 @@ export function LandingPage() {
   return (
     <AuthModalProvider>
     <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
+      <TwaRedirect />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

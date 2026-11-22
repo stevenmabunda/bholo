@@ -12,6 +12,7 @@ import { createClient } from '@/lib/supabase/server';
 import { siteUrl } from '@/lib/site';
 import Script from 'next/script';
 import { ExternalLinkHandler } from '@/components/external-link-handler';
+import { TwaBootstrap } from '@/components/twa-bootstrap';
 
 const siteDescription =
   "BHOLO is South Africa's football-exclusive social network. No news, no celebrities, no algorithm distractions — just Betway Premiership banter, PSL fixtures and standings, transfer news, and Mzansi's biggest football fanbases, all in one timeline.";
@@ -97,6 +98,7 @@ export default async function RootLayout({
       </head>
       <body className="font-body antialiased">
         <ExternalLinkHandler />
+        <TwaBootstrap />
         <AppQueryProvider>
           <AuthProvider initialUser={user}>
             <PostProvider>

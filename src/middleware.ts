@@ -1,6 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 import { isPublicPath } from '@/lib/public-paths';
+import {
+  TWA_COOKIE,
+  TWA_COOKIE_OPTIONS,
+  TWA_COOKIE_VALUE,
+  TWA_QUERY_PARAM,
+  isTwaCookieValue,
+  isTwaQuery,
+} from '@/lib/twa';
 
 // Routes reachable without an authenticated session. Anything else
 // belongs to the (app) route group and redirects to / here, at the
@@ -35,26 +43,68 @@ import { isPublicPath } from '@/lib/public-paths';
 // auth/callback/route.ts at the moment a session is first established —
 // see NEW_ACCOUNT_WINDOW_MS there. A user who never finishes it just never
 // gets asked again, which is the right trade-off for something this low-stakes.
+//
+// Installed Android app (TWA): the app launches with ?source=twa. That is the
+// only signal available early enough to keep the request off the marketing
+// homepage, so the first request writes a cookie and every later request reads
+// it. Logged-out users in the app go to /welcome, never /. Browser visitors
+// and crawlers see exactly what they saw before.
 
 export async function middleware(request: NextRequest) {
   const { response, user } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
+  const twaFromQuery = isTwaQuery(request.nextUrl.searchParams.get(TWA_QUERY_PARAM));
+  const isTwa =
+    twaFromQuery || isTwaCookieValue(request.cookies.get(TWA_COOKIE)?.value);
+
+  const attachTwaCookie = (res: NextResponse) => {
+    if (twaFromQuery) {
+      res.cookies.set(TWA_COOKIE, TWA_COOKIE_VALUE, TWA_COOKIE_OPTIONS);
+    }
+    return res;
+  };
+
+  // Preserve Supabase's refreshed auth cookies when we redirect — otherwise a
+  // token refresh that happened during this request would be lost.
+  const redirectTo = (path: string) => {
+    const res = NextResponse.redirect(new URL(path, request.url));
+    for (const cookie of response.cookies.getAll()) {
+      res.cookies.set(cookie);
+    }
+    return attachTwaCookie(res);
+  };
+
   // /login is gone — anyone still hitting it (an old bookmark, a stale
-  // link) lands on the real homepage instead of a 404.
+  // link) lands on the real homepage instead of a 404. In the app that is
+  // the welcome/login screen when logged out, and the feed when logged in.
   if (pathname === '/login') {
-    return NextResponse.redirect(new URL('/', request.url));
+    return redirectTo(user ? '/home' : isTwa ? '/welcome' : '/');
+  }
+
+  if (user && pathname === '/welcome') {
+    return redirectTo('/home');
+  }
+
+  // In the installed app, a logged-out launch must never render the marketing
+  // page. Protected routes go to the same welcome screen rather than to /.
+  if (!user && isTwa && (pathname === '/' || !isPublicPath(pathname))) {
+    return redirectTo('/welcome');
   }
 
   if (!user && !isPublicPath(pathname)) {
-    return NextResponse.redirect(new URL('/', request.url));
+    return redirectTo('/');
+  }
+
+  if (user && isTwa && pathname === '/') {
+    return redirectTo('/home');
   }
 
   if (user && pathname === '/signup') {
-    return NextResponse.redirect(new URL('/home', request.url));
+    return redirectTo('/home');
   }
 
-  return response;
+  return attachTwaCookie(response);
 }
 
 export const config = {

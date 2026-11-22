@@ -1,8 +1,15 @@
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import { LandingPage } from '@/components/landing-page';
 import { siteUrl } from '@/lib/site';
+import {
+  TWA_COOKIE,
+  TWA_QUERY_PARAM,
+  isTwaCookieValue,
+  isTwaQuery,
+} from '@/lib/twa';
 
 // Overrides the root layout's title template for just this one page — every
 // other page gets "X | BHOLO", but the homepage itself should read as the
@@ -14,7 +21,23 @@ export const metadata: Metadata = {
   alternates: { canonical: siteUrl },
 };
 
-export default async function RootPage() {
+type RootPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function RootPage({ searchParams }: RootPageProps) {
+  const params = await searchParams;
+  const source = params[TWA_QUERY_PARAM];
+  const cookieStore = await cookies();
+
+  // The installed app sends ?source=twa on its start URL, and middleware
+  // persists that as a cookie. Either signal means this request must not
+  // render the marketing page — a browser visitor and every crawler still see
+  // LandingPage exactly as before.
+  const isTwa =
+    isTwaQuery(Array.isArray(source) ? source[0] : source) ||
+    isTwaCookieValue(cookieStore.get(TWA_COOKIE)?.value);
+
   // A signed-in visitor still goes straight to the feed — this page exists
   // for the logged-out case, which used to redirect to /login before ever
   // rendering anything. See public-paths.ts and landing-page.tsx for why.
@@ -23,6 +46,10 @@ export default async function RootPage() {
 
   if (user) {
     redirect('/home');
+  }
+
+  if (isTwa) {
+    redirect('/welcome');
   }
 
   return <LandingPage />;

@@ -7,6 +7,7 @@ import { SidebarNav } from '@/components/sidebar-nav';
 import { RightSidebar } from '@/components/right-sidebar';
 import { MobileBottomNav } from '@/components/mobile-bottom-nav';
 import { isPublicPath } from '@/lib/public-paths';
+import { detectAndPersistTwaMode } from '@/hooks/use-twa';
 import { useEffect } from 'react';
 
 /**
@@ -25,7 +26,10 @@ export default function AppLayout({ children, modal }: { children: ReactNode; mo
 
   useEffect(() => {
     if (!loading && !user && !isPublic) {
-      router.replace('/');
+      // The middleware already did this at the edge; this is for a client-side
+      // navigation that slips past it. In the installed app the destination is
+      // the welcome screen, never the marketing homepage.
+      router.replace(detectAndPersistTwaMode() ? '/welcome' : '/');
     }
   }, [user, loading, router, isPublic]);
 

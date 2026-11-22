@@ -4,7 +4,22 @@ import type { ReactNode } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
-export function AuthLayout({ children }: { children: ReactNode }) {
+export function AuthLayout({
+  children,
+  chromeless = false,
+}: {
+  children: ReactNode;
+  /** The installed app's welcome screen: form only, no marketing collage. */
+  chromeless?: boolean;
+}) {
+  if (chromeless) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <div className="w-full max-w-sm">{children}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="grid min-h-screen grid-cols-1 bg-background lg:grid-cols-[1fr_auto_1fr]">
       <div className="relative hidden lg:flex items-center justify-center p-8">

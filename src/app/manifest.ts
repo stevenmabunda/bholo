@@ -23,7 +23,10 @@ export default function manifest(): ManifestWithLegacyFields {
     short_name: 'BHOLO',
     description:
       "Join Mzansi's official football timeline. Betway Premiership banter, PSL fixtures and standings, and every club from Chiefs to Pirates to Sundowns — no noise, just football.",
-    start_url: '/home',
+    // The TWA appends ?source=twa so middleware can serve the in-app welcome
+    // screen before the first render, without exposing display-mode detection
+    // to a server that cannot see it.
+    start_url: '/home?source=twa',
     scope: '/',
     display: 'standalone',
     display_override: ['standalone', 'minimal-ui', 'browser'],
@@ -53,21 +56,21 @@ export default function manifest(): ManifestWithLegacyFields {
         name: 'Fixtures',
         short_name: 'Fixtures',
         description: 'This gameweek in the Betway Premiership',
-        url: '/fixtures',
+        url: '/fixtures?source=twa',
         icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }],
       },
       {
         name: 'Standings',
         short_name: 'Standings',
         description: 'The PSL table',
-        url: '/standings',
+        url: '/standings?source=twa',
         icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }],
       },
       {
         name: 'My Club',
         short_name: 'My Club',
         description: 'Your profile and club',
-        url: '/profile',
+        url: '/profile?source=twa',
         icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }],
       },
     ],
