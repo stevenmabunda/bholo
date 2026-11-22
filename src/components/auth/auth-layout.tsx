@@ -14,8 +14,36 @@ export function AuthLayout({
 }) {
   if (chromeless) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
-        <div className="w-full max-w-sm">{children}</div>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <div className="w-full max-w-sm">
+          {/* The installed app's welcome/sign-up screens keep the
+              branded hero, but nothing from the marketing page around it. */}
+          <div className="relative h-64 w-full sm:h-72">
+            <Image
+              src="/mobile-hero2.png"
+              alt="BHOLO fans reacting to a match"
+              fill
+              sizes="(max-width: 640px) 100vw, 384px"
+              className="object-contain"
+              priority
+            />
+          </div>
+
+          <div className="mb-5 flex flex-col items-center text-center">
+            <Image
+              src="/bholo_logo.png"
+              alt="BHOLO"
+              width={120}
+              height={48}
+              priority
+            />
+            <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+              South Africa&apos;s football-exclusive social network.
+            </p>
+          </div>
+
+          {children}
+        </div>
       </div>
     );
   }

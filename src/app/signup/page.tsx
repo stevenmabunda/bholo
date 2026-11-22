@@ -1,28 +1,25 @@
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import { TWA_COOKIE, isTwaCookieValue } from '@/lib/twa';
+import { SignupView } from './signup-view';
 
-'use client';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/use-auth';
-import { AuthLayout } from '@/components/auth/auth-layout';
-import { SignupForm } from '@/components/auth/signup-form';
-import { useEffect } from 'react';
+/**
+ * Browser visitors get the existing split layout. The installed app gets the
+ * chromeless hero + form, so /welcome and this screen look like the same app.
+ * The cookie is read on the server to avoid a flash of the desktop layout
+ * before a client-side detector runs.
+ */
+export default async function SignupPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-export default function SignupPage() {
-    const { user, loading } = useAuth();
-    const router = useRouter();
-  
-    useEffect(() => {
-        if (!loading && user) {
-          router.replace('/home');
-        }
-    }, [user, loading, router]);
-  
-    if (loading || user) {
-      return null; // Or a loading spinner, handled by AuthProvider
-    }
+  if (user) {
+    redirect('/home');
+  }
 
-    return (
-        <AuthLayout>
-            <SignupForm />
-        </AuthLayout>
-    );
+  const cookieStore = await cookies();
+  const chromeless = isTwaCookieValue(cookieStore.get(TWA_COOKIE)?.value);
+
+  return <SignupView chromeless={chromeless} />;
 }
