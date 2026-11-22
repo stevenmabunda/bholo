@@ -4,50 +4,7 @@ import type { ReactNode } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
-export function AuthLayout({
-  children,
-  chromeless = false,
-}: {
-  children: ReactNode;
-  /** The installed app's welcome screen: form only, no marketing collage. */
-  chromeless?: boolean;
-}) {
-  if (chromeless) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-        <div className="w-full max-w-sm">
-          {/* The installed app's welcome/sign-up screens keep the
-              branded hero, but nothing from the marketing page around it. */}
-          <div className="relative h-64 w-full sm:h-72">
-            <Image
-              src="/mobile-hero2.png"
-              alt="BHOLO fans reacting to a match"
-              fill
-              sizes="(max-width: 640px) 100vw, 384px"
-              className="object-contain"
-              priority
-            />
-          </div>
-
-          <div className="mb-5 flex flex-col items-center text-center">
-            <Image
-              src="/bholo_logo.png"
-              alt="BHOLO"
-              width={120}
-              height={48}
-              priority
-            />
-            <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-              South Africa&apos;s football-exclusive social network.
-            </p>
-          </div>
-
-          {children}
-        </div>
-      </div>
-    );
-  }
-
+export function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="grid min-h-screen grid-cols-1 bg-background lg:grid-cols-[1fr_auto_1fr]">
       <div className="relative hidden lg:flex items-center justify-center p-8">

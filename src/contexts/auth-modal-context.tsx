@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 
-type AuthModalMode = 'login' | 'signup';
+export type AuthModalMode = 'login' | 'signup';
 
 type AuthModalContextType = {
   isOpen: boolean;
@@ -27,10 +27,21 @@ const AuthModalContext = createContext<AuthModalContextType | null>(null);
  * them directly — a bookmark, a shared link, or middleware sending a
  * logged-out visitor away from a protected route. This only changes what
  * the landing page's own buttons do.
+ *
+ * `initialOpen`/`initialMode` are for the installed app's /signup route,
+ * which should show the same hero with the sign-up dialog already open.
  */
-export function AuthModalProvider({ children }: { children: ReactNode }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [mode, setMode] = useState<AuthModalMode>('login');
+export function AuthModalProvider({
+  children,
+  initialMode = 'login',
+  initialOpen = false,
+}: {
+  children: ReactNode;
+  initialMode?: AuthModalMode;
+  initialOpen?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(initialOpen);
+  const [mode, setMode] = useState<AuthModalMode>(initialMode);
 
   const value = useMemo<AuthModalContextType>(
     () => ({

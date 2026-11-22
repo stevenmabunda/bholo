@@ -2,13 +2,14 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { TWA_COOKIE, isTwaCookieValue } from '@/lib/twa';
-import { SignupView } from './signup-view';
+import { AuthLayout } from '@/components/auth/auth-layout';
+import { SignupForm } from '@/components/auth/signup-form';
+import { WelcomeHero } from '@/components/welcome-hero';
 
 /**
  * Browser visitors get the existing split layout. The installed app gets the
- * chromeless hero + form, so /welcome and this screen look like the same app.
- * The cookie is read on the server to avoid a flash of the desktop layout
- * before a client-side detector runs.
+ * same hero as /welcome with the sign-up dialog already open. The cookie is
+ * read on the server so there is no flash of the desktop layout first.
  */
 export default async function SignupPage() {
   const supabase = await createClient();
@@ -19,7 +20,15 @@ export default async function SignupPage() {
   }
 
   const cookieStore = await cookies();
-  const chromeless = isTwaCookieValue(cookieStore.get(TWA_COOKIE)?.value);
+  const inApp = isTwaCookieValue(cookieStore.get(TWA_COOKIE)?.value);
 
-  return <SignupView chromeless={chromeless} />;
+  if (inApp) {
+    return <WelcomeHero initialMode="signup" initialOpen />;
+  }
+
+  return (
+    <AuthLayout>
+      <SignupForm />
+    </AuthLayout>
+  );
 }

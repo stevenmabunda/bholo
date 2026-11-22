@@ -28,7 +28,7 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 
-export function LoginForm({ onSwitchToSignup, showIntro = true }: { onSwitchToSignup?: () => void; showIntro?: boolean } = {}) {
+export function LoginForm({ onSwitchToSignup }: { onSwitchToSignup?: () => void } = {}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -90,17 +90,13 @@ export function LoginForm({ onSwitchToSignup, showIntro = true }: { onSwitchToSi
         {/* The old heading was "Sign into your BHOLO account", which tells a
             first-time visitor they are in the wrong place. This page is the
             front door for everyone the middleware turns away, so most people
-            arriving here have never been here before. Hidden on the installed
-            app's welcome screen, where AuthLayout already shows the logo and
-            the same tagline. */}
-        {showIntro && (
-          <div className="text-left">
-            <h1 className="text-2xl font-bold">Join BHOLO</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              South Africa&apos;s football-exclusive social network.
-            </p>
-          </div>
-        )}
+            arriving here have never been here before. */}
+        <div className="text-left">
+          <h1 className="text-2xl font-bold">Join BHOLO</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            South Africa&apos;s football-exclusive social network.
+          </p>
+        </div>
 
         {/* Google leads because it is what almost everyone actually uses, and
             because one button covers both signing up and coming back — a new
