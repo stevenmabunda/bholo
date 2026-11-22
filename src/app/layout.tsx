@@ -1,6 +1,6 @@
 
 import type {Metadata} from 'next';
-import { Inter } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/contexts/auth-context';
@@ -52,9 +52,13 @@ export const metadata: Metadata = {
   },
 };
 
-const inter = Inter({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
+// Self-hosted so `next build` never depends on fonts.googleapis.com being
+// reachable from the build machine. Vercel failed twice with next/font/google
+// ("Cannot read properties of null") while a local build with a warm font
+// cache passed.
+const inter = localFont({
+  src: './fonts/InterVariable.woff2',
+  weight: '100 900',
   variable: '--font-inter',
   display: 'swap',
 });
