@@ -14,6 +14,7 @@ import { queryKeys } from '@/lib/query-keys';
 import { getFeedScroller } from '@/lib/scroll-container';
 import type { ReplyMedia } from '@/components/create-comment';
 import { getRecentPosts } from '@/app/(app)/home/actions';
+import { updatePostAsModerator } from '@/app/actions/post-moderation';
 import { usePathname } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
@@ -708,13 +709,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
     // `media` is only sent when the caller actually changed it — an ordinary
     // text edit must not round-trip the array and risk clobbering a concurrent
-    // media update. Admins get here through posts_update_admin; members only
-    // ever pass `text` for their own posts.
+    // media update.
     const patch: { content: string; media?: PostType['media'] } = { content: data.text };
     if (data.media !== undefined) patch.media = data.media;
 
-    const { error } = await supabase.from('posts').update(patch).eq('id', postId);
-    if (error) throw error;
+    // Server action, not a direct table update: an RLS-blocked edit used to
+    // match zero rows and return no error, so the optimistic UI made it look
+    // saved until reload. The action verifies author/admin and then writes.
+    await updatePostAsModerator({
+      postId,
+      text: data.text,
+      ...(data.media !== undefined ? { media: data.media } : {}),
+    });
 
     const updater = (posts: PostType[]) => posts.map(p => p.id === postId ? { ...p, ...patch } : p)
     updateFeed(updater);
